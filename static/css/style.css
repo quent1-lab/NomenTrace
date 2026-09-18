@@ -1509,3 +1509,83 @@ td.editable:hover {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* --- Écran paramètres ---------------------------------------------------------------- */
+
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1);
+  margin-bottom: var(--espace-4);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.onglet {
+  padding: var(--espace-2) var(--espace-3);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--couleur-texte-doux);
+  font: inherit;
+  cursor: pointer;
+}
+
+.onglet:hover {
+  color: var(--couleur-texte);
+}
+
+.onglet--actif {
+  border-bottom-color: var(--couleur-ardoise);
+  color: var(--couleur-ardoise-fonce);
+  font-weight: 600;
+}
+
+.onglet-parametres > .titre-section p {
+  margin: 0;
+}
+
+.onglet-parametres > .panneau + .panneau {
+  margin-top: var(--espace-4);
+}
+
+.formulaire--page {
+  max-width: 720px;
+  padding: var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+}
+
+.formulaire--page .ligne-champ {
+  grid-template-columns: 200px 1fr;
+}
+
+.table--parametres {
+  width: 100%;
+  background: var(--couleur-surface);
+}
+
+.actions--droite {
+  justify-content: flex-end;
+}
+
+.etiquette--espace {
+  margin-left: var(--espace-2);
+}
+
+.message {
+  margin: var(--espace-3) 0 0;
+  padding: var(--espace-2) var(--espace-3);
+  border-radius: var(--rayon);
+  background: var(--couleur-neutre-fond);
+}
+
+.message-ok {
+  background: var(--couleur-conforme-fond);
+  color: var(--couleur-conforme);
+}
+
+.message-attention {
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+}

@@ -72,6 +72,11 @@ export const api = {
   getSante: () => requete("GET", "/api/sante"),
   getPilotage: () => requete("GET", "/api/pilotage"),
   getParametres: () => requete("GET", "/api/parametres"),
+  patchParametres: (modifs) => requete("PATCH", "/api/parametres", modifs),
+  exporter: () => requete("POST", "/api/export"),
+  getSauvegardes: () => requete("GET", "/api/sauvegardes"),
+  createSauvegarde: () => requete("POST", "/api/sauvegardes"),
+  restaurerSauvegarde: (nom) => requete("POST", `/api/sauvegardes/${encodeURIComponent(nom)}/restaurer`),
   getListes: () => requete("GET", "/api/listes"),
   createValeurListe: (liste, valeurs) => requete("POST", `/api/listes/${liste}`, valeurs),
   patchValeurListe: (liste, code, modifs) =>
@@ -79,10 +84,14 @@ export const api = {
   deleteValeurListe: (liste, code) => requete("DELETE", `/api/listes/${liste}/${encodeURIComponent(code)}`),
 
   getBlocs: () => requete("GET", "/api/blocs"),
+  createBloc: (valeurs) => requete("POST", "/api/blocs", valeurs),
   patchBloc: (code, modifs) => requete("PATCH", `/api/blocs/${encodeURIComponent(code)}`, modifs),
   getProchainId: (code) => requete("GET", `/api/blocs/${encodeURIComponent(code)}/prochain-id`),
 
   getFournisseurs: () => requete("GET", "/api/fournisseurs"),
+  createFournisseur: (valeurs) => requete("POST", "/api/fournisseurs", valeurs),
+  patchFournisseur: (nom, modifs) => requete("PATCH", `/api/fournisseurs/${encodeURIComponent(nom)}`, modifs),
+  archiveFournisseur: (nom) => requete("DELETE", `/api/fournisseurs/${encodeURIComponent(nom)}`),
   getEnsembles: () => requete("GET", "/api/ensembles"),
   getEnsemble: (code) => requete("GET", `/api/ensembles/${encodeURIComponent(code)}`),
   createEnsemble: (valeurs) => requete("POST", "/api/ensembles", valeurs),

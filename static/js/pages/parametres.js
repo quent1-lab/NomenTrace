@@ -1,155 +1,256 @@
-// Écran paramètres (#/parametres) : listes de valeurs propres au projet suivi.
-// Le reste des paramètres (projet, budget, blocs, fournisseurs, sauvegardes) arrive en phase 8.
+// Écran paramètres (#/parametres?onglet=…) : projet, blocs, ensembles, fournisseurs, listes de
+// valeurs, export et sauvegardes.
 
 import { api } from "../api.js";
+import { formatDate, formatNombre } from "../format.js";
+import { champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { remplacerRoute } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
-import { chargerListes, toutesLesListes } from "../valeurs.js";
+import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
+import { afficherListes } from "./parametres_listes.js";
 
-const LISTES = {
-  mode_appro: {
-    titre: "Modes d'approvisionnement",
-    aide: "Comment un composant est obtenu. Seul « Achat » entre dans le coût estimé et les commandes.",
-  },
-  statut_appro: { titre: "Statuts d'appro", aide: "Suivi manuel de l'approvisionnement d'un composant." },
-  statut_choix: { titre: "Statuts de choix", aide: "Degré de certitude sur le choix technique." },
-  criticite: { titre: "Criticités", aide: "« Bloquant » alimente l'alerte des bloquants non commandés." },
-  type_mouvement: {
-    titre: "Types de mouvement de stock",
-    aide: "Chaque type impose une entrée ou une sortie, ou laisse le sens libre (inventaire). Les types de réception et de montage sont gérés par l'outil.",
-  },
-};
+const ONGLETS = [
+  ["projet", "Projet", afficherOngletProjet],
+  ["blocs", "Blocs fonctionnels", afficherOngletBlocs],
+  ["ensembles", "Ensembles", afficherOngletEnsembles],
+  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs],
+  ["listes", "Listes de valeurs", afficherListes],
+  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes],
+];
 
-const SENS = [["Entree", "Entrée"], ["Sortie", "Sortie"], ["", "Libre"]];
+// L'en-tête (nom du projet) se relit aussitôt après une modification du projet.
+function signalerProjetModifie() {
+  window.dispatchEvent(new Event("nomentrace:projet"));
+}
 
-let conteneur = null;
+function message(texte, classe = "message-info") {
+  return el("p", { class: `message ${classe}` }, texte);
+}
 
-async function executer(action) {
+// --- Projet -----------------------------------------------------------------------------------
+
+const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux" };
+const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut" };
+
+async function afficherOngletProjet(cible) {
+  const parametres = await api.getParametres();
+  const nombre = (texte) => (texte === null || texte === undefined ? null : Number(texte));
+  const tva = nombre(parametres.taux_tva_defaut);
+  const prefixe = champTexte("prefixe_id", parametres.prefixe_id ?? "", { maxlength: "10", autocomplete: "off" });
+  prefixe.addEventListener("input", () => {
+    prefixe.value = prefixe.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  });
+  const retour = el("div");
+  const formulaire = el(
+    "form",
+    { class: "formulaire formulaire--page", novalidate: true },
+    ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true, aide: "Affiché sous « Nomentrace » dans l'en-tête." }),
+    ligneChamp("Préfixe des identifiants", prefixe, {
+      requis: true,
+      aide:
+        "Lettres majuscules et chiffres. Il ne s'applique qu'aux composants créés ensuite : " +
+        "les identifiants existants ne sont jamais renommés, car tout l'historique y est rattaché.",
+    }),
+    ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2), { aide: "Budget global du projet, en euros hors taxes." }),
+    ligneChamp("TVA par défaut (%)", champNombre("taux_tva_defaut", tva === null ? null : tva * 100, 1), {
+      aide: "Sert à convertir en HT un prix relevé TTC quand le composant n'a pas de taux propre.",
+    }),
+    el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
+    retour,
+  );
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const lu = lireFormulaire(formulaire, DESCRIPTION_PROJET, LIBELLES_PROJET);
+    if (lu.erreur) return afficherErreur(lu.erreur);
+    if (!lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
+    if (!lu.valeurs.prefixe_id) return afficherErreur("Le préfixe des identifiants est obligatoire.");
+    const modifs = {};
+    for (const [cle, valeur] of Object.entries(lu.valeurs)) {
+      const actuelle = cle === "nom_projet" || cle === "prefixe_id" ? parametres[cle] : nombre(parametres[cle]);
+      const identique = typeof valeur === "number" && actuelle !== null ? Math.abs(valeur - actuelle) < 1e-9 : valeur === actuelle;
+      if (!identique) modifs[cle] = valeur;
+    }
+    if (!Object.keys(modifs).length) return retour.replaceChildren(message("Rien à enregistrer : aucune valeur n'a changé."));
+    if (
+      modifs.prefixe_id &&
+      parametres.prefixe_id &&
+      !confirm(
+        `Changer le préfixe « ${parametres.prefixe_id} » en « ${modifs.prefixe_id} » ?\n\n` +
+          `Les prochains composants s'appelleront ${modifs.prefixe_id}-BLOC-001, etc. ` +
+          `Les identifiants existants gardent l'ancien préfixe : ils ne sont pas renommés.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.patchParametres(modifs);
+      masquerErreur();
+      signalerProjetModifie();
+      await afficherOngletProjet(cible);
+      cible.querySelector("form").append(message("Paramètres enregistrés.", "message-ok"));
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  cible.replaceChildren(formulaire);
+}
+
+// --- Export et sauvegardes --------------------------------------------------------------------
+
+function formatTaille(octets) {
+  if (octets < 1024 * 1024) return `${formatNombre(octets / 1024, 0)} Ko`;
+  return `${formatNombre(octets / (1024 * 1024), 1)} Mo`;
+}
+
+function formatHorodatage(iso) {
+  return `${formatDate(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
+}
+
+async function restaurer(sauvegarde, rafraichir) {
+  const quand = formatHorodatage(sauvegarde.date);
+  if (!confirm(`Restaurer la sauvegarde du ${quand} ?\n\nToutes les modifications faites depuis seront remplacées.`)) return;
+  if (
+    !confirm(
+      "Confirmer la restauration.\n\nL'état actuel est d'abord sauvegardé : " +
+        "on pourra y revenir en restaurant cette nouvelle sauvegarde, en tête de liste.",
+    )
+  ) {
+    return;
+  }
   try {
-    await action();
+    const resultat = await api.restaurerSauvegarde(sauvegarde.nom);
     masquerErreur();
-    await chargerListes();
-    rendre();
+    const migrations =
+      resultat.version_sauvegarde < resultat.version_schema
+        ? ` La sauvegarde datait du schéma ${resultat.version_sauvegarde} : elle a été mise à niveau (schéma ${resultat.version_schema}).`
+        : "";
+    alert(`Base restaurée depuis la sauvegarde du ${quand}.${migrations}\n\nL'état précédent est conservé dans ${resultat.securite}. La page va se recharger.`);
+    window.location.reload();
   } catch (erreur) {
     afficherErreur(erreur);
+    await rafraichir();
   }
 }
 
-function champLibelle(liste, valeur) {
-  const champ = el("input", { class: "champ", type: "text", value: valeur.libelle, "aria-label": `Libellé de ${valeur.code}` });
-  const valider = () => {
-    const texte = champ.value.trim();
-    if (!texte || texte === valeur.libelle) {
-      champ.value = valeur.libelle;
-      return;
+function sectionExport(retour) {
+  const bouton = el("button", { type: "button", class: "bouton" }, "Exporter maintenant");
+  bouton.addEventListener("click", async () => {
+    bouton.disabled = true;
+    try {
+      const resultat = await api.exporter();
+      masquerErreur();
+      retour.replaceChildren(
+        resultat.statut === "ok"
+          ? message("Export écrit : echange/exports/nomenclature.xlsx.", "message-ok")
+          : message("Le fichier d'export est ouvert dans Excel : il sera réécrit dès sa fermeture.", "message-attention"),
+      );
+    } catch (erreur) {
+      afficherErreur(erreur);
+    } finally {
+      bouton.disabled = false;
     }
-    executer(() => api.patchValeurListe(liste, valeur.code, { libelle: texte }));
-  };
-  champ.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") valider();
-    if (e.key === "Escape") champ.value = valeur.libelle;
   });
-  champ.addEventListener("blur", valider);
-  return champ;
-}
-
-function selectSens(liste, valeur) {
-  if (valeur.systeme) return el("span", { class: "texte-doux" }, SENS.find(([c]) => c === (valeur.sens ?? ""))[1]);
-  const select = el("select", { class: "filtre" }, SENS.map(([code, texte]) => el("option", { value: code, selected: code === (valeur.sens ?? "") }, texte)));
-  select.addEventListener("change", () => executer(() => api.patchValeurListe(liste, valeur.code, { sens: select.value || null })));
-  return select;
-}
-
-function deplacer(liste, valeurs, index, decalage) {
-  const voisin = valeurs[index + decalage];
-  if (!voisin) return;
-  const courante = valeurs[index];
-  // Échange des rangs ; si deux valeurs ont le même ordre, on les sépare d'abord.
-  const ordreCourant = courante.ordre === voisin.ordre ? courante.ordre + decalage : voisin.ordre;
-  executer(async () => {
-    await api.patchValeurListe(liste, courante.code, { ordre: ordreCourant });
-    await api.patchValeurListe(liste, voisin.code, { ordre: courante.ordre });
-  });
-}
-
-function ligne(liste, valeurs, index) {
-  const v = valeurs[index];
-  const actif = el("input", { type: "checkbox", checked: Boolean(v.actif), disabled: Boolean(v.systeme), "aria-label": `${v.libelle} active` });
-  actif.addEventListener("change", () => executer(() => api.patchValeurListe(liste, v.code, { actif: actif.checked ? 1 : 0 })));
-  const supprimer = v.systeme
-    ? el("span", { class: "etiquette", title: "Valeur utilisée par les calculs : ni supprimable ni désactivable" }, "système")
-    : el("button", {
-        type: "button",
-        class: "bouton-icone",
-        title: "Supprimer (seulement si la valeur n'est utilisée nulle part)",
-        onclick: () => {
-          if (confirm(`Supprimer « ${v.libelle} » ?`)) executer(() => api.deleteValeurListe(liste, v.code));
-        },
-      }, "×");
-  return el(
-    "tr",
-    { class: v.actif ? "" : "ligne--inactive" },
-    el("td", { class: "ordre" },
-      el("button", { type: "button", class: "bouton-icone", title: "Monter", disabled: index === 0, onclick: () => deplacer(liste, valeurs, index, -1) }, "▲"),
-      el("button", { type: "button", class: "bouton-icone", title: "Descendre", disabled: index === valeurs.length - 1, onclick: () => deplacer(liste, valeurs, index, 1) }, "▼"),
-    ),
-    el("td", {}, champLibelle(liste, v)),
-    el("td", { class: "code texte-doux" }, v.code),
-    liste === "type_mouvement" ? el("td", {}, selectSens(liste, v)) : null,
-    el("td", {}, el("label", { class: "filtre-case" }, actif, "active")),
-    el("td", { class: "nombre" }, supprimer),
-  );
-}
-
-function formulaireAjout(liste) {
-  const libelle = el("input", { class: "champ", type: "text", placeholder: "Nouvelle valeur…", maxlength: "60" });
-  const sens = liste === "type_mouvement" ? el("select", { class: "filtre" }, SENS.map(([code, texte]) => el("option", { value: code }, texte))) : null;
-  const formulaire = el("form", { class: "formulaire-ligne" }, libelle, sens, el("button", { type: "submit", class: "bouton" }, "Ajouter"));
-  formulaire.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const texte = libelle.value.trim();
-    if (!texte) return afficherErreur("Saisir le libellé de la nouvelle valeur.");
-    const corps = { libelle: texte };
-    if (sens) corps.sens = sens.value || null;
-    executer(() => api.createValeurListe(liste, corps));
-  });
-  return formulaire;
-}
-
-function sectionListe(liste, valeurs) {
-  const { titre, aide } = LISTES[liste];
-  const entetes = ["", "Libellé affiché", "Code stocké", liste === "type_mouvement" ? "Sens" : null, "", ""].filter((t) => t !== null);
   return el(
     "section",
     { class: "panneau" },
-    el("h2", {}, titre),
-    el("p", { class: "texte-doux texte-petit" }, aide),
-    el(
-      "table",
-      { class: "table table--dense table--listes" },
-      el("thead", {}, el("tr", {}, entetes.map((t) => el("th", {}, t)))),
-      el("tbody", {}, valeurs.map((_, i) => ligne(liste, valeurs, i))),
-    ),
-    formulaireAjout(liste),
-  );
-}
-
-function rendre() {
-  const listes = toutesLesListes();
-  conteneur.replaceChildren(
-    el("h1", {}, "Paramètres"),
+    el("h2", {}, "Export Excel"),
     el(
       "p",
       { class: "texte-doux" },
-      "Les listes ci-dessous portent le vocabulaire du projet suivi. Renommer une valeur ne change que son libellé affiché : " +
-        "le code stocké reste, et avec lui l'historique. Une valeur utilisée se désactive au lieu de se supprimer.",
+      "Le classeur d'export est réécrit automatiquement quelques secondes après chaque modification. " +
+        "C'est une copie de lecture : les changements faits dedans ne reviennent pas dans l'outil.",
     ),
-    el("div", { class: "grille-listes" }, Object.keys(LISTES).map((liste) => sectionListe(liste, listes[liste] ?? []))),
-    el("p", { class: "texte-doux texte-petit" }, "Nom du projet, budget, blocs, fournisseurs et sauvegardes : à venir dans cet écran."),
+    el("div", { class: "actions" }, bouton),
+    retour,
   );
 }
 
-export async function afficherParametres(cible) {
-  conteneur = cible;
-  await chargerListes();
-  rendre();
+async function afficherOngletSauvegardes(cible) {
+  const rafraichir = () => afficherOngletSauvegardes(cible);
+  const sauvegardes = await api.getSauvegardes();
+  const retourExport = el("div");
+  const retourSauvegarde = el("div");
+  const sauvegarder = el("button", { type: "button", class: "bouton" }, "Sauvegarder maintenant");
+  sauvegarder.addEventListener("click", async () => {
+    sauvegarder.disabled = true;
+    try {
+      const { nom } = await api.createSauvegarde();
+      masquerErreur();
+      await rafraichir();
+      cible.querySelector(".retour-sauvegarde").replaceChildren(message(`Sauvegarde créée : ${nom}.`, "message-ok"));
+    } catch (erreur) {
+      afficherErreur(erreur);
+      sauvegarder.disabled = false;
+    }
+  });
+  retourSauvegarde.className = "retour-sauvegarde";
+  const lignes = sauvegardes.map((s, rang) =>
+    el(
+      "tr",
+      {},
+      el("td", {}, formatHorodatage(s.date), rang === 0 ? el("span", { class: "etiquette etiquette--espace" }, "la plus récente") : null),
+      el("td", { class: "texte-doux" }, s.nom),
+      el("td", { class: "nombre" }, formatTaille(s.taille)),
+      el("td", { class: "nombre" }, el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => restaurer(s, rafraichir) }, "Restaurer")),
+    ),
+  );
+  cible.replaceChildren(
+    sectionExport(retourExport),
+    el(
+      "section",
+      { class: "panneau" },
+      el("div", { class: "titre-section" }, el("h2", {}, "Sauvegardes de la base"), sauvegarder),
+      el(
+        "p",
+        { class: "texte-doux" },
+        "Une sauvegarde est prise à chaque démarrage et avant chaque restauration ; les 20 plus récentes sont gardées " +
+          "dans echange/sauvegardes. Elles ne contiennent que la base : les documents joints (echange/documents) se copient à part.",
+      ),
+      retourSauvegarde,
+      lignes.length
+        ? el(
+            "table",
+            { class: "table table--dense table--parametres" },
+            el("thead", {}, el("tr", {}, el("th", {}, "Date"), el("th", {}, "Fichier"), el("th", { class: "nombre" }, "Taille"), el("th", {}))),
+            el("tbody", {}, lignes),
+          )
+        : el("p", { class: "texte-doux" }, "Aucune sauvegarde pour l'instant."),
+    ),
+  );
+}
+
+// --- Onglets ----------------------------------------------------------------------------------
+
+export async function afficherParametres(conteneur, parametres) {
+  const demande = parametres?.get("onglet");
+  const courant = ONGLETS.some(([code]) => code === demande) ? demande : "projet";
+  const corps = el("div", { class: "onglet-parametres" });
+  const barre = el(
+    "nav",
+    { class: "onglets", role: "tablist" },
+    ONGLETS.map(([code, titre]) =>
+      el(
+        "button",
+        {
+          type: "button",
+          role: "tab",
+          class: code === courant ? "onglet onglet--actif" : "onglet",
+          "aria-selected": code === courant ? "true" : "false",
+          onclick: () => {
+            remplacerRoute("/parametres", { onglet: code === "projet" ? "" : code });
+            afficherParametres(conteneur, new URLSearchParams({ onglet: code }));
+          },
+        },
+        titre,
+      ),
+    ),
+  );
+  conteneur.replaceChildren(el("h1", {}, "Paramètres"), barre, corps);
+  const [, , afficher] = ONGLETS.find(([code]) => code === courant);
+  try {
+    await afficher(corps);
+  } catch (erreur) {
+    corps.replaceChildren(el("p", { class: "texte-doux" }, "Chargement impossible."));
+    afficherErreur(erreur);
+  }
 }

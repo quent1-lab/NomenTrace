@@ -106,6 +106,7 @@ async function rafraichirEntete() {
 // L'export part environ 2 s après une écriture : on relit son état un peu plus tard.
 surEcriture(() => setTimeout(rafraichirEntete, 3500));
 setInterval(rafraichirEntete, 15000);
+window.addEventListener("nomentrace:projet", rafraichirEntete);
 
 async function demarrer() {
   try {

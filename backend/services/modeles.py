@@ -5,6 +5,7 @@ vides pour les ajouts. Une feuille cachée l'identifie (type, code, date) pour q
 reconnaisse quel que soit le nom du fichier.
 """
 
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,8 @@ from backend.services.import_colonnes import (
     NOM_FEUILLE_META,
     Colonne,
 )
+
+journal_log = logging.getLogger(__name__)
 
 LIGNES_VIDES = 50
 FOND_ENTETE = PatternFill("solid", fgColor="2A3B52")
@@ -238,7 +241,13 @@ def _construire(
 def _enregistrer(classeur: Workbook, dossier: Path, type_modele: str, code: str) -> Path:
     dossier.mkdir(parents=True, exist_ok=True)
     chemin = dossier / f"modele_{type_modele}_{code}_{datetime.now():%Y%m%d}.xlsx"
-    classeur.save(chemin)
+    try:
+        classeur.save(chemin)
+    except PermissionError:
+        # Le modèle du jour est ouvert dans Excel : on en écrit un autre à côté.
+        chemin = chemin.with_name(f"{chemin.stem}_{datetime.now():%H%M%S}.xlsx")
+        journal_log.warning("Modèle verrouillé, enregistré sous %s", chemin.name)
+        classeur.save(chemin)
     return chemin
 
 

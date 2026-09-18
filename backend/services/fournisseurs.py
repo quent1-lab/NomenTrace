@@ -22,9 +22,15 @@ CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
 
 
 def list_fournisseurs(conn: sqlite3.Connection) -> list[dict]:
-    """Renvoie les fournisseurs non archivés, triés par nom."""
+    """Renvoie les fournisseurs non archivés, triés par nom, avec leur nombre d'usages."""
     return db.fetch_all(
-        conn, "SELECT * FROM fournisseur WHERE archive = 0 ORDER BY nom COLLATE NOCASE"
+        conn,
+        "SELECT f.*,"
+        " (SELECT COUNT(*) FROM composant c WHERE c.fournisseur_nom = f.nom AND c.archive = 0)"
+        " AS nb_composants,"
+        " (SELECT COUNT(*) FROM commande m WHERE m.fournisseur_nom = f.nom AND m.archive = 0)"
+        " AS nb_commandes"
+        " FROM fournisseur f WHERE f.archive = 0 ORDER BY f.nom COLLATE NOCASE",
     )
 
 
@@ -37,13 +43,25 @@ def get_fournisseur(conn: sqlite3.Connection, nom: str) -> dict:
 
 
 def create_fournisseur(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
-    """Crée un fournisseur ; refuse un nom déjà pris."""
+    """Crée un fournisseur ; refuse un nom déjà pris, réactive un fournisseur archivé."""
+    nom = valeurs["nom"]
     with db.transaction(conn):
-        if db.fetch_one(conn, "SELECT 1 FROM fournisseur WHERE nom = ?", (valeurs["nom"],)):
-            raise Conflit(f"Le fournisseur « {valeurs['nom']} » existe déjà.")
-        db.insert_row(conn, "fournisseur", valeurs)
-        journal.write_journal(conn, "fournisseur", valeurs["nom"], "creation", None, "créé")
-    return get_fournisseur(conn, valeurs["nom"])
+        existant = db.fetch_one(conn, "SELECT archive FROM fournisseur WHERE nom = ?", (nom,))
+        if existant is not None and not existant["archive"]:
+            raise Conflit(f"Le fournisseur « {nom} » existe déjà.")
+        if existant is not None:
+            renseignes = {cle: v for cle, v in valeurs.items() if v is not None and cle != "nom"}
+            journal.update_with_journal(
+                conn,
+                "fournisseur",
+                nom,
+                {**renseignes, "archive": 0},
+                CHAMPS_MODIFIABLES | {"archive"},
+            )
+        else:
+            db.insert_row(conn, "fournisseur", valeurs)
+            journal.write_journal(conn, "fournisseur", nom, "creation", None, "créé")
+    return get_fournisseur(conn, nom)
 
 
 def patch_fournisseur(conn: sqlite3.Connection, nom: str, modifications: dict[str, Any]) -> dict:
@@ -56,6 +74,15 @@ def patch_fournisseur(conn: sqlite3.Connection, nom: str, modifications: dict[st
             raise Conflit(f"Le fournisseur « {nouveau_nom} » existe déjà.")
         journal.update_with_journal(conn, "fournisseur", nom, modifications, CHAMPS_MODIFIABLES)
     return get_fournisseur(conn, nouveau_nom)
+
+
+def archive_fournisseur(conn: sqlite3.Connection, nom: str) -> None:
+    """Archive un fournisseur : il disparaît des listes, les composants qui le citent le gardent."""
+    with db.transaction(conn):
+        get_fournisseur(conn, nom)
+        journal.update_with_journal(
+            conn, "fournisseur", nom, {"archive": 1}, frozenset({"archive"})
+        )
 
 
 def ensure_fournisseur(conn: sqlite3.Connection, nom: str | None) -> None:

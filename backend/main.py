@@ -26,6 +26,9 @@ from backend.routes import (
     pilotage,
     sante,
 )
+from backend.routes import (
+    sauvegardes as routes_sauvegardes,
+)
 from backend.services import import_initial, sauvegardes
 from backend.services.export_excel import PlanificateurExport
 
@@ -179,6 +182,7 @@ def create_app(
         listes,
         documents,
         imports,
+        routes_sauvegardes,
     )
     for module in modules:
         app.include_router(module.router)

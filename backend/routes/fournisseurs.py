@@ -23,6 +23,12 @@ def create_fournisseur(corps: FournisseurCreation, conn: Conn) -> dict:
     return fournisseurs.create_fournisseur(conn, corps.model_dump())
 
 
+@router.delete("/{nom}")
+def archive_fournisseur(nom: str, conn: Conn) -> dict:
+    fournisseurs.archive_fournisseur(conn, nom)
+    return {"statut": "archivé"}
+
+
 @router.patch("/{nom}")
 def update_fournisseur(nom: str, corps: FournisseurModif, conn: Conn) -> dict:
     return fournisseurs.patch_fournisseur(conn, nom, corps.model_dump(exclude_unset=True))

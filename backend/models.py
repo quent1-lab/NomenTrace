@@ -49,6 +49,15 @@ class SanteReponse(BaseModel):
     export_en_attente: bool = False
 
 
+class BlocCreation(Modele):
+    code: str = Field(pattern=r"^[A-Z]{2,4}$")
+    nom: str = Field(min_length=1)
+    ordre: int | None = None
+    budget_cible_ht: float | None = Field(default=None, ge=0)
+    responsable: str | None = None
+    description: str | None = None
+
+
 class BlocModif(Modele):
     nom: str | None = Field(default=None, min_length=1)
     ordre: int | None = None
