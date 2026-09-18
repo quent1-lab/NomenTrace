@@ -18,6 +18,7 @@ from backend.routes import (
     blocs,
     commandes,
     composants,
+    documents,
     ensembles,
     fournisseurs,
     listes,
@@ -143,6 +144,7 @@ def create_app(
     app = FastAPI(title="Nomentrace", lifespan=lifespan)
     app.state.chemin_base = base
     app.state.export = export
+    app.state.dossier_documents = echange / "documents"
     _install_error_handlers(app)
 
     @app.middleware("http")
@@ -151,6 +153,10 @@ def create_app(
     ) -> Response:
         """Toute écriture réussie sur l'API programme un export Excel."""
         reponse = await suite(request)
+        if not request.url.path.startswith("/api/"):
+            # Fichiers de l'interface revalidés à chaque chargement : après une mise à jour,
+            # le navigateur ne doit pas garder d'anciens modules JavaScript en cache.
+            reponse.headers["Cache-Control"] = "no-cache"
         if (
             request.method in METHODES_ECRITURE
             and request.url.path.startswith("/api/")
@@ -160,7 +166,9 @@ def create_app(
             export.signaler()
         return reponse
 
-    modules = (sante, pilotage, blocs, ensembles, fournisseurs, composants, commandes, listes)
+    modules = (
+        sante, pilotage, blocs, ensembles, fournisseurs, composants, commandes, listes, documents,
+    )  # fmt: skip
     for module in modules:
         app.include_router(module.router)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")

@@ -89,8 +89,8 @@ function ligne(liste, valeurs, index) {
     "tr",
     { class: v.actif ? "" : "ligne--inactive" },
     el("td", { class: "ordre" },
-      el("button", { type: "button", class: "bouton-icone", title: "Monter", disabled: index === 0, onclick: () => deplacer(liste, valeurs, index, -1) }, "↑"),
-      el("button", { type: "button", class: "bouton-icone", title: "Descendre", disabled: index === valeurs.length - 1, onclick: () => deplacer(liste, valeurs, index, 1) }, "↓"),
+      el("button", { type: "button", class: "bouton-icone", title: "Monter", disabled: index === 0, onclick: () => deplacer(liste, valeurs, index, -1) }, "▲"),
+      el("button", { type: "button", class: "bouton-icone", title: "Descendre", disabled: index === valeurs.length - 1, onclick: () => deplacer(liste, valeurs, index, 1) }, "▼"),
     ),
     el("td", {}, champLibelle(liste, v)),
     el("td", { class: "code texte-doux" }, v.code),
@@ -143,7 +143,7 @@ function rendre() {
       "Les listes ci-dessous portent le vocabulaire du projet suivi. Renommer une valeur ne change que son libellé affiché : " +
         "le code stocké reste, et avec lui l'historique. Une valeur utilisée se désactive au lieu de se supprimer.",
     ),
-    el("div", { class: "grille-2" }, Object.keys(LISTES).map((liste) => sectionListe(liste, listes[liste] ?? []))),
+    el("div", { class: "grille-listes" }, Object.keys(LISTES).map((liste) => sectionListe(liste, listes[liste] ?? []))),
     el("p", { class: "texte-doux texte-petit" }, "Nom du projet, budget, blocs, fournisseurs et sauvegardes : à venir dans cet écran."),
   );
 }

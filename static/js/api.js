@@ -35,6 +35,25 @@ async function requete(methode, chemin, corps) {
   return donnees;
 }
 
+// Envoi de fichiers : le navigateur fixe lui-même l'en-tête multipart.
+async function requeteFormulaire(chemin, donnees) {
+  let reponse;
+  try {
+    reponse = await fetch(chemin, { method: "POST", body: donnees });
+  } catch {
+    throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
+  }
+  const resultat = await reponse.json().catch(() => null);
+  if (!reponse.ok) throw new ErreurApi(resultat?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
+  ecouteursEcriture.forEach((rappel) => rappel());
+  return resultat;
+}
+
+// Adresse d'ouverture d'un document joint (lien, pas un appel fetch).
+export function lienFichierDocument(id) {
+  return `/api/documents/${id}/fichier`;
+}
+
 function avecParametres(chemin, parametres = {}) {
   const requeteUrl = new URLSearchParams();
   for (const [cle, valeur] of Object.entries(parametres)) {
@@ -88,6 +107,14 @@ export const api = {
   getStock: () => requete("GET", "/api/stock"),
   getMouvements: (filtres) => requete("GET", avecParametres("/api/mouvements", filtres)),
   createMouvement: (valeurs) => requete("POST", "/api/mouvements", valeurs),
+
+  getDocumentsCommande: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}/documents`),
+  getDocumentsComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}/documents`),
+  deposerDocumentsCommande: (numero, donnees) =>
+    requeteFormulaire(`/api/commandes/${encodeURIComponent(numero)}/documents`, donnees),
+  deposerDocumentsComposant: (id, donnees) =>
+    requeteFormulaire(`/api/composants/${encodeURIComponent(id)}/documents`, donnees),
+  retirerDocument: (id) => requete("DELETE", `/api/documents/${id}`),
 
   createAffectation: (ensemble, valeurs) =>
     requete("POST", `/api/ensembles/${encodeURIComponent(ensemble)}/affectations`, valeurs),

@@ -20,6 +20,7 @@ CLES_PRIMAIRES: dict[str, str] = {
     "commande": "numero",
     "ligne_commande": "id",
     "parametre": "cle",
+    "document": "id",
 }
 
 

@@ -1257,14 +1257,50 @@ td.editable:hover {
   vertical-align: middle;
 }
 
+.grille-listes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: var(--espace-4);
+  align-items: start;
+}
+
+.grille-listes > * {
+  min-width: 0;
+}
+
 .table--listes .champ {
-  min-width: 180px;
+  min-width: 120px;
 }
 
 .table--listes .ordre {
   white-space: nowrap;
 }
 
+.table--listes .ordre .bouton-icone {
+  font-size: 11px;
+}
+
+.bouton-icone:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .ligne--inactive td {
   opacity: 0.55;
+}
+
+/* --- Documents joints ------------------------------------------------------------------ */
+
+.formulaire-depot {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.formulaire-depot .champ {
+  width: 240px;
+}
+
+.champ-fichier {
+  max-width: 320px;
+  font: inherit;
 }

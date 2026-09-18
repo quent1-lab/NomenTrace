@@ -1,6 +1,7 @@
 // Détail d'une commande (#/achats/NUMERO) : lignes, ajout de ligne, réception.
 
 import { api } from "../api.js";
+import { sectionDocuments } from "../documents.js";
 import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
@@ -255,6 +256,17 @@ function rendre() {
           formulaireAjout(),
           el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %. « Attendu par » liste les ensembles où le composant est affecté.`),
         ),
+    el(
+      "div",
+      { class: "panneau" },
+      sectionDocuments({
+        documents: etat.documents,
+        typeParDefaut: etat.commande.type === "Devis" ? "Devis" : "Bon de commande",
+        aide: "Devis, bon de commande, facture, bon de livraison… Ils apparaissent aussi dans la fiche de chaque composant de la commande.",
+        deposer: (donnees) => api.deposerDocumentsCommande(etat.numero, donnees),
+        surChangement: recharger,
+      }),
+    ),
   );
 }
 
@@ -270,12 +282,13 @@ async function archiver() {
 }
 
 async function recharger() {
-  const [commande, lignes, composants] = await Promise.all([
+  const [commande, lignes, composants, documents] = await Promise.all([
     api.getCommande(etat.numero),
     api.getLignes(etat.numero),
     api.getComposants({ tri: "id" }),
+    api.getDocumentsCommande(etat.numero),
   ]);
-  Object.assign(etat, { commande, lignes, composants });
+  Object.assign(etat, { commande, lignes, composants, documents });
   rendre();
 }
 

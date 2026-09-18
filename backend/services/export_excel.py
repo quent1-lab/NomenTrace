@@ -39,6 +39,7 @@ TABLES: tuple[str, ...] = (
     "commande",
     "ligne_commande",
     "mouvement_stock",
+    "document",
     "journal",
 )
 FORMAT_MONTANT: str = "#,##0.00"

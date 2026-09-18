@@ -226,6 +226,23 @@ class ValeurListeModif(Modele):
     sens: Sens | None = None
 
 
+TypeDocument = Literal[
+    "Devis",
+    "Bon de commande",
+    "Facture",
+    "Bon de livraison",
+    "Fiche technique",
+    "Plan",
+    "Photo",
+    "Autre",
+]
+
+
+class DocumentModif(Modele):
+    type_document: TypeDocument | None = None
+    commentaire: str | None = None
+
+
 class ReceptionLigne(Modele):
     id: int
     qte: int = Field(ge=0)

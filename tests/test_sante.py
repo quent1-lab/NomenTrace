@@ -19,3 +19,7 @@ def test_page_servie_avec_titre(client: TestClient) -> None:
     reponse = client.get("/")
     assert reponse.status_code == 200
     assert "<title>Nomentrace</title>" in reponse.text
+
+
+def test_interface_revalidee_a_chaque_chargement(client: TestClient) -> None:
+    assert client.get("/js/app.js").headers["cache-control"] == "no-cache"

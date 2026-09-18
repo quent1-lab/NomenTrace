@@ -2,6 +2,7 @@
 // ensembles (modifiables), ses lignes de commande, ses mouvements et son historique.
 
 import { api } from "../api.js";
+import { sectionDocuments } from "../documents.js";
 import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
@@ -273,8 +274,9 @@ function sectionHistorique(journal) {
 
 export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture }) {
   let fiche;
+  let documents;
   try {
-    fiche = await api.getComposant(id);
+    [fiche, documents] = await Promise.all([api.getComposant(id), api.getDocumentsComposant(id)]);
   } catch (erreur) {
     afficherErreur(erreur);
     surFermeture();
@@ -320,6 +322,14 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
       section("Composant", zoneChamps),
       sectionAffectations(fiche, ensembles, rafraichir),
       sectionCommandes(fiche.lignes_commande),
+      sectionDocuments({
+        documents,
+        avecSource: true,
+        typeParDefaut: "Fiche technique",
+        aide: "Documents propres au composant (fiche technique, plan, photo) et documents des commandes où il figure.",
+        deposer: (donnees) => api.deposerDocumentsComposant(id, donnees),
+        surChangement: rafraichir,
+      }),
       sectionMouvements(fiche.mouvements),
       sectionHistorique(fiche.journal),
     ],
