@@ -1,0 +1,26 @@
+# Environnement Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Données vivantes : la base n'est jamais versionnée
+data/*
+!data/.gitkeep
+
+# Fichiers d'échange générés
+echange/exports/*
+echange/imports/*
+echange/modeles/*
+echange/sauvegardes/*
+!echange/*/.gitkeep
+
+# Fichiers temporaires Office (Excel ouvert)
+~$*
+
+# Système et éditeurs
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

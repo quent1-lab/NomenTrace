@@ -1,0 +1,18 @@
+[project]
+name = "nomentrace"
+version = "0.1.0"
+description = "Nomentrace : nomenclature et traçabilité des composants d'un projet technique"
+requires-python = ">=3.14"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = [".venv", "static/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S608", "BLE", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

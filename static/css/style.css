@@ -1,0 +1,66 @@
+/* Nomentrace — feuille de style unique, écrite à la main. */
+
+:root {
+  --couleur-fond: #f5f6f8;
+  --couleur-surface: #ffffff;
+  --couleur-texte: #1f2933;
+  --couleur-texte-doux: #616e7c;
+  --couleur-bordure: #d9dee4;
+  --couleur-ardoise: #3e5573;
+  --couleur-ardoise-fonce: #2c3e56;
+  --couleur-conforme: #2f855a;
+  --couleur-surveiller: #c05621;
+  --couleur-alerte: #c53030;
+  --couleur-neutre: #8a96a3;
+
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 24px;
+
+  --rayon: 4px;
+  --police: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --taille-texte: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--police);
+  font-size: var(--taille-texte);
+  color: var(--couleur-texte);
+  background: var(--couleur-fond);
+}
+
+.entete {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-ardoise-fonce);
+  color: #ffffff;
+}
+
+.entete__titre {
+  margin: 0;
+  font-size: 18px;
+}
+
+.entete__projet {
+  margin: 0;
+  color: #c8d2de;
+}
+
+.bandeau-erreur {
+  padding: var(--espace-2) var(--espace-4);
+  background: var(--couleur-alerte);
+  color: #ffffff;
+}
+
+.contenu {
+  padding: var(--espace-4);
+}
