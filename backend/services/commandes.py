@@ -1,7 +1,9 @@
 """Commandes et lignes de commande."""
 
+import json
 import re
 import sqlite3
+from datetime import date
 from typing import Any
 
 from backend import db
@@ -30,6 +32,26 @@ CHAMPS_LIGNE: frozenset[str] = frozenset(
     {"qte_commandee", "pu_ht_devis", "qte_recue", "date_reception", "statut_ligne", "commentaire"}
 )
 _MOTIF_NUMERO = re.compile(r"^CMD-(\d+)$")
+STATUTS_ENGAGES: frozenset[str] = frozenset({"Commande", "Livre partiel", "Livre"})
+
+
+def _est_engagee(commande: dict) -> bool:
+    return commande["type"] == "Commande" and commande["statut"] in STATUTS_ENGAGES
+
+
+def _marquer_lignes_commandees(conn: sqlite3.Connection, numero: str) -> None:
+    """Quand la commande est passée, ses lignes « À commander » deviennent « Commandée »."""
+    for (identifiant,) in conn.execute(
+        "SELECT id FROM ligne_commande WHERE commande_numero = ? AND statut_ligne = ?",
+        (numero, "A commander"),
+    ).fetchall():
+        journal.update_with_journal(
+            conn,
+            "ligne_commande",
+            identifiant,
+            {"statut_ligne": "Commandee"},
+            frozenset({"statut_ligne"}),
+        )
 
 
 def list_commandes(
@@ -77,9 +99,14 @@ def create_commande(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
 def patch_commande(conn: sqlite3.Connection, numero: str, modifications: dict[str, Any]) -> dict:
     """Modifie une commande non archivée."""
     with db.transaction(conn):
-        get_commande(conn, numero)
+        avant = get_commande(conn, numero)
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
+        apres = {**avant, **modifications}
+        if _est_engagee(apres) and not _est_engagee(avant):
+            if not apres.get("date_commande"):
+                modifications = {**modifications, "date_commande": date.today().isoformat()}
+            _marquer_lignes_commandees(conn, numero)
         journal.update_with_journal(conn, "commande", numero, modifications, CHAMPS_COMMANDE)
     return get_commande(conn, numero)
 
@@ -96,14 +123,20 @@ def archive_commande(conn: sqlite3.Connection, numero: str) -> None:
 def list_lignes(conn: sqlite3.Connection, numero: str) -> list[dict]:
     """Renvoie les lignes d'une commande, avec la désignation et le montant de chaque ligne."""
     get_commande(conn, numero)
-    return db.fetch_all(
+    lignes = db.fetch_all(
         conn,
         "SELECT l.*, c.designation, c.bloc_code, c.pu_ht AS pu_ht_estime,"
-        " l.qte_commandee * l.pu_ht_devis AS montant_ligne_ht"
+        " l.qte_commandee * l.pu_ht_devis AS montant_ligne_ht,"
+        " (SELECT json_group_array(json_object('code', a.ensemble_code, 'qte', a.qte))"
+        "  FROM affectation a WHERE a.composant_id = l.composant_id) AS ensembles"
         " FROM ligne_commande l LEFT JOIN v_composant c ON c.id = l.composant_id"
         " WHERE l.commande_numero = ? ORDER BY l.id",
         (numero,),
     )
+    # Les ensembles où le composant est affecté : qui attend cette livraison.
+    for ligne in lignes:
+        ligne["ensembles"] = sorted(json.loads(ligne["ensembles"]), key=lambda e: e["code"])
+    return lignes
 
 
 def _get_ligne(conn: sqlite3.Connection, numero: str, identifiant: int) -> dict:
@@ -120,8 +153,10 @@ def _get_ligne(conn: sqlite3.Connection, numero: str, identifiant: int) -> dict:
 def create_ligne(conn: sqlite3.Connection, numero: str, valeurs: dict[str, Any]) -> dict:
     """Ajoute une ligne à une commande."""
     with db.transaction(conn):
-        get_commande(conn, numero)
+        commande = get_commande(conn, numero)
         composants.get_composant(conn, valeurs["composant_id"])
+        if _est_engagee(commande) and valeurs.get("statut_ligne") == "A commander":
+            valeurs = {**valeurs, "statut_ligne": "Commandee"}
         identifiant = db.insert_row(conn, "ligne_commande", {"commande_numero": numero, **valeurs})
         journal.write_journal(
             conn, "commande", numero, f"ligne {identifiant}", None, valeurs["composant_id"]

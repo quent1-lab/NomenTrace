@@ -1,4 +1,4 @@
-"""Mouvements de stock."""
+"""Mouvements de stock et état du stock."""
 
 import sqlite3
 from typing import Any
@@ -8,6 +8,16 @@ from backend.erreurs import ErreurMetier, Introuvable
 from backend.services import composants
 
 TYPES_MONTAGE: frozenset[str] = frozenset({"Sortie montage", "Retour montage"})
+
+# Sens imposé par le type ; seul l'inventaire laisse choisir.
+SENS_IMPOSE: dict[str, str] = {
+    "Reception achat": "Entree",
+    "Pret ecole": "Entree",
+    "Retour montage": "Entree",
+    "Retour ecole": "Sortie",
+    "Sortie montage": "Sortie",
+    "Perte ou casse": "Sortie",
+}
 
 
 def list_mouvements(
@@ -27,8 +37,28 @@ def list_mouvements(
     )
 
 
-def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
-    """Contrôle la cohérence du mouvement avant de laisser la base trancher."""
+def list_stock(conn: sqlite3.Connection) -> list[dict]:
+    """Composants dont le stock est non nul (négatif compris), avec leur emplacement."""
+    return db.fetch_all(conn, "SELECT * FROM v_stock ORDER BY stock_actuel < 0 DESC, id")
+
+
+def deduce_sens(type_mouvement: str, sens: str | None) -> str:
+    """Sens du mouvement : imposé par le type, sauf pour l'inventaire où il est obligatoire."""
+    impose = SENS_IMPOSE.get(type_mouvement)
+    if impose is None:
+        if sens is None:
+            raise ErreurMetier("Pour un inventaire, préciser le sens : entrée ou sortie.")
+        return sens
+    if sens is not None and sens != impose:
+        raise ErreurMetier(
+            f"Un mouvement « {type_mouvement} » est forcément une "
+            f"{'entrée' if impose == 'Entree' else 'sortie'} de stock."
+        )
+    return impose
+
+
+def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> list[str]:
+    """Contrôle la cohérence du mouvement ; renvoie les avertissements non bloquants."""
     composants.get_composant(conn, valeurs["composant_id"])
     type_mouvement = valeurs["type_mouvement"]
     ensemble = valeurs.get("ensemble_code")
@@ -36,10 +66,6 @@ def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
         raise ErreurMetier(f"Un mouvement « {type_mouvement} » doit désigner un ensemble.")
     if type_mouvement not in TYPES_MONTAGE and ensemble:
         raise ErreurMetier("Seuls les mouvements de montage désignent un ensemble.")
-    if type_mouvement == "Sortie montage" and valeurs["sens"] != "Sortie":
-        raise ErreurMetier("Une sortie montage est forcément une sortie de stock.")
-    if type_mouvement == "Retour montage" and valeurs["sens"] != "Entree":
-        raise ErreurMetier("Un retour montage est forcément une entrée en stock.")
     if ensemble and not db.fetch_one(
         conn, "SELECT 1 FROM ensemble WHERE code = ? AND archive = 0", (ensemble,)
     ):
@@ -47,11 +73,30 @@ def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
     numero = valeurs.get("commande_numero")
     if numero and not db.fetch_one(conn, "SELECT 1 FROM commande WHERE numero = ?", (numero,)):
         raise Introuvable(f"Commande « {numero} » introuvable.")
+    avertissements = []
+    if ensemble and not db.fetch_one(
+        conn,
+        "SELECT 1 FROM affectation WHERE ensemble_code = ? AND composant_id = ?",
+        (ensemble, valeurs["composant_id"]),
+    ):
+        avertissements.append(
+            f"{valeurs['composant_id']} n'est pas affecté à l'ensemble {ensemble} : le mouvement "
+            "est enregistré et signalé dans la cohérence des ensembles."
+        )
+    return avertissements
 
 
 def create_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
-    """Enregistre un mouvement de stock. Un stock négatif est autorisé : il sera signalé."""
+    """Enregistre un mouvement de stock. Un stock négatif est autorisé et signalé."""
+    valeurs = {**valeurs, "sens": deduce_sens(valeurs["type_mouvement"], valeurs.get("sens"))}
     with db.transaction(conn):
-        _check_mouvement(conn, valeurs)
+        avertissements = _check_mouvement(conn, valeurs)
         identifiant = db.insert_row(conn, "mouvement_stock", valeurs)
-    return db.fetch_one(conn, "SELECT * FROM mouvement_stock WHERE id = ?", (identifiant,)) or {}
+    stock = composants.get_composant(conn, valeurs["composant_id"])["stock_actuel"]
+    if stock < 0:
+        avertissements.append(
+            f"Le stock de {valeurs['composant_id']} devient négatif ({stock}) : une entrée a "
+            "probablement été oubliée."
+        )
+    mouvement = db.fetch_one(conn, "SELECT * FROM mouvement_stock WHERE id = ?", (identifiant,))
+    return {"mouvement": mouvement, "avertissements": avertissements}

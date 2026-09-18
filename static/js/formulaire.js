@@ -67,3 +67,21 @@ export function lireFormulaire(formulaire, description, libelles = {}) {
   }
   return { valeurs };
 }
+
+// Choix d'un composant par saisie assistée (liste de suggestions « ID — désignation »).
+let compteurListes = 0;
+
+export function champComposant(nom, composants, { requis = false } = {}) {
+  const identifiantListe = `liste-composants-${++compteurListes}`;
+  const liste = el("datalist", { id: identifiantListe }, composants.map((c) => el("option", { value: `${c.id} — ${c.designation}` })));
+  const input = el("input", { class: "champ", type: "text", name: nom, list: identifiantListe, required: requis, autocomplete: "off", placeholder: "Identifiant ou désignation…" });
+  return el("span", { class: "champ-composant" }, input, liste);
+}
+
+// Retrouve le composant désigné par la saisie : « ID — désignation » ou l'identifiant seul.
+export function lireComposant(texte, composants) {
+  const saisie = String(texte ?? "").trim();
+  if (!saisie) return null;
+  const identifiant = saisie.split(" — ")[0].trim().toUpperCase();
+  return composants.find((c) => c.id.toUpperCase() === identifiant) ?? null;
+}

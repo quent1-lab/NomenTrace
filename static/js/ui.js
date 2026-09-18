@@ -35,6 +35,18 @@ export function masquerErreur() {
   bandeau.hidden = true;
 }
 
+// Avertissements non bloquants renvoyés par le serveur (réception excédentaire, stock négatif…).
+const bandeauAvertissement = document.getElementById("bandeau-avertissement");
+document.getElementById("bandeau-avertissement-fermer").addEventListener("click", () => {
+  bandeauAvertissement.hidden = true;
+});
+
+export function afficherAvertissements(messages) {
+  if (!messages?.length) return;
+  document.getElementById("bandeau-avertissement-liste").replaceChildren(...messages.map((m) => el("li", {}, m)));
+  bandeauAvertissement.hidden = false;
+}
+
 // Largeur d'une barre de progression, bornée entre 0 et 100 %.
 export function largeur(element, pourcent) {
   const borne = Math.max(0, Math.min(100, Number(pourcent) || 0));

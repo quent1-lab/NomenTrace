@@ -35,6 +35,12 @@ export function formatDate(iso) {
   return `${jour}/${mois}/${annee}`;
 }
 
+// Date du jour en heure locale, au format ISO (AAAA-MM-JJ) attendu par la base.
+export function aujourdhui() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // Lit un nombre saisi à la française (« 1 234,50 ») ; renvoie null si vide, NaN si illisible.
 export function lireNombre(texte) {
   const nettoye = String(texte ?? "").replace(/[\s  €]/g, "").replace(",", ".");

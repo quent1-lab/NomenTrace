@@ -13,8 +13,9 @@ from backend.models import (
     LigneCreation,
     LigneModif,
     MouvementCreation,
+    Reception,
 )
-from backend.services import commandes, mouvements
+from backend.services import commandes, mouvements, receptions
 
 router = APIRouter(prefix="/api", tags=["achats et stock"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -30,6 +31,11 @@ def read_commandes(
 @router.post("/commandes", status_code=201)
 def create_commande(corps: CommandeCreation, conn: Conn) -> dict:
     return round_output(commandes.create_commande(conn, corps.model_dump()))
+
+
+@router.get("/commandes/{numero}")
+def read_commande(numero: str, conn: Conn) -> dict:
+    return round_output(commandes.get_commande(conn, numero))
 
 
 @router.patch("/commandes/{numero}")
@@ -64,6 +70,16 @@ def update_ligne(numero: str, identifiant: int, corps: LigneModif, conn: Conn) -
 def delete_ligne(numero: str, identifiant: int, conn: Conn) -> dict:
     commandes.delete_ligne(conn, numero, identifiant)
     return {"statut": "supprimé"}
+
+
+@router.post("/commandes/{numero}/reception")
+def create_reception(numero: str, corps: Reception, conn: Conn) -> dict:
+    return round_output(receptions.receive_commande(conn, numero, corps.model_dump()))
+
+
+@router.get("/stock")
+def read_stock(conn: Conn) -> list[dict]:
+    return round_output(mouvements.list_stock(conn))
 
 
 @router.get("/mouvements")

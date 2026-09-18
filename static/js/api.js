@@ -69,6 +69,21 @@ export const api = {
   patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),
   archiveComposant: (id) => requete("DELETE", `/api/composants/${encodeURIComponent(id)}`),
 
+  getCommandes: () => requete("GET", "/api/commandes"),
+  getCommande: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}`),
+  createCommande: (valeurs) => requete("POST", "/api/commandes", valeurs),
+  patchCommande: (numero, modifs) => requete("PATCH", `/api/commandes/${encodeURIComponent(numero)}`, modifs),
+  archiveCommande: (numero) => requete("DELETE", `/api/commandes/${encodeURIComponent(numero)}`),
+  getLignes: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}/lignes`),
+  createLigne: (numero, valeurs) => requete("POST", `/api/commandes/${encodeURIComponent(numero)}/lignes`, valeurs),
+  patchLigne: (numero, id, modifs) => requete("PATCH", `/api/commandes/${encodeURIComponent(numero)}/lignes/${id}`, modifs),
+  deleteLigne: (numero, id) => requete("DELETE", `/api/commandes/${encodeURIComponent(numero)}/lignes/${id}`),
+  receptionner: (numero, reception) => requete("POST", `/api/commandes/${encodeURIComponent(numero)}/reception`, reception),
+
+  getStock: () => requete("GET", "/api/stock"),
+  getMouvements: (filtres) => requete("GET", avecParametres("/api/mouvements", filtres)),
+  createMouvement: (valeurs) => requete("POST", "/api/mouvements", valeurs),
+
   createAffectation: (ensemble, valeurs) =>
     requete("POST", `/api/ensembles/${encodeURIComponent(ensemble)}/affectations`, valeurs),
   patchAffectation: (id, modifs) => requete("PATCH", `/api/affectations/${id}`, modifs),

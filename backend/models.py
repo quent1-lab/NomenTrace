@@ -220,7 +220,7 @@ class LigneModif(Modele):
 class MouvementCreation(Modele):
     date: str = Field(pattern=MOTIF_DATE)
     composant_id: str = Field(min_length=1)
-    sens: Sens
+    sens: Sens | None = None
     type_mouvement: TypeMouvement
     qte: int = Field(gt=0)
     emplacement: str | None = None
@@ -228,6 +228,18 @@ class MouvementCreation(Modele):
     commande_numero: str | None = None
     ensemble_code: str | None = None
     commentaire: str | None = None
+
+
+class ReceptionLigne(Modele):
+    id: int
+    qte: int = Field(ge=0)
+
+
+class Reception(Modele):
+    date: str | None = Field(default=None, pattern=MOTIF_DATE)
+    emplacement: str | None = None
+    par_qui: str | None = None
+    lignes: list[ReceptionLigne] = Field(min_length=1)
 
 
 class ParametresModif(Modele):

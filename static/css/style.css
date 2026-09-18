@@ -1147,3 +1147,107 @@ td.editable:hover {
   border-left: 3px solid var(--couleur-ardoise);
   background: var(--couleur-ardoise-clair);
 }
+
+/* --- Achats et stock ---------------------------------------------------------------------- */
+
+[hidden] {
+  display: none !important;
+}
+
+.bandeau-avertissement {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-2) var(--espace-4);
+  background: var(--couleur-surveiller-fond);
+  border-bottom: 2px solid var(--couleur-surveiller);
+  color: var(--couleur-texte);
+}
+
+.bandeau-avertissement ul {
+  margin: 0;
+  padding-left: var(--espace-4);
+}
+
+.bandeau-avertissement .bandeau-erreur__fermer {
+  color: var(--couleur-surveiller);
+}
+
+.ligne-cliquable {
+  cursor: pointer;
+}
+
+.badge-retard {
+  padding: 0 var(--espace-2);
+  border-radius: 10px;
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+  font-size: var(--taille-petit);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.infos-commande {
+  display: grid;
+  grid-template-columns: repeat(4, auto 1fr);
+  gap: var(--espace-2) var(--espace-3);
+  align-items: center;
+  margin: 0;
+}
+
+.infos-commande dt {
+  color: var(--couleur-texte-doux);
+}
+
+.infos-commande dd {
+  margin: 0;
+}
+
+.attendent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.attendent a {
+  text-decoration: none;
+}
+
+.sous-titre {
+  margin: var(--espace-4) 0 var(--espace-2);
+  font-size: 14px;
+}
+
+.formulaire-ajout {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.formulaire-ajout .champ-composant .champ {
+  width: 340px;
+}
+
+.ligne-compacte {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  white-space: nowrap;
+}
+
+.ligne-compacte .champ {
+  width: auto;
+}
+
+.panneau--reception {
+  border-color: var(--couleur-ardoise);
+  border-left: 4px solid var(--couleur-ardoise);
+}
+
+.champ--date {
+  width: 160px;
+}
+
+.ligne--negative td {
+  background: var(--couleur-alerte-fond);
+}

@@ -3,10 +3,13 @@
 import { api, surEcriture } from "./api.js";
 import { detruireGraphiques } from "./graphiques.js";
 import { fermerPanneau } from "./panneau.js";
+import { afficherAchats } from "./pages/achats.js";
 import { afficherBlocs } from "./pages/blocs.js";
+import { afficherDetailCommande } from "./pages/commande_detail.js";
 import { afficherComposants } from "./pages/composants.js";
 import { afficherDetailEnsemble } from "./pages/ensemble_detail.js";
 import { afficherEnsembles } from "./pages/ensembles.js";
+import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur } from "./router.js";
 import { afficherErreur, el } from "./ui.js";
@@ -16,21 +19,26 @@ const ROUTES = {
   "/blocs": afficherBlocs,
   "/composants": afficherComposants,
   "/ensembles": afficherEnsembles,
+  "/achats": afficherAchats,
+  "/stock": afficherStock,
 };
 
-// Routes à paramètre : #/ensembles/CODE.
+// Routes à paramètre : #/ensembles/CODE et #/achats/NUMERO.
 function routeParametree(chemin) {
   const detail = chemin.match(/^\/ensembles\/([^/]+)$/);
   if (detail) {
     const code = decodeURIComponent(detail[1]);
     return (conteneur, parametres) => afficherDetailEnsemble(conteneur, parametres, code);
   }
+  const commande = chemin.match(/^\/achats\/([^/]+)$/);
+  if (commande) {
+    const numero = decodeURIComponent(commande[1]);
+    return (conteneur, parametres) => afficherDetailCommande(conteneur, parametres, numero);
+  }
   return null;
 }
 
 const TITRES_A_VENIR = {
-  "/achats": "Achats",
-  "/stock": "Stock",
   "/imports": "Imports",
   "/parametres": "Paramètres",
 };

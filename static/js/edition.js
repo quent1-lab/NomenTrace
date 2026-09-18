@@ -47,6 +47,22 @@ function construireEditeur(definition, composant) {
       },
     };
   }
+  if (definition.type === "montant") {
+    const input = el("input", {
+      class: "champ-cellule champ-cellule--nombre",
+      type: "text",
+      inputmode: "decimal",
+      value: composant[champ] === null ? "" : formatNombre(composant[champ], 2),
+    });
+    return {
+      racine: input,
+      focus: input,
+      lire: () => {
+        const r = lirePrix(input.value);
+        return r.erreur ? r : { modifs: { [champ]: r.valeur } };
+      },
+    };
+  }
   if (definition.type === "prix") {
     const input = el("input", {
       class: "champ-cellule champ-cellule--nombre",
