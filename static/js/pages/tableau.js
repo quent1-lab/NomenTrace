@@ -96,7 +96,7 @@ function tableTop(composants) {
     el(
       "tr",
       {},
-      el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { q: c.id }) }, c.id)),
+      el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: c.id }) }, c.id)),
       el("td", {}, c.designation),
       el("td", {}, c.bloc_code),
       el("td", { class: "nombre" }, formatNombre(c.qte_a_acheter)),

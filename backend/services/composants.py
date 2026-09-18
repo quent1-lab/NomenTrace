@@ -178,6 +178,12 @@ def _ensure_bloc(conn: sqlite3.Connection, code: str) -> None:
         raise Introuvable(f"Bloc « {code} » introuvable.")
 
 
+def preview_id(conn: sqlite3.Connection, bloc_code: str) -> str:
+    """Identifiant qu'aurait un composant créé maintenant dans ce bloc (indicatif)."""
+    _ensure_bloc(conn, bloc_code)
+    return next_id(conn, bloc_code)
+
+
 def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Crée un composant ; l'identifiant est généré et inséré dans la même transaction."""
     with db.transaction(conn, immediate=True):

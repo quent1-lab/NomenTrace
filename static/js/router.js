@@ -19,6 +19,11 @@ export function naviguer(chemin, parametres = {}) {
   window.location.hash = lienRoute(chemin, parametres);
 }
 
+// Met à jour l'adresse sans recharger l'écran (filtres, tri, fiche ouverte).
+export function remplacerRoute(chemin, parametres = {}) {
+  history.replaceState(null, "", lienRoute(chemin, parametres));
+}
+
 export function demarrerRouteur(surChangement) {
   window.addEventListener("hashchange", () => surChangement(lireRoute()));
   surChangement(lireRoute());

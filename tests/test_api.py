@@ -31,6 +31,12 @@ def test_identifiants_generes_se_suivent(client_spoc: TestClient) -> None:
     assert identifiants == ["SPOC-ALI-021", "SPOC-ALI-022", "SPOC-ALI-023"]
 
 
+def test_apercu_identifiant(client_spoc: TestClient) -> None:
+    assert client_spoc.get("/api/blocs/ALI/prochain-id").json() == {"id": "SPOC-ALI-021"}
+    assert client_spoc.get("/api/blocs/ALI/prochain-id").json() == {"id": "SPOC-ALI-021"}
+    assert client_spoc.get("/api/blocs/XXX/prochain-id").status_code == 404
+
+
 def test_identifiant_compte_les_archives(client_spoc: TestClient) -> None:
     assert client_spoc.delete("/api/composants/SPOC-ALI-020").status_code == 200
     reponse = client_spoc.post("/api/composants", json=NOUVEAU_COMPOSANT)

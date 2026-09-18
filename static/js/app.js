@@ -2,7 +2,9 @@
 
 import { api, surEcriture } from "./api.js";
 import { detruireGraphiques } from "./graphiques.js";
+import { fermerPanneau } from "./panneau.js";
 import { afficherBlocs } from "./pages/blocs.js";
+import { afficherComposants } from "./pages/composants.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur } from "./router.js";
 import { afficherErreur, el } from "./ui.js";
@@ -10,11 +12,11 @@ import { afficherErreur, el } from "./ui.js";
 const ROUTES = {
   "/": afficherTableau,
   "/blocs": afficherBlocs,
+  "/composants": afficherComposants,
 };
 
 const TITRES_A_VENIR = {
   "/ensembles": "Ensembles",
-  "/composants": "Composants",
   "/achats": "Achats",
   "/stock": "Stock",
   "/imports": "Imports",
@@ -38,15 +40,17 @@ function marquerMenu(chemin) {
   });
 }
 
-async function afficherRoute({ chemin }) {
+async function afficherRoute({ chemin, parametres }) {
   detruireGraphiques();
+  fermerPanneau({ silencieux: true });
   marquerMenu(chemin);
   const page = ROUTES[chemin];
+  const racine = "/" + (chemin.split("/")[1] ?? "");
   try {
     if (page) {
-      await page(contenu);
-    } else if (TITRES_A_VENIR[chemin]) {
-      pageAVenir(contenu, TITRES_A_VENIR[chemin]);
+      await page(contenu, parametres);
+    } else if (TITRES_A_VENIR[racine]) {
+      pageAVenir(contenu, TITRES_A_VENIR[racine]);
     } else {
       pageAVenir(contenu, "Page introuvable");
     }

@@ -51,6 +51,19 @@ export const api = {
 
   getBlocs: () => requete("GET", "/api/blocs"),
   patchBloc: (code, modifs) => requete("PATCH", `/api/blocs/${encodeURIComponent(code)}`, modifs),
+  getProchainId: (code) => requete("GET", `/api/blocs/${encodeURIComponent(code)}/prochain-id`),
+
+  getFournisseurs: () => requete("GET", "/api/fournisseurs"),
+  getEnsembles: () => requete("GET", "/api/ensembles"),
 
   getComposants: (filtres) => requete("GET", avecParametres("/api/composants", filtres)),
+  getComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}`),
+  createComposant: (valeurs) => requete("POST", "/api/composants", valeurs),
+  patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),
+  archiveComposant: (id) => requete("DELETE", `/api/composants/${encodeURIComponent(id)}`),
+
+  createAffectation: (ensemble, valeurs) =>
+    requete("POST", `/api/ensembles/${encodeURIComponent(ensemble)}/affectations`, valeurs),
+  patchAffectation: (id, modifs) => requete("PATCH", `/api/affectations/${id}`, modifs),
+  deleteAffectation: (id) => requete("DELETE", `/api/affectations/${id}`),
 };

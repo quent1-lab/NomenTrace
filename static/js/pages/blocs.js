@@ -66,10 +66,13 @@ function carte(bloc, rang, rafraichir) {
   const barre = largeur(el("div", { class: "barre__remplissage" }), bloc.avancement_pct ?? 0);
   const ajouter = el(
     "button",
-    { type: "button", class: "bouton bouton--discret", disabled: true, title: "Disponible avec l'écran Composants" },
+    { type: "button", class: "bouton bouton--discret", title: `Créer un composant dans le bloc ${bloc.code}` },
     "+ Ajouter un composant",
   );
-  ajouter.addEventListener("click", (e) => e.stopPropagation());
+  ajouter.addEventListener("click", (e) => {
+    e.stopPropagation();
+    naviguer("/composants", { bloc: bloc.code, nouveau: 1 });
+  });
   return el(
     "article",
     {
