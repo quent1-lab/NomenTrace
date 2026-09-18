@@ -68,15 +68,15 @@ function etatVide(surCreer) {
     el(
       "p",
       {},
-      "Un ensemble est une partie physique du robot : la nacelle, le mât, le coffret électrique, " +
-        "le bumper, le poste opérateur… Il dit où un composant est monté, et en quelle quantité.",
+      "Un ensemble est une partie physique du système suivi : un sous-ensemble mécanique, un " +
+        "coffret, un poste de commande… Il dit où un composant est monté, et en quelle quantité.",
     ),
     el(
       "p",
       {},
       "Il ne remplace pas le bloc fonctionnel : un composant appartient à un seul bloc, figé dans " +
-        "son identifiant, mais il peut être monté dans plusieurs ensembles. Un transceiver CAN du " +
-        "bloc Transverse peut ainsi se retrouver dans quatre ensembles différents.",
+        "son identifiant, mais il peut être monté dans plusieurs ensembles, en quantités " +
+        "différentes. Un même connecteur peut ainsi se retrouver dans quatre ensembles.",
     ),
     el("button", { type: "button", class: "bouton", onclick: surCreer }, "+ Créer le premier ensemble"),
   );
@@ -136,7 +136,7 @@ export async function afficherEnsembles(conteneur) {
   }
   conteneur.replaceChildren(
     entete,
-    el("p", { class: "texte-doux" }, "Un ensemble est une partie physique du robot. Cliquer sur une carte pour voir ce qu'elle contient et ce qu'il reste à monter."),
+    el("p", { class: "texte-doux" }, "Un ensemble est une partie physique du système suivi. Cliquer sur une carte pour voir ce qu'elle contient et ce qu'il reste à monter."),
     el(
       "div",
       { class: "grille-cartes" },
