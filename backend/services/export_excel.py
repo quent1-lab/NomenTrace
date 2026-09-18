@@ -30,6 +30,7 @@ FEUILLES_VUES: tuple[tuple[str, str], ...] = (
 )
 TABLES: tuple[str, ...] = (
     "parametre",
+    "valeur_liste",
     "bloc",
     "ensemble",
     "fournisseur",

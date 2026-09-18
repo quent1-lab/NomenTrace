@@ -7,12 +7,7 @@ import { formatEcart, formatMontant, formatNombre, libelle } from "../format.js"
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
 import { classeBloc, el, rangsBlocs } from "../ui.js";
-import {
-  CRITICITES,
-  MODES_APPRO,
-  STATUTS_APPRO,
-  STATUTS_CHOIX,
-} from "../valeurs.js";
+import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import { ouvrirFiche } from "./composants_fiche.js";
 
@@ -57,15 +52,15 @@ const COLONNES = [
   },
   { titre: "Besoin", classe: "nombre", rendu: (c) => formatNombre(c.qte_besoin), edition: { champ: "qte_besoin", type: "entier" } },
   { titre: "Rech.", classe: "nombre", rendu: (c) => formatNombre(c.qte_rechange), edition: { champ: "qte_rechange", type: "entier" }, aide: "Quantité de rechange" },
-  { titre: "École", classe: "nombre", rendu: (c) => formatNombre(c.qte_dispo_ecole), edition: { champ: "qte_dispo_ecole", type: "entier" }, aide: "Quantité disponible à l'école" },
+  { titre: "Dispo.", classe: "nombre", rendu: (c) => formatNombre(c.qte_disponible), edition: { champ: "qte_disponible", type: "entier" }, aide: "Quantité déjà disponible sans achat (stock existant, prêt…)" },
   { titre: "À acheter", tri: "qte_a_acheter", classe: "nombre", rendu: (c) => formatNombre(c.qte_a_acheter) },
   { titre: "Qté affectée", tri: "qte_affectee", classe: "nombre", rendu: celluleAffectee },
   { titre: "PU relevé", classe: "nombre", rendu: cellulePuReleve, edition: { champ: "pu_releve", type: "prix" } },
   { titre: "PU HT", tri: "pu_ht", classe: "nombre", rendu: (c) => formatMontant(c.pu_ht) },
   { titre: "Total HT", tri: "total_ht", classe: "nombre fort", rendu: (c) => formatMontant(c.total_ht) },
-  { titre: "Statut choix", tri: "statut_choix", rendu: (c) => libelle(c.statut_choix) || "—", edition: { champ: "statut_choix", type: "choix", vide: true, options: () => STATUTS_CHOIX } },
-  { titre: "Statut appro", tri: "statut_appro", rendu: (c) => libelle(c.statut_appro), edition: { champ: "statut_appro", type: "choix", vide: false, options: () => STATUTS_APPRO } },
-  { titre: "Criticité", tri: "criticite", rendu: (c) => libelle(c.criticite) || "—", edition: { champ: "criticite", type: "choix", vide: true, options: () => CRITICITES } },
+  { titre: "Statut choix", tri: "statut_choix", rendu: (c) => libelle(c.statut_choix) || "—", edition: { champ: "statut_choix", type: "choix", vide: true, options: (courante) => valeursListe("statut_choix", { valeurCourante: courante }) } },
+  { titre: "Statut appro", tri: "statut_appro", rendu: (c) => libelle(c.statut_appro), edition: { champ: "statut_appro", type: "choix", vide: false, options: (courante) => valeursListe("statut_appro", { valeurCourante: courante }) } },
+  { titre: "Criticité", tri: "criticite", rendu: (c) => libelle(c.criticite) || "—", edition: { champ: "criticite", type: "choix", vide: true, options: (courante) => valeursListe("criticite", { valeurCourante: courante }) } },
   { titre: "Avancement", tri: "avancement", rendu: (c) => el("span", { class: `avancement avancement--${c.avancement.replace(/\s/g, "-").toLowerCase()}` }, libelle(c.avancement)) },
 ];
 
@@ -133,17 +128,18 @@ function barreFiltres() {
       minuterie = setTimeout(() => changerFiltre("q", e.target.value.trim()), 300);
     },
   });
-  const tousLibelles = (liste) => liste.map((v) => [v, libelle(v)]);
+  // Les filtres proposent aussi les valeurs désactivées : des composants peuvent les porter.
+  const tousLibelles = (liste) => valeursListe(liste, { inclureInactives: true });
   return el(
     "div",
     { class: "filtres" },
     recherche,
     selectFiltre("bloc", "Tous les blocs", etat.blocs.map((b) => [b.code, `${b.code} — ${b.nom}`])),
     selectFiltre("ensemble", "Tous les ensembles", etat.ensembles.map((e) => [e.code, `${e.code} — ${e.nom}`])),
-    selectFiltre("mode_appro", "Tous les modes d'appro", tousLibelles(MODES_APPRO)),
-    selectFiltre("statut_appro", "Tous les statuts d'appro", tousLibelles(STATUTS_APPRO)),
-    selectFiltre("statut_choix", "Tous les statuts de choix", tousLibelles(STATUTS_CHOIX)),
-    selectFiltre("criticite", "Toutes les criticités", tousLibelles(CRITICITES)),
+    selectFiltre("mode_appro", "Tous les modes d'appro", tousLibelles("mode_appro")),
+    selectFiltre("statut_appro", "Tous les statuts d'appro", tousLibelles("statut_appro")),
+    selectFiltre("statut_choix", "Tous les statuts de choix", tousLibelles("statut_choix")),
+    selectFiltre("criticite", "Toutes les criticités", tousLibelles("criticite")),
     selectFiltre("fournisseur", "Tous les fournisseurs", etat.fournisseurs.map((f) => [f.nom, f.nom])),
     caseFiltre("a_chiffrer", "À chiffrer uniquement"),
     caseFiltre("non_affecte", "Non affecté à un ensemble"),

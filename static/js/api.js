@@ -48,6 +48,11 @@ export const api = {
   getSante: () => requete("GET", "/api/sante"),
   getPilotage: () => requete("GET", "/api/pilotage"),
   getParametres: () => requete("GET", "/api/parametres"),
+  getListes: () => requete("GET", "/api/listes"),
+  createValeurListe: (liste, valeurs) => requete("POST", `/api/listes/${liste}`, valeurs),
+  patchValeurListe: (liste, code, modifs) =>
+    requete("PATCH", `/api/listes/${liste}/${encodeURIComponent(code)}`, modifs),
+  deleteValeurListe: (liste, code) => requete("DELETE", `/api/listes/${liste}/${encodeURIComponent(code)}`),
 
   getBlocs: () => requete("GET", "/api/blocs"),
   patchBloc: (code, modifs) => requete("PATCH", `/api/blocs/${encodeURIComponent(code)}`, modifs),

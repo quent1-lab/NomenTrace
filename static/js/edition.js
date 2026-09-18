@@ -80,7 +80,7 @@ function construireEditeur(definition, composant) {
       },
     };
   }
-  const select = selectOptions(definition.options(), composant[champ], definition.vide);
+  const select = selectOptions(definition.options(composant[champ]), composant[champ], definition.vide);
   return {
     racine: select,
     focus: select,

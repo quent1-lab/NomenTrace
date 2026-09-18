@@ -1,27 +1,19 @@
 """Modèles Pydantic de validation des corps de requête et des réponses de l'API.
 
-Les listes de valeurs reprennent la section « Valeurs autorisées » de docs/MODELE.md.
+Les listes figées reprennent la section « Valeurs autorisées » de docs/MODELE.md ; les listes
+paramétrables sont validées contre la table valeur_liste par les services.
 """
 
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ModeAppro = Literal["Achat", "Stock ecole", "Fourni PFM", "Fourni CEA", "Fabrication PFM"]
-StatutChoix = Literal["Acte", "A confirmer", "A sourcer"]
-StatutAppro = Literal[
-    "Non lance",
-    "Devis demande",
-    "Devis recu",
-    "A commander",
-    "Commande",
-    "Recu partiel",
-    "Recu",
-    "Stock-PFM",
-    "Hors perimetre",
-    "Abandonne",
-]
-Criticite = Literal["Bloquant", "Important", "Confort"]
+# Listes paramétrables (table valeur_liste) : validées contre la base par le service.
+ValeurListe = str
+ModeAppro = ValeurListe
+StatutChoix = ValeurListe
+StatutAppro = ValeurListe
+Criticite = ValeurListe
 BasePrix = Literal["HT", "TTC"]
 TypeCommande = Literal["Devis", "Commande"]
 StatutCommande = Literal[
@@ -36,15 +28,7 @@ StatutCommande = Literal[
 ]
 StatutLigne = Literal["A commander", "Commandee", "Recue partiel", "Recue", "Annulee"]
 Sens = Literal["Entree", "Sortie"]
-TypeMouvement = Literal[
-    "Reception achat",
-    "Pret ecole",
-    "Retour ecole",
-    "Sortie montage",
-    "Retour montage",
-    "Perte ou casse",
-    "Inventaire",
-]
+TypeMouvement = ValeurListe
 StatutMontage = Literal["Non commence", "En cours", "Monte", "Valide"]
 
 MOTIF_DATE = r"^\d{4}-\d{2}-\d{2}$"
@@ -134,7 +118,7 @@ class ComposantCreation(Modele):
     fournisseur_nom: str | None = None
     lien_produit: str | None = None
     qte_rechange: int = Field(default=0, ge=0)
-    qte_dispo_ecole: int = Field(default=0, ge=0)
+    qte_disponible: int = Field(default=0, ge=0)
     pu_releve: float | None = Field(default=None, ge=0)
     base_prix_releve: BasePrix = "HT"
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
@@ -155,7 +139,7 @@ class ComposantModif(Modele):
     fournisseur_nom: str | None = None
     lien_produit: str | None = None
     qte_rechange: int | None = Field(default=None, ge=0)
-    qte_dispo_ecole: int | None = Field(default=None, ge=0)
+    qte_disponible: int | None = Field(default=None, ge=0)
     pu_releve: float | None = Field(default=None, ge=0)
     base_prix_releve: BasePrix | None = None
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
@@ -228,6 +212,18 @@ class MouvementCreation(Modele):
     commande_numero: str | None = None
     ensemble_code: str | None = None
     commentaire: str | None = None
+
+
+class ValeurListeCreation(Modele):
+    libelle: str = Field(min_length=1, max_length=60)
+    sens: Sens | None = None
+
+
+class ValeurListeModif(Modele):
+    libelle: str | None = Field(default=None, min_length=1, max_length=60)
+    ordre: int | None = None
+    actif: int | None = Field(default=None, ge=0, le=1)
+    sens: Sens | None = None
 
 
 class ReceptionLigne(Modele):

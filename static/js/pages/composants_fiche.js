@@ -7,7 +7,7 @@ import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormula
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
-import { BASES_PRIX, CRITICITES, MODES_APPRO, STATUTS_APPRO, STATUTS_CHOIX } from "../valeurs.js";
+import { BASES_PRIX, valeursListe } from "../valeurs.js";
 
 const DESCRIPTION_MODIF = {
   fonction: "texte",
@@ -19,7 +19,7 @@ const DESCRIPTION_MODIF = {
   lien_produit: "texte",
   qte_besoin: "entier",
   qte_rechange: "entier",
-  qte_dispo_ecole: "entier",
+  qte_disponible: "entier",
   pu_releve: "montant",
   base_prix_releve: "choix",
   taux_tva: "taux",
@@ -67,7 +67,7 @@ function vueChamps(c) {
       ["Lien produit", lien],
     ]),
     definitions([
-      ["Qté besoin / rechange / école", `${c.qte_besoin} / ${c.qte_rechange} / ${c.qte_dispo_ecole}`],
+      ["Qté besoin / rechange / déjà dispo.", `${c.qte_besoin} / ${c.qte_rechange} / ${c.qte_disponible}`],
       ["Qté à acheter", formatNombre(c.qte_a_acheter)],
       ["PU relevé", c.pu_releve === null ? (c.mode_appro === "Achat" ? "à chiffrer" : null) : `${formatMontant(c.pu_releve)} ${c.base_prix_releve}`],
       ["TVA", formatPourcent(c.taux_tva * 100, 1)],
@@ -97,18 +97,18 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
     ligneChamp("Désignation", champTexte("designation", c.designation), { requis: true }),
     ligneChamp("Réf fabricant", champTexte("ref_fabricant", c.ref_fabricant)),
     ligneChamp("Fabricant", champTexte("fabricant", c.fabricant)),
-    ligneChamp("Mode d'appro", champChoix("mode_appro", MODES_APPRO, c.mode_appro), { requis: true }),
+    ligneChamp("Mode d'appro", champChoix("mode_appro", valeursListe("mode_appro", { valeurCourante: c.mode_appro }), c.mode_appro), { requis: true }),
     ligneChamp("Fournisseur", champChoix("fournisseur_nom", fournisseurs.map((f) => [f.nom, f.nom]), c.fournisseur_nom, { vide: "—" })),
     ligneChamp("Lien produit", champTexte("lien_produit", c.lien_produit, { type: "url" })),
     ligneChamp("Qté besoin", champNombre("qte_besoin", c.qte_besoin), { requis: true }),
     ligneChamp("Qté rechange", champNombre("qte_rechange", c.qte_rechange)),
-    ligneChamp("Qté dispo école", champNombre("qte_dispo_ecole", c.qte_dispo_ecole)),
+    ligneChamp("Qté déjà disponible", champNombre("qte_disponible", c.qte_disponible)),
     ligneChamp("PU relevé", champNombre("pu_releve", c.pu_releve, 2)),
     ligneChamp("Base du prix", base),
     ligneChamp("Taux de TVA (%)", champNombre("taux_tva", c.taux_tva * 100, 1)),
-    ligneChamp("Statut choix", champChoix("statut_choix", STATUTS_CHOIX, c.statut_choix, { vide: "—" })),
-    ligneChamp("Statut appro", champChoix("statut_appro", STATUTS_APPRO, c.statut_appro)),
-    ligneChamp("Criticité", champChoix("criticite", CRITICITES, c.criticite, { vide: "—" })),
+    ligneChamp("Statut choix", champChoix("statut_choix", valeursListe("statut_choix", { valeurCourante: c.statut_choix }), c.statut_choix, { vide: "—" })),
+    ligneChamp("Statut appro", champChoix("statut_appro", valeursListe("statut_appro", { valeurCourante: c.statut_appro }), c.statut_appro)),
+    ligneChamp("Criticité", champChoix("criticite", valeursListe("criticite", { valeurCourante: c.criticite }), c.criticite, { vide: "—" })),
     ligneChamp("Origine exigence", champTexte("origine_exigence", c.origine_exigence)),
     ligneChamp("Note technique", champZone("note_technique", c.note_technique)),
     el("div", { class: "actions-formulaire" },

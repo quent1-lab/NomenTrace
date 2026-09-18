@@ -96,6 +96,29 @@ def list_migrations(dossier: Path | None = None) -> list[tuple[int, Path]]:
     return sorted(migrations)
 
 
+# Première ligne d'une migration qui reconstruit des tables : les clés étrangères sont
+# suspendues le temps de la migration (le PRAGMA est sans effet dans une transaction),
+# puis vérifiées avant validation.
+MARQUEUR_RECONSTRUCTION = "-- nomentrace: reconstruction"
+
+
+def _apply_migration(conn: sqlite3.Connection, numero: int, script: str) -> None:
+    """Exécute une migration et enregistre son numéro dans une seule transaction."""
+    try:
+        conn.executescript("BEGIN;\n" + script)
+        conn.execute("INSERT INTO schema_version (numero) VALUES (?)", (numero,))
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise sqlite3.IntegrityError(
+                f"Clés étrangères invalides après migration : {violations}"
+            )
+    except sqlite3.Error:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
+
+
 def apply_migrations(conn: sqlite3.Connection, dossier: Path | None = None) -> int:
     """Applique dans l'ordre les migrations non encore appliquées.
 
@@ -107,13 +130,14 @@ def apply_migrations(conn: sqlite3.Connection, dossier: Path | None = None) -> i
         if numero <= version:
             continue
         script = fichier.read_text(encoding="utf-8")
-        conn.executescript("BEGIN;\n" + script)
+        reconstruction = script.startswith(MARQUEUR_RECONSTRUCTION)
+        if reconstruction:
+            conn.execute("PRAGMA foreign_keys = OFF")
         try:
-            conn.execute("INSERT INTO schema_version (numero) VALUES (?)", (numero,))
-        except sqlite3.Error:
-            conn.execute("ROLLBACK")
-            raise
-        conn.execute("COMMIT")
+            _apply_migration(conn, numero, script)
+        finally:
+            if reconstruction:
+                conn.execute("PRAGMA foreign_keys = ON")
         journal_log.info("Migration %03d appliquée : %s", numero, fichier.name)
         version = numero
     return version

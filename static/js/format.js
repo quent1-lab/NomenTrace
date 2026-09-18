@@ -1,5 +1,7 @@
 // Formatage français centralisé : montants, dates, pourcentages, libellés accentués.
 
+import { libelleListe } from "./valeurs.js";
+
 const ESPACE_FINE = "\u202f";
 
 function grouperMilliers(entier) {
@@ -49,8 +51,9 @@ export function lireNombre(texte) {
 }
 
 // Les valeurs énumérées sont stockées sans accents ; l'interface les affiche accentuées.
+// Les listes paramétrables portent leur propre libellé (valeurs.js) ; cette table couvre
+// les listes figées.
 const LIBELLES = {
-  "Stock ecole": "Stock école",
   Acte: "Acté",
   "A confirmer": "À confirmer",
   "A sourcer": "À sourcer",
@@ -74,8 +77,6 @@ const LIBELLES = {
   Annulee: "Annulée",
   Entree: "Entrée",
   "Reception achat": "Réception achat",
-  "Pret ecole": "Prêt école",
-  "Retour ecole": "Retour école",
   "Non commence": "Non commencé",
   Monte: "Monté",
   Valide: "Validé",
@@ -83,5 +84,5 @@ const LIBELLES = {
 
 export function libelle(valeur) {
   if (valeur === null || valeur === undefined) return "";
-  return LIBELLES[valeur] ?? valeur;
+  return libelleListe(valeur) ?? LIBELLES[valeur] ?? valeur;
 }

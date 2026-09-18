@@ -7,7 +7,7 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
-from backend.services import fournisseurs, journal, parametres
+from backend.services import fournisseurs, journal, listes, parametres
 
 CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
     {
@@ -20,7 +20,7 @@ CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
         "fournisseur_nom",
         "lien_produit",
         "qte_rechange",
-        "qte_dispo_ecole",
+        "qte_disponible",
         "pu_releve",
         "base_prix_releve",
         "taux_tva",
@@ -173,6 +173,16 @@ def next_id(conn: sqlite3.Connection, bloc_code: str) -> str:
     return f"{racine}{max(numeros) + 1:03d}"
 
 
+CHAMPS_LISTES: tuple[str, ...] = ("mode_appro", "statut_appro", "statut_choix", "criticite")
+
+
+def _check_listes(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
+    """Chaque valeur de liste saisie doit exister et être active."""
+    for champ in CHAMPS_LISTES:
+        if champ in valeurs:
+            listes.check_valeur(conn, champ, valeurs[champ])
+
+
 def _ensure_bloc(conn: sqlite3.Connection, code: str) -> None:
     if db.fetch_one(conn, "SELECT 1 FROM bloc WHERE code = ?", (code,)) is None:
         raise Introuvable(f"Bloc « {code} » introuvable.")
@@ -188,6 +198,7 @@ def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Crée un composant ; l'identifiant est généré et inséré dans la même transaction."""
     with db.transaction(conn, immediate=True):
         _ensure_bloc(conn, valeurs["bloc_code"])
+        _check_listes(conn, valeurs)
         fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
         if valeurs.get("taux_tva") is None:
             valeurs["taux_tva"] = parametres.get_taux_tva_defaut(conn)
@@ -202,7 +213,11 @@ def patch_composant(
 ) -> dict:
     """Modifie un composant non archivé, champ par champ, avec journal."""
     with db.transaction(conn):
-        get_composant(conn, identifiant)
+        actuel = get_composant(conn, identifiant)
+        # Une valeur désactivée déjà portée par le composant reste acceptée telle quelle.
+        _check_listes(
+            conn, {k: v for k, v in modifications.items() if k in CHAMPS_LISTES and v != actuel[k]}
+        )
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
         changes = journal.update_with_journal(

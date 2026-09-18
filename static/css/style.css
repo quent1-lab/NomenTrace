@@ -1251,3 +1251,20 @@ td.editable:hover {
 .ligne--negative td {
   background: var(--couleur-alerte-fond);
 }
+/* --- Paramètres ------------------------------------------------------------------------ */
+
+.table--listes td {
+  vertical-align: middle;
+}
+
+.table--listes .champ {
+  min-width: 180px;
+}
+
+.table--listes .ordre {
+  white-space: nowrap;
+}
+
+.ligne--inactive td {
+  opacity: 0.55;
+}

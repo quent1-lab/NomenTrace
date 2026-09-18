@@ -14,7 +14,16 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
 from backend.erreurs import ErreurMetier
-from backend.routes import blocs, commandes, composants, ensembles, fournisseurs, pilotage, sante
+from backend.routes import (
+    blocs,
+    commandes,
+    composants,
+    ensembles,
+    fournisseurs,
+    listes,
+    pilotage,
+    sante,
+)
 from backend.services import import_initial, sauvegardes
 from backend.services.export_excel import PlanificateurExport
 
@@ -151,7 +160,8 @@ def create_app(
             export.signaler()
         return reponse
 
-    for module in (sante, pilotage, blocs, ensembles, fournisseurs, composants, commandes):
+    modules = (sante, pilotage, blocs, ensembles, fournisseurs, composants, commandes, listes)
+    for module in modules:
         app.include_router(module.router)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")
     return app

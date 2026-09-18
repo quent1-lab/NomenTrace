@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
-import { BASES_PRIX, CRITICITES, MODES_APPRO, STATUTS_APPRO, STATUTS_CHOIX } from "../valeurs.js";
+import { BASES_PRIX, valeursListe } from "../valeurs.js";
 
 const DESCRIPTION = {
   bloc_code: "choix",
@@ -14,7 +14,7 @@ const DESCRIPTION = {
   mode_appro: "choix",
   qte_besoin: "entier",
   qte_rechange: "entier",
-  qte_dispo_ecole: "entier",
+  qte_disponible: "entier",
   ref_fabricant: "texte",
   fabricant: "texte",
   fournisseur_nom: "choix",
@@ -36,7 +36,7 @@ const LIBELLES = {
   mode_appro: "Mode d'approvisionnement",
   qte_besoin: "Qté besoin",
   qte_rechange: "Qté rechange",
-  qte_dispo_ecole: "Qté dispo école",
+  qte_disponible: "Qté déjà disponible",
   pu_releve: "PU relevé",
   taux_tva: "Taux de TVA",
 };
@@ -84,10 +84,10 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       ligneChamp("Fabricant", champTexte("fabricant")),
     ),
     el("fieldset", {}, el("legend", {}, "Approvisionnement"),
-      ligneChamp("Mode d'appro", champChoix("mode_appro", MODES_APPRO, "Achat", { requis: true }), { requis: true }),
+      ligneChamp("Mode d'appro", champChoix("mode_appro", valeursListe("mode_appro"), "Achat", { requis: true }), { requis: true }),
       ligneChamp("Qté besoin", champNombre("qte_besoin", null), { requis: true }),
       ligneChamp("Qté rechange", champNombre("qte_rechange", 0)),
-      ligneChamp("Qté dispo école", champNombre("qte_dispo_ecole", 0)),
+      ligneChamp("Qté déjà disponible", champNombre("qte_disponible", 0), { aide: "Déjà en stock ou prêtée : réduit la quantité à acheter." }),
       ligneChamp("Fournisseur", fournisseur),
       ligneChamp("Lien produit", champTexte("lien_produit", "", { type: "url" })),
       ligneChamp("PU relevé", champNombre("pu_releve", null, 2), { aide: "Laisser vide si le prix n'est pas encore connu." }),
@@ -95,9 +95,9 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tauxDefaut, 1)),
     ),
     el("fieldset", {}, el("legend", {}, "Suivi"),
-      ligneChamp("Statut choix", champChoix("statut_choix", STATUTS_CHOIX, "A sourcer", { vide: "—" })),
-      ligneChamp("Statut appro", champChoix("statut_appro", STATUTS_APPRO, "Non lance")),
-      ligneChamp("Criticité", champChoix("criticite", CRITICITES, null, { vide: "—" })),
+      ligneChamp("Statut choix", champChoix("statut_choix", valeursListe("statut_choix"), null, { vide: "—" })),
+      ligneChamp("Statut appro", champChoix("statut_appro", valeursListe("statut_appro"), "Non lance")),
+      ligneChamp("Criticité", champChoix("criticite", valeursListe("criticite"), null, { vide: "—" })),
       ligneChamp("Origine exigence", champTexte("origine_exigence")),
       ligneChamp("Note technique", champZone("note_technique")),
     ),

@@ -25,6 +25,18 @@ PARAMETRES_INITIAUX: dict[str, str] = {
     "taux_tva_defaut": "0.2",
 }
 
+# Vocabulaire propre à l'instance SPOC, ajouté aux listes génériques (liste, code, libellé,
+# sens pour les types de mouvement).
+LISTES_INITIALES: tuple[tuple[str, str, str, str | None], ...] = (
+    ("mode_appro", "Stock ecole", "Stock école", None),
+    ("mode_appro", "Fourni PFM", "Fourni PFM", None),
+    ("mode_appro", "Fourni CEA", "Fourni CEA", None),
+    ("mode_appro", "Fabrication PFM", "Fabrication PFM", None),
+    ("statut_appro", "Stock-PFM", "Stock PFM", None),
+    ("type_mouvement", "Pret ecole", "Prêt école", "Entree"),
+    ("type_mouvement", "Retour ecole", "Retour école", "Sortie"),
+)
+
 COLONNES_BLOCS: dict[str, str] = {
     "Nom du bloc": "nom",
     "Code": "code",
@@ -55,7 +67,7 @@ COLONNES_COMPOSANTS: dict[str, str] = {
     "Lien produit": "lien_produit",
     "Qte besoin": "qte_besoin",
     "Qte rechange": "qte_rechange",
-    "Qte dispo ecole": "qte_dispo_ecole",
+    "Qte dispo ecole": "qte_disponible",
     "PU releve": "pu_releve",
     "Base prix releve": "base_prix_releve",
     "Taux TVA": "taux_tva",
@@ -66,7 +78,7 @@ COLONNES_COMPOSANTS: dict[str, str] = {
     "Note technique": "note_technique",
 }
 
-COLONNES_QUANTITE: tuple[str, ...] = ("qte_besoin", "qte_rechange", "qte_dispo_ecole")
+COLONNES_QUANTITE: tuple[str, ...] = ("qte_besoin", "qte_rechange", "qte_disponible")
 
 # Feuilles de suivi : seules des lignes EXEMPLE y sont attendues, jamais importées.
 FEUILLES_EXEMPLE: dict[str, str] = {
@@ -184,6 +196,16 @@ def _insert_rows(conn: sqlite3.Connection, table: str, lignes: list[dict]) -> No
     conn.executemany(sql, [tuple(ligne[c] for c in colonnes) for ligne in lignes])
 
 
+def _insert_listes(conn: sqlite3.Connection) -> None:
+    """Ajoute le vocabulaire de l'instance à la fin de chaque liste, sans doublon."""
+    for liste, code, libelle, sens in LISTES_INITIALES:
+        conn.execute(
+            "INSERT OR IGNORE INTO valeur_liste (liste, code, libelle, ordre, sens)"
+            " SELECT ?, ?, ?, COALESCE(MAX(ordre), 0) + 1, ? FROM valeur_liste WHERE liste = ?",
+            (liste, code, libelle, sens, liste),
+        )
+
+
 def run_import_initial(conn: sqlite3.Connection, chemin: Path) -> bool:
     """Importe le fichier de départ si la base est vide. Renvoie True si l'import a eu lieu."""
     deja = conn.execute("SELECT COUNT(*) FROM composant").fetchone()[0]
@@ -202,6 +224,7 @@ def run_import_initial(conn: sqlite3.Connection, chemin: Path) -> bool:
     synthese = ", ".join(f"{table} : {len(lignes)}" for table, lignes in donnees.items())
     with db.transaction(conn, immediate=True):
         _insert_rows(conn, "parametre", parametres)
+        _insert_listes(conn)
         for table in ("bloc", "fournisseur", "composant"):
             _insert_rows(conn, table, donnees[table])
         conn.execute(

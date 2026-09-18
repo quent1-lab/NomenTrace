@@ -9,9 +9,11 @@ import { afficherDetailCommande } from "./pages/commande_detail.js";
 import { afficherComposants } from "./pages/composants.js";
 import { afficherDetailEnsemble } from "./pages/ensemble_detail.js";
 import { afficherEnsembles } from "./pages/ensembles.js";
+import { afficherParametres } from "./pages/parametres.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur } from "./router.js";
+import { chargerListes } from "./valeurs.js";
 import { afficherErreur, el } from "./ui.js";
 
 const ROUTES = {
@@ -21,6 +23,7 @@ const ROUTES = {
   "/ensembles": afficherEnsembles,
   "/achats": afficherAchats,
   "/stock": afficherStock,
+  "/parametres": afficherParametres,
 };
 
 // Routes à paramètre : #/ensembles/CODE et #/achats/NUMERO.
@@ -40,7 +43,6 @@ function routeParametree(chemin) {
 
 const TITRES_A_VENIR = {
   "/imports": "Imports",
-  "/parametres": "Paramètres",
 };
 
 const contenu = document.getElementById("contenu");
@@ -101,5 +103,14 @@ async function rafraichirEntete() {
 surEcriture(() => setTimeout(rafraichirEntete, 3500));
 setInterval(rafraichirEntete, 15000);
 
-rafraichirEntete();
-demarrerRouteur(afficherRoute);
+async function demarrer() {
+  try {
+    await chargerListes();
+  } catch (erreur) {
+    afficherErreur(erreur);
+  }
+  rafraichirEntete();
+  demarrerRouteur(afficherRoute);
+}
+
+demarrer();

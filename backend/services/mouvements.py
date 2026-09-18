@@ -5,19 +5,10 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
-from backend.services import composants
+from backend.services import composants, listes
 
+# Types système : leur code est figé dans valeur_liste et dans les vues.
 TYPES_MONTAGE: frozenset[str] = frozenset({"Sortie montage", "Retour montage"})
-
-# Sens imposé par le type ; seul l'inventaire laisse choisir.
-SENS_IMPOSE: dict[str, str] = {
-    "Reception achat": "Entree",
-    "Pret ecole": "Entree",
-    "Retour montage": "Entree",
-    "Retour ecole": "Sortie",
-    "Sortie montage": "Sortie",
-    "Perte ou casse": "Sortie",
-}
 
 
 def list_mouvements(
@@ -42,12 +33,15 @@ def list_stock(conn: sqlite3.Connection) -> list[dict]:
     return db.fetch_all(conn, "SELECT * FROM v_stock ORDER BY stock_actuel < 0 DESC, id")
 
 
-def deduce_sens(type_mouvement: str, sens: str | None) -> str:
-    """Sens du mouvement : imposé par le type, sauf pour l'inventaire où il est obligatoire."""
-    impose = SENS_IMPOSE.get(type_mouvement)
+def deduce_sens(conn: sqlite3.Connection, type_mouvement: str, sens: str | None) -> str:
+    """Sens du mouvement : imposé par le type, sinon (inventaire…) il doit être précisé."""
+    listes.check_valeur(conn, "type_mouvement", type_mouvement)
+    impose = listes.get_sens(conn, type_mouvement)
     if impose is None:
         if sens is None:
-            raise ErreurMetier("Pour un inventaire, préciser le sens : entrée ou sortie.")
+            raise ErreurMetier(
+                f"Pour un mouvement « {type_mouvement} », préciser le sens : entrée ou sortie."
+            )
         return sens
     if sens is not None and sens != impose:
         raise ErreurMetier(
@@ -88,7 +82,8 @@ def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> list[
 
 def create_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Enregistre un mouvement de stock. Un stock négatif est autorisé et signalé."""
-    valeurs = {**valeurs, "sens": deduce_sens(valeurs["type_mouvement"], valeurs.get("sens"))}
+    sens = deduce_sens(conn, valeurs["type_mouvement"], valeurs.get("sens"))
+    valeurs = {**valeurs, "sens": sens}
     with db.transaction(conn):
         avertissements = _check_mouvement(conn, valeurs)
         identifiant = db.insert_row(conn, "mouvement_stock", valeurs)

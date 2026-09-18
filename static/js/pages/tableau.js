@@ -5,8 +5,10 @@ import { formatEcart, formatMontant, formatNombre, formatPourcent, libelle } fro
 import { anneau, histogrammeHorizontal } from "../graphiques.js";
 import { lienRoute } from "../router.js";
 import { couleurBloc, couleurCss, el, largeur, rangsBlocs } from "../ui.js";
+import { valeursListe } from "../valeurs.js";
 
-const MODES_APPRO = ["Achat", "Stock ecole", "Fourni PFM", "Fourni CEA", "Fabrication PFM"];
+const NB_COULEURS_MODE = 5;
+
 
 function tuile(titre, valeur, etat = "neutre", precision = "") {
   return el(
@@ -173,12 +175,13 @@ export async function afficherTableau(conteneur) {
     couleurs: blocsTries.map((b) => couleurBloc(rangs.get(b.code))),
     formater: formatMontant,
   });
-  const comptes = MODES_APPRO.map((mode) => composants.filter((c) => c.mode_appro === mode).length);
-  const presents = MODES_APPRO.map((mode, i) => ({ mode, n: comptes[i] })).filter((m) => m.n > 0);
+  const modes = valeursListe("mode_appro", { inclureInactives: true }).map(([code]) => code);
+  const comptes = modes.map((mode) => composants.filter((c) => c.mode_appro === mode).length);
+  const presents = modes.map((mode, i) => ({ mode, n: comptes[i] })).filter((m) => m.n > 0);
   anneau(donut.canvas, {
     libelles: presents.map((m) => libelle(m.mode)),
     valeurs: presents.map((m) => m.n),
-    couleurs: presents.map((m) => couleurCss(`--mode-${MODES_APPRO.indexOf(m.mode) + 1}`)),
+    couleurs: presents.map((m) => couleurCss(`--mode-${(modes.indexOf(m.mode) % NB_COULEURS_MODE) + 1}`)),
     formater: (n) => `${formatNombre(n)} composant${n > 1 ? "s" : ""}`,
   });
 }

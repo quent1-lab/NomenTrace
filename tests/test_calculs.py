@@ -48,7 +48,10 @@ def test_prix_ttc_converti_en_ht(conn_vide: sqlite3.Connection) -> None:
 
 
 def test_fourni_pfm_ne_coute_rien(conn_vide: sqlite3.Connection) -> None:
-    _composant(conn_vide, mode_appro="Fourni PFM", pu_releve=50, qte_besoin=2)
+    conn_vide.execute(
+        "INSERT INTO valeur_liste (liste, code, libelle) VALUES ('mode_appro', 'Fourni', 'Fourni')"
+    )
+    _composant(conn_vide, mode_appro="Fourni", pu_releve=50, qte_besoin=2)
     assert _vue(conn_vide, "T-TST-001")["total_ht"] == 0
 
 
@@ -58,7 +61,7 @@ def test_achat_sans_prix_est_a_chiffrer(conn_vide: sqlite3.Connection) -> None:
 
 
 def test_qte_a_acheter_jamais_negative(conn_vide: sqlite3.Connection) -> None:
-    _composant(conn_vide, qte_besoin=1, qte_rechange=0, qte_dispo_ecole=5, pu_releve=10)
+    _composant(conn_vide, qte_besoin=1, qte_rechange=0, qte_disponible=5, pu_releve=10)
     vue = _vue(conn_vide, "T-TST-001")
     assert vue["qte_a_acheter"] == 0
     assert vue["total_ht"] == 0
@@ -98,7 +101,7 @@ def test_montage_compte_sortie_positive_et_retour_negatif(conn_vide: sqlite3.Con
         (identifiant,),
     )
     mouvements = [
-        ("Entree", "Pret ecole", 2, None),
+        ("Entree", "Inventaire", 2, None),
         ("Sortie", "Sortie montage", 2, "NAC"),
         ("Entree", "Retour montage", 1, "NAC"),
     ]
