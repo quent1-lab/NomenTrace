@@ -12,15 +12,17 @@ from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.comments import Comment
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill, Protection
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.protection import SheetProtection
 from openpyxl.worksheet.worksheet import Worksheet
 
 from backend import db
 from backend.erreurs import Introuvable
 from backend.services import parametres
 from backend.services.import_colonnes import (
+    COLONNE_ENSEMBLE,
     COLONNE_QTE_ENSEMBLE,
     COLONNES,
     NOM_FEUILLE,
@@ -29,9 +31,14 @@ from backend.services.import_colonnes import (
     Colonne,
 )
 
-LIGNES_VIDES = 30
+LIGNES_VIDES = 50
 FOND_ENTETE = PatternFill("solid", fgColor="2A3B52")
-FOND_ID = PatternFill("solid", fgColor="E6ECF3")
+FOND_ID = PatternFill("solid", fgColor="D9DEE5")
+TEXTE_ID = Font(color="5F6B7A")
+# Listes où une valeur nouvelle est admise : elle sera proposée à la création à l'import.
+LISTES_OUVERTES: frozenset[str] = frozenset(
+    {"fournisseur_nom", "ensemble_code", "mode_appro", "statut_appro", "statut_choix", "criticite"}
+)
 
 
 def _libelles(conn: sqlite3.Connection) -> dict[str, dict[str, str]]:
@@ -69,6 +76,12 @@ def _feuille_listes(classeur: Workbook, conn: sqlite3.Connection, libelles: dict
             )
         ],
         "base_prix_releve": ["HT", "TTC"],
+        "ensemble_code": [
+            e["code"]
+            for e in db.fetch_all(
+                conn, "SELECT code FROM ensemble WHERE archive = 0 ORDER BY ordre"
+            )
+        ],
         **{liste: list(valeurs.values()) for liste, valeurs in libelles.items()},
     }
     plages = {}
@@ -90,8 +103,8 @@ def _entetes(feuille: Worksheet, colonnes: list[Colonne]) -> None:
         cellule.alignment = Alignment(wrap_text=True, vertical="center")
         feuille.column_dimensions[get_column_letter(index)].width = colonne.largeur
     feuille.cell(row=1, column=1).comment = Comment(
-        "Ne pas modifier : identifiant attribué par Nomentrace. "
-        "Laisser vide pour proposer un nouveau composant.",
+        "Colonne verrouillée : l'identifiant est attribué par Nomentrace. "
+        "Pour un nouveau composant, remplir une ligne vide sans toucher à l'ID.",
         "Nomentrace",
     )
     feuille.freeze_panes = "C2"
@@ -104,11 +117,40 @@ def _validations(feuille: Worksheet, colonnes: list[Colonne], plages: dict, dern
         if plage is None:
             continue
         validation = DataValidation(type="list", formula1=f"={plage}", allow_blank=True)
-        validation.error = "Choisir une valeur de la liste."
         validation.errorTitle = colonne.entete
+        if colonne.champ in LISTES_OUVERTES:
+            validation.errorStyle = "warning"
+            validation.error = (
+                "Valeur absente de la liste. Elle sera proposée à la création lors de l'import : "
+                "« Oui » pour la garder, « Non » pour corriger."
+            )
+        else:
+            validation.error = "Choisir une valeur de la liste."
         lettre = get_column_letter(index)
         validation.add(f"{lettre}2:{lettre}{derniere}")
         feuille.add_data_validation(validation)
+
+
+def _verrouiller_id(feuille: Worksheet, nb_colonnes: int, derniere: int) -> None:
+    """Colonne ID grisée et verrouillée ; toutes les autres cellules restent modifiables.
+
+    La protection est sans mot de passe : elle évite une saisie par erreur, pas plus.
+    """
+    for ligne in feuille.iter_rows(min_row=2, max_row=derniere, max_col=nb_colonnes):
+        for cellule in ligne[1:]:
+            cellule.protection = Protection(locked=False)
+        ligne[0].fill = FOND_ID
+        ligne[0].font = TEXTE_ID
+    feuille.protection = SheetProtection(
+        sheet=True,
+        formatCells=False,
+        formatColumns=False,
+        formatRows=False,
+        sort=False,
+        autoFilter=False,
+        selectLockedCells=False,
+        selectUnlockedCells=False,
+    )
 
 
 def _consignes(classeur: Workbook, titre: str, ensemble: bool) -> None:
@@ -118,17 +160,26 @@ def _consignes(classeur: Workbook, titre: str, ensemble: bool) -> None:
         "",
         "Une ligne par composant. Les lignes existantes portent leurs valeurs actuelles : "
         "modifier ce qui a changé, ne rien toucher sinon.",
-        "Colonne ID : ne jamais la modifier. La laisser vide pour proposer un nouveau composant.",
-        "Nouveau composant : remplir au minimum Fonction, Désignation, Mode appro et Qté besoin"
-        + (", ainsi que le Bloc." if ensemble else "."),
+        "Colonne ID (grisée) : verrouillée, c'est Nomentrace qui attribue les identifiants.",
+        "Nouveau composant : utiliser une ligne vide, remplir au minimum Fonction, Désignation, "
+        "Mode appro et Qté besoin" + (", ainsi que le Bloc." if ensemble else "."),
+        "Fournisseur, Mode appro, statuts, criticité"
+        + ("" if ensemble else ", Ensemble")
+        + " : une valeur absente de la liste est acceptée ; sa création sera proposée à l'import.",
         "Réf fabricant : la renseigner dès qu'elle est connue, elle sert à repérer les doublons.",
         "PU relevé : le prix tel qu'affiché, en indiquant dans Base prix s'il est HT ou TTC.",
         "Les colonnes à valeurs fermées proposent une liste déroulante.",
         "Rien n'est enregistré directement : chaque proposition est relue avant d'être appliquée.",
     ]
+    if not ensemble:
+        lignes.insert(
+            6,
+            "Ensemble et Qté dans cet ensemble : facultatifs, pour indiquer où le composant est "
+            "monté et en quelle quantité.",
+        )
     if ensemble:
         lignes.insert(
-            5,
+            6,
             "Qté dans cet ensemble : la quantité réellement montée dans cette partie. "
             "0 ou vide retire le composant de l'ensemble.",
         )
@@ -158,6 +209,8 @@ def _construire(
     colonnes = list(COLONNES)
     if ensemble:
         colonnes.insert(4, COLONNE_QTE_ENSEMBLE)
+    else:
+        colonnes.extend((COLONNE_ENSEMBLE, COLONNE_QTE_ENSEMBLE))
     classeur = Workbook()
     feuille = classeur.active
     feuille.title = NOM_FEUILLE
@@ -166,8 +219,8 @@ def _construire(
     for rang, composant in enumerate(lignes, start=2):
         for index, colonne in enumerate(colonnes, start=1):
             _ecrire(feuille, rang, index, _valeur_cellule(colonne, composant, libelles))
-        feuille.cell(row=rang, column=1).fill = FOND_ID
     derniere = len(lignes) + 1 + LIGNES_VIDES
+    _verrouiller_id(feuille, len(colonnes), derniere)
     for index, colonne in enumerate(colonnes, start=1):
         lettre = get_column_letter(index)
         if colonne.nature == "montant":

@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { formatEcart, formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { anneau, histogrammeHorizontal } from "../graphiques.js";
 import { lienRoute } from "../router.js";
-import { couleurBloc, couleurCss, el, largeur, rangsBlocs } from "../ui.js";
+import { couleurBloc, couleurCss, el, largeur, lienProduit, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 
 const NB_COULEURS_MODE = 5;
@@ -99,7 +99,7 @@ function tableTop(composants) {
       "tr",
       {},
       el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: c.id }) }, c.id)),
-      el("td", {}, c.designation),
+      el("td", {}, c.designation, " ", lienProduit(c.lien_produit)),
       el("td", {}, c.bloc_code),
       el("td", { class: "nombre" }, formatNombre(c.qte_a_acheter)),
       el("td", { class: "nombre" }, formatMontant(c.pu_ht)),

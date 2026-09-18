@@ -37,7 +37,19 @@ def _fichier_libre(lignes: list[dict[str, Any]]) -> bytes:
     classeur = Workbook()
     feuille = classeur.active
     feuille.title = "Composants"
-    entetes = ["ID", "Bloc", "Fonction", "Désignation", "Réf fabricant", "Mode appro", "Qté besoin"]
+    entetes = [
+        "ID",
+        "Bloc",
+        "Fonction",
+        "Désignation",
+        "Réf fabricant",
+        "Mode appro",
+        "Qté besoin",
+        "Fournisseur",
+        "Criticité",
+        "Ensemble",
+        "Qté dans cet ensemble",
+    ]
     feuille.append(entetes)
     for ligne in lignes:
         feuille.append([ligne.get(e) for e in entetes])
@@ -226,7 +238,9 @@ def test_bloc_inexistant_invalide_sans_bloquer_le_reste(client_spoc: TestClient)
         {"ID": "SPOC-XXX-999", "Désignation": "Inconnu"},
     ]
     depot = _deposer(client_spoc, [("mec.xlsx", _fichier_libre(lignes))])
-    assert depot["resume"] == {"NOUVEAU": 1, "INCONNU": 1, "INVALIDE": 1}
+    # L'ID inventé n'est pas rejeté comme inconnu : la ligne est traitée comme un nouveau
+    # composant, invalide ici faute de fonction, de mode d'appro et de besoin.
+    assert depot["resume"] == {"NOUVEAU": 1, "INVALIDE": 2}
     invalide = _lignes(depot, "INVALIDE")[0]
     assert "ZZZ" in invalide["donnees"]["raisons"][0]
 
@@ -352,3 +366,114 @@ def test_rien_n_est_ecrit_hors_tables_d_import(conn_spoc: sqlite3.Connection) ->
         None,
     )
     assert conn_spoc.execute("SELECT COUNT(*) FROM journal").fetchone()[0] == avant
+
+
+# --- Identifiant inventé ----------------------------------------------------------------------
+
+
+def test_identifiant_invente_devient_un_nouveau_composant(client_spoc: TestClient) -> None:
+    ligne = {
+        "ID": "SPOC-OBS-099",
+        "Bloc": "OBS",
+        "Fonction": "Mesure",
+        "Désignation": "Sonde PT100",
+        "Mode appro": "Achat",
+        "Qté besoin": 2,
+    }
+    depot = _deposer(client_spoc, [("obs.xlsx", _fichier_libre([ligne]))])
+    assert depot["resume"] == {"NOUVEAU": 1}
+    nouveau = _lignes(depot, "NOUVEAU")[0]["donnees"]
+    assert nouveau["id_indicatif"] == "SPOC-OBS-005"
+    assert "n'existe pas" in nouveau["avertissements"][0]
+
+
+def test_identifiant_inconnu_sans_donnees_reste_inconnu(client_spoc: TestClient) -> None:
+    ligne = {"ID": "SPOC-OBS-099", "Ensemble": "NACELLE", "Qté dans cet ensemble": 1}
+    depot = _deposer(client_spoc, [("obs.xlsx", _fichier_libre([ligne]))])
+    assert depot["resume"]["INCONNU"] == 1
+
+
+def test_modele_colonne_id_verrouillee(client_spoc: TestClient) -> None:
+    classeur = load_workbook(io.BytesIO(_modele(client_spoc, "/api/blocs/OBS/modele")))
+    feuille = classeur["Composants"]
+    assert feuille.protection.sheet
+    assert feuille["A2"].protection.locked
+    assert feuille["A40"].protection.locked
+    assert not feuille["C40"].protection.locked
+    entetes = [c.value for c in feuille[1]]
+    assert entetes[-2:] == ["Ensemble", "Qté dans cet ensemble"]
+
+
+# --- Nouvelles entités -------------------------------------------------------------------------
+
+
+def _ligne_complete(**autres: Any) -> dict:
+    return {
+        "Bloc": "MEC",
+        "Fonction": "Fixation",
+        "Désignation": "Écrou nylstop M6",
+        "Mode appro": "Achat",
+        "Qté besoin": 20,
+        **autres,
+    }
+
+
+def test_entites_inconnues_proposees_puis_creees(client_spoc: TestClient) -> None:
+    lignes = [
+        _ligne_complete(
+            **{
+                "Fournisseur": "Bossard",
+                "Criticité": "Critique",
+                "Ensemble": "Châssis arrière",
+                "Qté dans cet ensemble": 12,
+            }
+        ),
+        _ligne_complete(
+            **{
+                "Désignation": "Rondelle M6",
+                "Fournisseur": "bossard",
+                "Ensemble": "Châssis arrière",
+                "Qté dans cet ensemble": 24,
+            }
+        ),
+    ]
+    depot = _deposer(client_spoc, [("mec.xlsx", _fichier_libre(lignes))])
+    entites = [ligne["donnees"]["entite"] for ligne in _lignes(depot, "NOUVELLE_ENTITE")]
+    assert entites == [
+        {"type": "fournisseur", "nom": "Bossard"},
+        {"type": "valeur_liste", "liste": "criticite", "code": "Critique", "libelle": "Critique"},
+        {"type": "ensemble", "code": "CHASSIS-ARRIERE", "nom": "Châssis arrière"},
+    ]
+    decisions = _decisions_par_defaut(depot)
+    decisions.update(
+        {str(ligne["id"]): {"action": "creer"} for ligne in _lignes(depot, "NOUVELLE_ENTITE")}
+    )
+    resultat = _appliquer(client_spoc, depot, decisions)
+    assert resultat["refus"] == []
+    assert len(resultat["crees"]) == 2
+    assert any(f["nom"] == "Bossard" for f in client_spoc.get("/api/fournisseurs").json())
+    ensemble = client_spoc.get("/api/ensembles/CHASSIS-ARRIERE").json()
+    assert (ensemble["nom"], ensemble["nb_pieces_total"]) == ("Châssis arrière", 36)
+    criticites = [v["code"] for v in client_spoc.get("/api/listes").json()["criticite"]]
+    assert "Critique" in criticites
+
+
+def test_entite_refusee_refuse_les_lignes_qui_la_citent(client_spoc: TestClient) -> None:
+    depot = _deposer(
+        client_spoc, [("mec.xlsx", _fichier_libre([_ligne_complete(Fournisseur="Inconnu SARL")]))]
+    )
+    decisions = _decisions_par_defaut(depot)
+    entite = _lignes(depot, "NOUVELLE_ENTITE")[0]
+    decisions[str(entite["id"])] = {"action": "ignorer"}
+    resultat = _appliquer(client_spoc, depot, decisions)
+    assert resultat["crees"] == []
+    assert "Inconnu SARL" in resultat["refus"][0]
+
+
+def test_ensemble_existant_par_colonne(client_spoc: TestClient) -> None:
+    client_spoc.post("/api/ensembles", json={"code": "MAT", "nom": "Mât"})
+    ligne = {"ID": "SPOC-TR-001", "Ensemble": "Mât", "Qté dans cet ensemble": 2}
+    depot = _deposer(client_spoc, [("tr.xlsx", _fichier_libre([ligne]))])
+    creation = _lignes(depot, "CREATION_AFFECTATION")[0]
+    assert (creation["donnees"]["ensemble"], creation["donnees"]["qte_proposee"]) == ("MAT", 2)
+    assert "NOUVELLE_ENTITE" not in depot["resume"]

@@ -81,8 +81,9 @@ def list_composants_ensemble(conn: sqlite3.Connection, code: str) -> list[dict]:
     get_ensemble(conn, code)
     return db.fetch_all(
         conn,
-        "SELECT * FROM v_ensemble_composant WHERE ensemble_code = ? ORDER BY bloc_code,"
-        " composant_id",
+        "SELECT ec.*, c.lien_produit FROM v_ensemble_composant ec"
+        " JOIN composant c ON c.id = ec.composant_id"
+        " WHERE ec.ensemble_code = ? ORDER BY ec.bloc_code, ec.composant_id",
         (code,),
     )
 

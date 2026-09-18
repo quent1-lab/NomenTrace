@@ -6,6 +6,7 @@ import { naviguer } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 
 export const LIBELLES_CATEGORIES = {
+  NOUVELLE_ENTITE: "entité(s) à créer",
   MODIFIE: "modifié(s)",
   DOUBLON: "doublon(s)",
   NOUVEAU: "nouveau(x)",

@@ -16,9 +16,11 @@ from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 
 from backend import db
-from backend.services import parametres
+from backend.services import listes, parametres
 from backend.services.import_colonnes import (
     ALIAS_ENTETES,
+    COLONNE_ENSEMBLE,
+    COLONNE_QTE_ENSEMBLE,
     COLONNES,
     NOM_FEUILLE,
     NOM_FEUILLE_META,
@@ -26,10 +28,9 @@ from backend.services.import_colonnes import (
     normaliser_entete,
 )
 
-NATURES: dict[str, str] = {c.champ: c.nature for c in COLONNES} | {"qte_ensemble": "entier"}
-LIBELLES: dict[str, str] = {c.champ: c.entete for c in COLONNES} | {
-    "qte_ensemble": "Qté dans cet ensemble"
-}
+TOUTES: tuple = (*COLONNES, COLONNE_QTE_ENSEMBLE, COLONNE_ENSEMBLE)
+NATURES: dict[str, str] = {c.champ: c.nature for c in TOUTES}
+LIBELLES: dict[str, str] = {c.champ: c.entete for c in TOUTES}
 
 
 class FichierIllisible(Exception):
@@ -53,6 +54,7 @@ class Contexte:
     blocs: dict[str, str]
     fournisseurs: dict[str, str]
     listes: dict[str, dict[str, str]]
+    ensembles: dict[str, str]
     taux_defaut: float
     bloc_defaut: str | None = None
 
@@ -66,6 +68,8 @@ class LigneLue:
     valeurs: dict[str, Any] = field(default_factory=dict)
     erreurs: list[str] = field(default_factory=list)
     avertissements: list[str] = field(default_factory=list)
+    # Fournisseurs, valeurs de liste et ensembles cités mais absents de la base.
+    entites: list[dict] = field(default_factory=list)
 
 
 def _texte_cellule(valeur: Any) -> str | None:
@@ -133,7 +137,12 @@ def load_contexte(conn: sqlite3.Connection, bloc_defaut: str | None) -> Contexte
         index = listes.setdefault(valeur["liste"], {})
         index[_cle(valeur["code"])] = valeur["code"]
         index[_cle(valeur["libelle"])] = valeur["code"]
-    return Contexte(blocs, fournisseurs, listes, parametres.get_taux_tva_defaut(conn), bloc_defaut)
+    ensembles = {}
+    for ensemble in db.fetch_all(conn, "SELECT code, nom FROM ensemble WHERE archive = 0"):
+        ensembles[_cle(ensemble["code"])] = ensemble["code"]
+        ensembles[_cle(ensemble["nom"])] = ensemble["code"]
+    taux = parametres.get_taux_tva_defaut(conn)
+    return Contexte(blocs, fournisseurs, listes, ensembles, taux, bloc_defaut)
 
 
 def _nombre(texte: str) -> float | None:
@@ -144,35 +153,66 @@ def _nombre(texte: str) -> float | None:
         return None
 
 
-def _convertir(champ: str, valeur: Any, ctx: Contexte) -> tuple[Any, str | None]:
-    """Valeur typée d'une cellule, ou message d'erreur en français."""
+def code_ensemble(texte: str) -> str:
+    """Code proposé pour un nouvel ensemble : majuscules, chiffres et tirets."""
+    decompose = unicodedata.normalize("NFKD", texte.upper())
+    sans_accents = "".join(c for c in decompose if not unicodedata.combining(c))
+    return re.sub(r"[^A-Z0-9]+", "-", sans_accents).strip("-")[:20] or "ENSEMBLE"
+
+
+def _reference(champ: str, texte: str, ctx: Contexte) -> tuple[Any, str | None, dict | None]:
+    """Bloc, fournisseur, valeur de liste ou ensemble : existant, ou proposé à la création."""
+    nature, libelle = NATURES[champ], LIBELLES[champ]
+    if nature == "bloc":
+        code = ctx.blocs.get(_cle(texte))
+        return (code, None, None) if code else (None, f"{libelle} : « {texte} » inconnu", None)
+    if nature == "fournisseur":
+        nom = ctx.fournisseurs.get(_cle(texte))
+        return (nom, None, None) if nom else (texte, None, {"type": "fournisseur", "nom": texte})
+    if nature == "ensemble":
+        code = ctx.ensembles.get(_cle(texte))
+        if code:
+            return code, None, None
+        nouveau = code_ensemble(texte)
+        return nouveau, None, {"type": "ensemble", "code": nouveau, "nom": texte}
+    code = ctx.listes.get(champ, {}).get(_cle(texte))
+    if code:
+        return code, None, None
+    nouveau = listes.code_depuis_libelle(texte)
+    return (
+        nouveau,
+        None,
+        {"type": "valeur_liste", "liste": champ, "code": nouveau, "libelle": texte},
+    )
+
+
+def _convertir(champ: str, valeur: Any, ctx: Contexte) -> tuple[Any, str | None, dict | None]:
+    """Valeur typée d'une cellule, erreur en français, entité à créer éventuelle."""
     texte = _texte_cellule(valeur)
     nature, libelle = NATURES[champ], LIBELLES[champ]
     if texte is None:
-        return None, None
+        return None, None, None
     if nature in ("texte", "id"):
-        return texte, None
-    if nature in ("bloc", "fournisseur", "liste"):
-        index = {"bloc": ctx.blocs, "fournisseur": ctx.fournisseurs}.get(nature)
-        code = (index if index is not None else ctx.listes.get(champ, {})).get(_cle(texte))
-        return (code, None) if code else (None, f"{libelle} : « {texte} » inconnu dans la liste")
+        return texte, None, None
+    if nature in ("bloc", "fournisseur", "liste", "ensemble"):
+        return _reference(champ, texte, ctx)
     if nature == "base":
         base = texte.upper()
         if base in ("HT", "TTC"):
-            return base, None
-        return None, f"{libelle} : « {texte} » (HT ou TTC attendu)"
+            return base, None, None
+        return None, f"{libelle} : « {texte} » (HT ou TTC attendu)", None
     est_nombre = isinstance(valeur, int | float) and not isinstance(valeur, bool)
     nombre = valeur if est_nombre else _nombre(texte)
     if nombre is None or nombre < 0:
-        return None, f"{libelle} : « {texte} » n'est pas un nombre positif"
+        return None, f"{libelle} : « {texte} » n'est pas un nombre positif", None
     if nature == "entier":
         if float(nombre).is_integer():
-            return int(nombre), None
-        return None, f"{libelle} : « {texte} » n'est pas un nombre entier"
+            return int(nombre), None, None
+        return None, f"{libelle} : « {texte} » n'est pas un nombre entier", None
     if nature == "taux":
         taux = nombre / 100 if nombre >= 1 else float(nombre)
-        return (taux, None) if taux < 1 else (None, f"{libelle} : « {texte} » invalide")
-    return float(nombre), None
+        return (taux, None, None) if taux < 1 else (None, f"{libelle} : « {texte} » invalide", None)
+    return float(nombre), None, None
 
 
 def convert_ligne(numero: int, brut: dict[str, Any], ctx: Contexte) -> LigneLue | None:
@@ -182,9 +222,11 @@ def convert_ligne(numero: int, brut: dict[str, Any], ctx: Contexte) -> LigneLue 
         return None
     lue = LigneLue(numero, {k: v for k, v in textes.items() if v is not None})
     for champ, valeur in brut.items():
-        converti, erreur = _convertir(champ, valeur, ctx)
+        converti, erreur, entite = _convertir(champ, valeur, ctx)
         if erreur:
             lue.erreurs.append(erreur)
+        if entite:
+            lue.entites.append(entite)
         lue.valeurs[champ] = converti
     return lue
 

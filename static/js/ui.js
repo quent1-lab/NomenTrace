@@ -74,3 +74,27 @@ export function rangsBlocs(blocs) {
   const tries = [...blocs].sort((a, b) => a.ordre - b.ordre || a.code.localeCompare(b.code));
   return new Map(tries.map((bloc, rang) => [bloc.code, rang]));
 }
+
+// Lien vers la page produit du fournisseur, ouvert dans un nouvel onglet. Seules les adresses
+// http(s) sont rendues cliquables ; le clic n'ouvre pas la fiche de la ligne.
+const SVG = "http://www.w3.org/2000/svg";
+
+function iconeLienExterne() {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("icone-lien");
+  for (const d of ["M9 2h5v5", "M14 2 7 9", "M12 9v4.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5H7"]) {
+    const trait = document.createElementNS(SVG, "path");
+    trait.setAttribute("d", d);
+    svg.append(trait);
+  }
+  return svg;
+}
+
+export function lienProduit(adresse) {
+  if (!adresse || !/^https?:\/\//i.test(adresse)) return null;
+  const lien = el("a", { class: "lien-produit", href: adresse, target: "_blank", rel: "noopener noreferrer", title: `Ouvrir la page produit : ${adresse}` }, iconeLienExterne());
+  lien.addEventListener("click", (e) => e.stopPropagation());
+  return lien;
+}

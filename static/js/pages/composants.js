@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { formatEcart, formatMontant, formatNombre, libelle } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
-import { classeBloc, el, rangsBlocs } from "../ui.js";
+import { classeBloc, el, lienProduit, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import { ouvrirFiche } from "./composants_fiche.js";
@@ -41,6 +41,7 @@ const COLONNES = [
   { titre: "Bloc", tri: "bloc_code", rendu: (c) => el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(c.bloc_code) ?? 0)}` }, c.bloc_code) },
   { titre: "Fonction", tri: "fonction", classe: "tronque", rendu: (c) => c.fonction, infobulle: (c) => c.fonction },
   { titre: "Désignation", tri: "designation", classe: "tronque tronque--large", rendu: (c) => c.designation, infobulle: (c) => c.designation },
+  { titre: "", classe: "colonne-lien", rendu: (c) => lienProduit(c.lien_produit), aide: "Page produit" },
   { titre: "Réf fabricant", tri: "ref_fabricant", classe: "tronque", rendu: (c) => c.ref_fabricant ?? "", infobulle: (c) => c.ref_fabricant },
   { titre: "Mode appro", tri: "mode_appro", rendu: (c) => libelle(c.mode_appro) },
   {

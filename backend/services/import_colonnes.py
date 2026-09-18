@@ -38,6 +38,7 @@ COLONNES: tuple[Colonne, ...] = (
     Colonne("Note technique", "note_technique", "texte", 40),
 )
 COLONNE_QTE_ENSEMBLE = Colonne("Qté dans cet ensemble", "qte_ensemble", "entier", 12)
+COLONNE_ENSEMBLE = Colonne("Ensemble", "ensemble_code", "ensemble", 16)
 
 # Champs du composant comparés et modifiables par import (le bloc est figé dans l'ID).
 CHAMPS_COMPOSANT: tuple[str, ...] = tuple(
@@ -65,7 +66,11 @@ def normaliser_entete(texte: str) -> str:
 # En-têtes reconnus : ceux des modèles, et des variantes courantes (fichier Airtable d'origine
 # et saisies libres de l'équipe).
 ALIAS_ENTETES: dict[str, str] = {
-    **{normaliser_entete(c.entete): c.champ for c in (*COLONNES, COLONNE_QTE_ENSEMBLE)},
+    **{
+        normaliser_entete(c.entete): c.champ
+        for c in (*COLONNES, COLONNE_QTE_ENSEMBLE, COLONNE_ENSEMBLE)
+    },
+    "codeensemble": "ensemble_code",
     "identifiant": "id",
     "blocfonctionnel": "bloc_code",
     "reference": "ref_fabricant",

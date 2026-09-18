@@ -8,6 +8,7 @@ from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
 
 ORDRE_CATEGORIES: tuple[str, ...] = (
+    "NOUVELLE_ENTITE",
     "MODIFIE",
     "DOUBLON",
     "NOUVEAU",

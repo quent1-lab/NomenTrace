@@ -125,7 +125,7 @@ def list_lignes(conn: sqlite3.Connection, numero: str) -> list[dict]:
     get_commande(conn, numero)
     lignes = db.fetch_all(
         conn,
-        "SELECT l.*, c.designation, c.bloc_code, c.pu_ht AS pu_ht_estime,"
+        "SELECT l.*, c.designation, c.bloc_code, c.lien_produit, c.pu_ht AS pu_ht_estime,"
         " l.qte_commandee * l.pu_ht_devis AS montant_ligne_ht,"
         " (SELECT json_group_array(json_object('code', a.ensemble_code, 'qte', a.qte))"
         "  FROM affectation a WHERE a.composant_id = l.composant_id) AS ensembles"

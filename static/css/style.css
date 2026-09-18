@@ -1478,3 +1478,34 @@ td.editable:hover {
 .barre-application .texte-doux {
   margin-right: auto;
 }
+
+/* --- Lien produit ------------------------------------------------------------------------- */
+
+.colonne-lien {
+  width: 22px;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  text-align: center;
+}
+
+.lien-produit {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--rayon);
+  color: var(--couleur-ardoise);
+  vertical-align: middle;
+}
+
+.lien-produit:hover {
+  background: var(--couleur-ardoise-clair);
+}
+
+.icone-lien {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

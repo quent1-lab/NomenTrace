@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
-import { afficherAvertissements, afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherAvertissements, afficherErreur, el, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 
@@ -48,6 +48,7 @@ function ligneCommande(ligne) {
     {},
     el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: ligne.composant_id }) }, ligne.composant_id)),
     el("td", { class: "tronque tronque--large", title: ligne.designation }, ligne.designation),
+    el("td", { class: "colonne-lien" }, lienProduit(ligne.lien_produit)),
     el("td", { class: "attendent" }, attendent),
     celluleEditable(ligne, { champ: "qte_commandee", type: "entier" }, formatNombre(ligne.qte_commandee)),
     celluleEditable(ligne, { champ: "pu_ht_devis", type: "montant" }, formatMontant(ligne.pu_ht_devis) || el("span", { class: "a-chiffrer" }, "à saisir")),
@@ -108,8 +109,8 @@ function formulaireAjout() {
 }
 
 function tableLignes() {
-  const entetes = ["Composant", "Désignation", "Attendu par", "Qté", "PU HT devis", "PU estimé", "Écart", "Montant HT", "Reçu", "Statut ligne", ""];
-  const numeriques = new Set([3, 4, 5, 6, 7, 8, 10]);
+  const entetes = ["Composant", "Désignation", "", "Attendu par", "Qté", "PU HT devis", "PU estimé", "Écart", "Montant HT", "Reçu", "Statut ligne", ""];
+  const numeriques = new Set([4, 5, 6, 7, 8, 9, 11]);
   const c = etat.commande;
   return el(
     "table",
@@ -119,9 +120,9 @@ function tableLignes() {
     el(
       "tfoot",
       {},
-      el("tr", {}, el("td", { colspan: 7, class: "nombre" }, "Articles HT"), el("td", { class: "nombre" }, formatMontant(c.montant_articles_ht)), el("td", { colspan: 3 })),
-      el("tr", {}, el("td", { colspan: 7, class: "nombre" }, "Port HT"), el("td", { class: "nombre" }, formatMontant(c.port_ht)), el("td", { colspan: 3 })),
-      el("tr", {}, el("td", { colspan: 7, class: "nombre fort" }, "Total HT"), el("td", { class: "nombre fort" }, formatMontant(c.total_ht)), el("td", { colspan: 3, class: "texte-doux" }, `TTC ${formatMontant(c.total_ttc)}`)),
+      el("tr", {}, el("td", { colspan: 8, class: "nombre" }, "Articles HT"), el("td", { class: "nombre" }, formatMontant(c.montant_articles_ht)), el("td", { colspan: 3 })),
+      el("tr", {}, el("td", { colspan: 8, class: "nombre" }, "Port HT"), el("td", { class: "nombre" }, formatMontant(c.port_ht)), el("td", { colspan: 3 })),
+      el("tr", {}, el("td", { colspan: 8, class: "nombre fort" }, "Total HT"), el("td", { class: "nombre fort" }, formatMontant(c.total_ht)), el("td", { colspan: 3, class: "texte-doux" }, `TTC ${formatMontant(c.total_ttc)}`)),
     ),
   );
 }

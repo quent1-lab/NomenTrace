@@ -121,6 +121,50 @@ def _fusionner(app: Application, ligne: dict, identifiant: str, verifier: int | 
         )
 
 
+# --- Nouvelles entités ---------------------------------------------------------------------
+
+
+def _creer_entite(conn: sqlite3.Connection, entite: dict, lot: int) -> bool:
+    """Crée le fournisseur, la valeur de liste ou l'ensemble ; rien s'il existe déjà."""
+    if entite["type"] == "fournisseur":
+        if db.fetch_one(conn, "SELECT 1 FROM fournisseur WHERE nom = ?", (entite["nom"],)):
+            return False
+        db.insert_row(conn, "fournisseur", {"nom": entite["nom"]})
+        journal.write_journal(
+            conn, "fournisseur", entite["nom"], "creation", None, "créé", ORIGINE, lot
+        )
+        return True
+    if entite["type"] == "ensemble":
+        if db.fetch_one(conn, "SELECT 1 FROM ensemble WHERE code = ?", (entite["code"],)):
+            return False
+        ordre = conn.execute("SELECT COALESCE(MAX(ordre), 0) + 1 FROM ensemble").fetchone()[0]
+        db.insert_row(
+            conn, "ensemble", {"code": entite["code"], "nom": entite["nom"], "ordre": ordre}
+        )
+        journal.write_journal(
+            conn, "ensemble", entite["code"], "creation", None, "créé", ORIGINE, lot
+        )
+        return True
+    cle = (entite["liste"], entite["code"])
+    if db.fetch_one(conn, "SELECT 1 FROM valeur_liste WHERE liste = ? AND code = ?", cle):
+        return False
+    conn.execute(
+        "INSERT INTO valeur_liste (liste, code, libelle, ordre)"
+        " SELECT ?, ?, ?, COALESCE(MAX(ordre), 0) + 1 FROM valeur_liste WHERE liste = ?",
+        (entite["liste"], entite["code"], entite["libelle"], entite["liste"]),
+    )
+    journal.write_journal(
+        conn, "valeur_liste", ":".join(cle), "creation", None, "créée", ORIGINE, lot
+    )
+    return True
+
+
+def _appliquer_entite(app: Application, ligne: dict, decision: dict) -> bool:
+    if decision.get("action") != "creer":
+        return False
+    return _creer_entite(app.conn, ligne["donnees"]["entite"], ligne["lot_id"])
+
+
 # --- Une ligne par catégorie ----------------------------------------------------------------------
 
 
@@ -137,6 +181,11 @@ def _appliquer_modifie(app: Application, ligne: dict, decision: dict) -> bool:
                 f"{ligne['composant_id']} : « {champ} » a été modifié depuis l'analyse."
             )
     modifs = {c: ligne["donnees"]["differences"][c]["propose"] for c in champs}
+    fournisseur = modifs.get("fournisseur_nom")
+    if fournisseur and not db.fetch_one(
+        app.conn, "SELECT 1 FROM fournisseur WHERE nom = ?", (fournisseur,)
+    ):
+        raise LigneRefusee(f"le fournisseur « {fournisseur} » n'a pas été créé.")
     _modifier(app.conn, ligne["composant_id"], modifs, ligne["lot_id"])
     return True
 
@@ -195,6 +244,7 @@ def _appliquer_affectation(app: Application, ligne: dict, decision: dict) -> boo
 
 
 APPLICATEURS: dict[str, Any] = {
+    "NOUVELLE_ENTITE": _appliquer_entite,
     "MODIFIE": _appliquer_modifie,
     "NOUVEAU": _appliquer_nouveau,
     "DOUBLON": _appliquer_nouveau,
@@ -246,7 +296,10 @@ def apply_depot(
     sauvegardes.create_sauvegarde(chemin_base, dossier_sauvegardes)
     app = Application(conn, decisions)
     with db.transaction(conn, immediate=True):
-        for ligne in import_depots.list_lignes(conn, depot):
+        lignes = import_depots.list_lignes(conn, depot)
+        # Les entités d'abord : les lignes qui les citent en ont besoin.
+        lignes.sort(key=lambda ligne: ligne["categorie"] != "NOUVELLE_ENTITE")
+        for ligne in lignes:
             _appliquer_ligne(app, ligne)
         conn.execute("UPDATE import_lot SET statut = 'applique' WHERE depot = ?", (depot,))
     return {"appliquees": app.appliquees, "refus": app.refus, "crees": list(app.crees.values())}

@@ -48,6 +48,13 @@ function avertissements(ligne) {
   return liste.length ? el("ul", { class: "avertissements-ligne" }, liste.map((a) => el("li", {}, a))) : null;
 }
 
+// Avertissements résumés dans une cellule de tableau, détaillés au survol.
+function remarques(ligne) {
+  const liste = ligne.donnees.avertissements ?? [];
+  if (!liste.length) return null;
+  return el("div", { class: "texte-surveiller texte-petit", title: liste.join("\n") }, liste.length > 1 ? `${liste.length} remarques` : liste[0]);
+}
+
 function lienComposant(id) {
   return el("a", { href: lienRoute("/composants", { fiche: id }) }, id);
 }
@@ -63,6 +70,7 @@ function decisionParDefaut(ligne) {
     return { action: "fusionner", cible: meilleur.type === "composant" ? { composant: meilleur.id } : { ligne: meilleur.ligne_id } };
   }
   if (ligne.categorie.endsWith("_AFFECTATION")) return { action: "appliquer" };
+  if (ligne.categorie === "NOUVELLE_ENTITE") return { action: "creer" };
   return null;
 }
 
@@ -186,7 +194,7 @@ function tableNouveaux(lignes) {
         el("td", { class: "nombre" }, formatNombre(v.qte_besoin)),
         el("td", { class: "nombre" }, v.pu_releve === null ? "" : `${formatMontant(v.pu_releve)} ${v.base_prix_releve}`),
         el("td", {}, d.affectation ? `${d.affectation.ensemble} × ${d.affectation.qte}` : ""),
-        el("td", {}, origine(ligne)),
+        el("td", {}, origine(ligne), remarques(ligne)),
       );
     })),
   );
@@ -216,6 +224,31 @@ function tableAffectations(lignes) {
   );
 }
 
+const TYPES_ENTITE = { fournisseur: "Fournisseur", ensemble: "Ensemble" };
+
+function tableEntites(lignes) {
+  const libelleListe = { mode_appro: "Mode appro", statut_appro: "Statut appro", statut_choix: "Statut choix", criticite: "Criticité" };
+  return el(
+    "table",
+    { class: "table table--dense" },
+    el("thead", {}, el("tr", {}, ["Créer", "Type", "Valeur", "Code", "Première citation"].map((t) => el("th", {}, t)))),
+    el("tbody", {}, lignes.map((ligne) => {
+      const e = ligne.donnees.entite;
+      const decision = etat.decisions[ligne.id];
+      const coche = el("input", { type: "checkbox", checked: decision.action === "creer", disabled: !etat.modifiable });
+      coche.addEventListener("change", () => (decision.action = coche.checked ? "creer" : "ignorer"));
+      const type = TYPES_ENTITE[e.type] ?? `Valeur de la liste « ${libelleListe[e.liste] ?? e.liste} »`;
+      return el("tr", {},
+        el("td", {}, coche),
+        el("td", {}, type),
+        el("td", { class: "fort" }, e.nom ?? e.libelle),
+        el("td", { class: "code texte-doux" }, e.code ?? ""),
+        el("td", {}, origine(ligne)),
+      );
+    })),
+  );
+}
+
 function tableRejets(lignes) {
   return el(
     "table",
@@ -237,6 +270,12 @@ function section(id, titre, aide, contenu) {
 function sections() {
   const par = (...categories) => etat.depot.lignes.filter((l) => categories.includes(l.categorie));
   const resultat = [];
+  const entites = par("NOUVELLE_ENTITE");
+  if (entites.length) {
+    resultat.push(section("NOUVELLE_ENTITE", `Nouvelles entités (${entites.length})`,
+      "Fournisseurs, valeurs de liste et ensembles cités par les fichiers mais absents de la base. Décocher une entité refuse aussi les lignes qui s'en servent.",
+      tableEntites(entites)));
+  }
   const modifies = par("MODIFIE");
   if (modifies.length) resultat.push(section("MODIFIE", `Composants modifiés (${modifies.length})`, "Seuls les champs qui changent sont listés. Décocher un champ le laisse tel quel.", modifies.map(carteModifie)));
   const doublons = par("DOUBLON");

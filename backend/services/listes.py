@@ -71,7 +71,7 @@ def get_sens(conn: sqlite3.Connection, type_mouvement: str) -> str | None:
     return get_valeur(conn, "type_mouvement", type_mouvement)["sens"]
 
 
-def _code_depuis_libelle(libelle: str) -> str:
+def code_depuis_libelle(libelle: str) -> str:
     """Code stocké : le libellé sans accents, comme les valeurs d'origine."""
     decompose = unicodedata.normalize("NFKD", libelle.strip())
     return "".join(c for c in decompose if not unicodedata.combining(c))
@@ -84,7 +84,7 @@ def create_valeur(conn: sqlite3.Connection, liste: str, valeurs: dict[str, Any])
         raise ErreurMetier("Préciser le sens du type de mouvement (entrée, sortie ou libre).")
     if liste != "type_mouvement" and valeurs.get("sens"):
         raise ErreurMetier("Seuls les types de mouvement ont un sens.")
-    code = _code_depuis_libelle(valeurs["libelle"])
+    code = code_depuis_libelle(valeurs["libelle"])
     with db.transaction(conn):
         if db.fetch_one(
             conn, "SELECT 1 FROM valeur_liste WHERE liste = ? AND code = ?", (liste, code)

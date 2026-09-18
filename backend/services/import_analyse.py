@@ -19,7 +19,13 @@ from backend.services.import_colonnes import CHAMPS_COMPOSANT, COLONNES
 TOLERANCE_MONTANT = 0.005  # au centime près
 TOLERANCE_TAUX = 1e-6
 ENTETES: dict[str, str] = {c.champ: c.entete for c in COLONNES} | {
-    "qte_ensemble": "Qté dans cet ensemble"
+    "qte_ensemble": "Qté dans cet ensemble",
+    "ensemble_code": "Ensemble",
+}
+TYPES_ENTITE: dict[str, str] = {
+    "fournisseur": "fournisseur",
+    "valeur_liste": "valeur de liste",
+    "ensemble": "ensemble",
 }
 # Champs obligatoires d'un composant existant : une cellule vidée n'est pas une modification.
 NON_VIDABLES: tuple[str, ...] = (
@@ -42,6 +48,8 @@ class EtatDepot:
     affectations: dict[tuple[str, str], dict]
     a_creer: list[import_doublons.Empreinte] = field(default_factory=list)
     prochains: dict[str, tuple[str, int]] = field(default_factory=dict)
+    entites: dict[tuple, dict] = field(default_factory=dict)  # graphie retenue par entité
+    entites_proposees: set[tuple] = field(default_factory=set)
 
 
 @dataclass
@@ -108,6 +116,47 @@ def _brut(lue: import_lecture.LigneLue) -> dict[str, str]:
     return {ENTETES.get(champ, champ): valeur for champ, valeur in lue.brut.items()}
 
 
+def _cle_entite(entite: dict) -> tuple:
+    if entite["type"] == "fournisseur":
+        return ("fournisseur", import_doublons.normaliser(entite["nom"]))
+    if entite["type"] == "ensemble":
+        return ("ensemble", entite["code"])
+    return ("valeur_liste", entite["liste"], import_doublons.normaliser(entite["code"]))
+
+
+def _canoniser(etat: EtatDepot, lue: import_lecture.LigneLue) -> None:
+    """Toutes les graphies d'une même entité nouvelle (« Bossard », « bossard ») prennent
+    celle rencontrée en premier dans le dépôt : une seule entité sera créée."""
+    retenues = []
+    for entite in lue.entites:
+        retenue = etat.entites.setdefault(_cle_entite(entite), entite)
+        if retenue["type"] == "fournisseur":
+            lue.valeurs["fournisseur_nom"] = retenue["nom"]
+        elif retenue["type"] == "ensemble":
+            lue.valeurs["ensemble_code"] = retenue["code"]
+        else:
+            lue.valeurs[retenue["liste"]] = retenue["code"]
+        retenues.append(retenue)
+    lue.entites = retenues
+
+
+def _entites(
+    conn: sqlite3.Connection, etat: EtatDepot, fichier: Fichier, lue: import_lecture.LigneLue
+) -> None:
+    """Propose la création des entités citées et inconnues, une seule fois par dépôt."""
+    for entite in lue.entites:
+        nom = entite.get("nom") or entite.get("libelle")
+        lue.avertissements.append(
+            f"{TYPES_ENTITE[entite['type']]} « {nom} » inconnu : sa création est proposée "
+            "dans « Nouvelles entités »."
+        )
+        cle = _cle_entite(entite)
+        if cle in etat.entites_proposees:
+            continue
+        etat.entites_proposees.add(cle)
+        _inserer(conn, fichier, lue.numero, "NOUVELLE_ENTITE", None, {"entite": entite})
+
+
 # --- Lignes avec identifiant ------------------------------------------------------------------
 
 
@@ -138,10 +187,12 @@ def _affectations(
     fichier: Fichier,
     numero: int,
     composant_id: str,
+    ensemble: str,
     qte: int | None,
+    suppression: bool,
 ) -> None:
-    """Proposition de création, modification ou suppression d'affectation."""
-    existante = etat.affectations.get((fichier.ensemble, composant_id))
+    """Proposition de création, modification ou (modèle d'ensemble) suppression d'affectation."""
+    existante = etat.affectations.get((ensemble, composant_id))
     if qte:
         if existante is None:
             categorie = "CREATION_AFFECTATION"
@@ -149,12 +200,12 @@ def _affectations(
             categorie = "MODIF_AFFECTATION"
         else:
             return
-    elif existante is not None:
+    elif existante is not None and suppression:
         categorie = "SUPPRESSION_AFFECTATION"
     else:
         return
     donnees = {
-        "ensemble": fichier.ensemble,
+        "ensemble": ensemble,
         "affectation_id": existante["id"] if existante else None,
         "qte_actuelle": existante["qte"] if existante else None,
         "qte_proposee": qte or None,
@@ -169,10 +220,21 @@ def _analyse_avec_id(
     composant = etat.par_id.get(identifiant)
     base = {"brut": _brut(lue), "avertissements": lue.avertissements}
     if composant is None:
-        raisons = ["identifiant absent de la base", *lue.erreurs]
-        _inserer(conn, fichier, lue.numero, "INCONNU", identifiant, {**base, "raisons": raisons})
+        if _seulement_affectation(lue):
+            raisons = ["identifiant absent de la base", *lue.erreurs]
+            donnees = {**base, "raisons": raisons}
+            _inserer(conn, fichier, lue.numero, "INCONNU", identifiant, donnees)
+            return
+        # Identifiant inventé : c'est Nomentrace qui attribue les identifiants.
+        lue.avertissements.append(
+            f"l'identifiant « {identifiant} » n'existe pas : la ligne est traitée comme un "
+            "nouveau composant, qui recevra un identifiant attribué par Nomentrace."
+        )
+        lue.valeurs["id"] = None
+        _analyse_sans_id(conn, etat, fichier, lue)
         return
-    seule = fichier.ensemble is not None and _seulement_affectation(lue)
+    ensemble_ligne = lue.valeurs.get("ensemble_code")
+    seule = (fichier.ensemble is not None or ensemble_ligne) and _seulement_affectation(lue)
     differences = {} if seule else _differences(lue, fichier, composant)
     if lue.erreurs:
         _inserer(
@@ -188,11 +250,17 @@ def _analyse_avec_id(
         )
     if composant["archive"]:
         lue.avertissements.append(f"{identifiant} est archivé.")
+    _entites(conn, etat, fichier, lue)
     categorie = "MODIFIE" if differences else "IDENTIQUE"
     donnees = {**base, "designation": composant["designation"], "differences": differences}
     _inserer(conn, fichier, lue.numero, categorie, identifiant, donnees)
-    if fichier.ensemble and "qte_ensemble" in fichier.colonnes and not composant["archive"]:
-        _affectations(conn, etat, fichier, lue.numero, identifiant, lue.valeurs.get("qte_ensemble"))
+    if composant["archive"]:
+        return
+    qte = lue.valeurs.get("qte_ensemble")
+    if ensemble_ligne and qte:
+        _affectations(conn, etat, fichier, lue.numero, identifiant, ensemble_ligne, qte, False)
+    elif fichier.ensemble and "qte_ensemble" in fichier.colonnes and not ensemble_ligne:
+        _affectations(conn, etat, fichier, lue.numero, identifiant, fichier.ensemble, qte, True)
 
 
 # --- Lignes sans identifiant ------------------------------------------------------------------
@@ -242,13 +310,15 @@ def _analyse_sans_id(
     if lue.erreurs:
         _inserer(conn, fichier, lue.numero, "INVALIDE", None, {**base, "raisons": lue.erreurs})
         return
+    _entites(conn, etat, fichier, lue)
     valeurs = {c: lue.valeurs.get(c) for c in ("bloc_code", *CHAMPS_COMPOSANT)}
     empreinte = import_doublons.empreinte(None, valeurs)
     candidats = _candidats(etat, empreinte)
     fusion = next((c for c in candidats if c["fusion"]), None)
     affectation = None
-    if fichier.ensemble and lue.valeurs.get("qte_ensemble"):
-        affectation = {"ensemble": fichier.ensemble, "qte": lue.valeurs["qte_ensemble"]}
+    ensemble = lue.valeurs.get("ensemble_code") or fichier.ensemble
+    if ensemble and lue.valeurs.get("qte_ensemble"):
+        affectation = {"ensemble": ensemble, "qte": lue.valeurs["qte_ensemble"]}
     donnees = {
         **base,
         "valeurs": valeurs,
@@ -332,6 +402,7 @@ def _analyse_fichier(
         if lue is None:
             continue
         lue.avertissements.extend(avertissements)
+        _canoniser(etat, lue)
         if lue.valeurs.get("id"):
             _analyse_avec_id(conn, etat, fichier, lue)
         else:

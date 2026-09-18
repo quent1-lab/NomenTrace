@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, libelle } from "../format.js";
 import { ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
-import { afficherErreur, classeBloc, el, masquerErreur, rangsBlocs } from "../ui.js";
+import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import {
   barreProgression,
@@ -56,6 +56,7 @@ function ligneComposant(ligne) {
     {},
     el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: ligne.composant_id }) }, ligne.composant_id)),
     el("td", { class: "tronque tronque--large", title: ligne.designation }, ligne.designation),
+    el("td", { class: "colonne-lien" }, lienProduit(ligne.lien_produit)),
     el("td", {}, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(ligne.bloc_code) ?? 0)}` }, ligne.bloc_code)),
     qte,
     el("td", { class: "nombre" }, formatNombre(ligne.qte_montee)),
@@ -68,8 +69,8 @@ function ligneComposant(ligne) {
 }
 
 function tableComposants() {
-  const entetes = ["ID", "Désignation", "Bloc", "Qté affectée", "Montée", "Reste à monter", "Statut appro", "PU HT", "Coût ligne HT", ""];
-  const numeriques = new Set([3, 4, 5, 7, 8, 9]);
+  const entetes = ["ID", "Désignation", "", "Bloc", "Qté affectée", "Montée", "Reste à monter", "Statut appro", "PU HT", "Coût ligne HT", ""];
+  const numeriques = new Set([4, 5, 6, 8, 9, 10]);
   const corps = el("tbody");
   if (etat.grouper) {
     const blocs = [...new Set(etat.lignes.map((l) => l.bloc_code))].sort((a, b) => (etat.rangs.get(a) ?? 0) - (etat.rangs.get(b) ?? 0));
@@ -78,7 +79,7 @@ function tableComposants() {
       const sousTotal = lignes.reduce((s, l) => s + (l.cout_ligne_ht ?? 0), 0);
       const nom = etat.blocs.find((b) => b.code === bloc)?.nom ?? bloc;
       corps.append(
-        el("tr", { class: "ligne-groupe" }, el("td", { colspan: 8 }, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(bloc) ?? 0)}` }, bloc), ` ${nom} — ${lignes.length} composant(s)`), el("td", { class: "nombre fort" }, formatMontant(sousTotal)), el("td")),
+        el("tr", { class: "ligne-groupe" }, el("td", { colspan: 9 }, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(bloc) ?? 0)}` }, bloc), ` ${nom} — ${lignes.length} composant(s)`), el("td", { class: "nombre fort" }, formatMontant(sousTotal)), el("td")),
         ...lignes.map(ligneComposant),
       );
     }
@@ -90,7 +91,7 @@ function tableComposants() {
     { class: "table table--dense" },
     el("thead", {}, el("tr", {}, entetes.map((t, i) => el("th", { class: numeriques.has(i) ? "nombre" : "" }, t)))),
     corps,
-    el("tfoot", {}, el("tr", {}, el("td", { colspan: 8, class: "nombre" }, "Coût total HT"), el("td", { class: "nombre fort" }, texteCout(etat.ensemble)), el("td"))),
+    el("tfoot", {}, el("tr", {}, el("td", { colspan: 9, class: "nombre" }, "Coût total HT"), el("td", { class: "nombre fort" }, texteCout(etat.ensemble)), el("td"))),
   );
 }
 
