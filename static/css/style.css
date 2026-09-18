@@ -1,17 +1,43 @@
-/* Nomentrace — feuille de style unique, écrite à la main. */
+/* Nomentrace — feuille de style unique, écrite à la main. Thème clair, écran de bureau. */
 
 :root {
-  --couleur-fond: #f5f6f8;
+  /* Interface : bleu ardoise */
+  --couleur-fond: #f3f5f8;
   --couleur-surface: #ffffff;
   --couleur-texte: #1f2933;
-  --couleur-texte-doux: #616e7c;
-  --couleur-bordure: #d9dee4;
+  --couleur-texte-doux: #5f6b7a;
+  --couleur-bordure: #d9dee5;
   --couleur-ardoise: #3e5573;
-  --couleur-ardoise-fonce: #2c3e56;
+  --couleur-ardoise-fonce: #2a3b52;
+  --couleur-ardoise-clair: #e6ecf3;
+
+  /* États */
   --couleur-conforme: #2f855a;
-  --couleur-surveiller: #c05621;
+  --couleur-conforme-fond: #e6f4ec;
+  --couleur-surveiller: #b7591a;
+  --couleur-surveiller-fond: #fcefe3;
   --couleur-alerte: #c53030;
+  --couleur-alerte-fond: #fbe9e9;
   --couleur-neutre: #8a96a3;
+  --couleur-neutre-fond: #eef1f4;
+
+  /* Blocs fonctionnels : une couleur fixe par rang d'ordre */
+  --bloc-1: #3b6ea8;
+  --bloc-2: #8e5ea2;
+  --bloc-3: #2a8a8a;
+  --bloc-4: #c0703a;
+  --bloc-5: #5b8c3a;
+  --bloc-6: #c4a02b;
+  --bloc-7: #b0506a;
+  --bloc-8: #6b7a8f;
+  --bloc-9: #8a6d4b;
+
+  /* Modes d'approvisionnement */
+  --mode-1: #3e5573;
+  --mode-2: #7fa0c4;
+  --mode-3: #c4a02b;
+  --mode-4: #8e5ea2;
+  --mode-5: #2a8a8a;
 
   --espace-1: 4px;
   --espace-2: 8px;
@@ -20,8 +46,10 @@
   --espace-5: 24px;
 
   --rayon: 4px;
+  --largeur-menu: 190px;
   --police: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --taille-texte: 14px;
+  --taille-petit: 12px;
 }
 
 * {
@@ -30,37 +58,486 @@
 
 body {
   margin: 0;
+  min-width: 1100px;
   font-family: var(--police);
   font-size: var(--taille-texte);
+  line-height: 1.4;
   color: var(--couleur-texte);
   background: var(--couleur-fond);
 }
 
+a {
+  color: var(--couleur-ardoise);
+}
+
+h1 {
+  margin: 0 0 var(--espace-3);
+  font-size: 20px;
+}
+
+h2 {
+  margin: 0 0 var(--espace-3);
+  font-size: 15px;
+}
+
+/* --- En-tête ----------------------------------------------------------------- */
+
 .entete {
   display: flex;
-  align-items: baseline;
-  gap: var(--espace-3);
-  padding: var(--espace-3) var(--espace-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--espace-2) var(--espace-4);
   background: var(--couleur-ardoise-fonce);
   color: #ffffff;
 }
 
+.entete__marque {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-3);
+}
+
 .entete__titre {
-  margin: 0;
   font-size: 18px;
+  font-weight: 600;
 }
 
 .entete__projet {
-  margin: 0;
   color: #c8d2de;
 }
 
+.etat-export {
+  font-size: var(--taille-petit);
+  color: #c8d2de;
+}
+
+.etat-export--attente {
+  color: #ffd29a;
+}
+
+/* --- Bandeau d'erreur ---------------------------------------------------------- */
+
 .bandeau-erreur {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
   padding: var(--espace-2) var(--espace-4);
   background: var(--couleur-alerte);
   color: #ffffff;
 }
 
+.bandeau-erreur[hidden] {
+  display: none;
+}
+
+.bandeau-erreur__fermer {
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* --- Cadre : menu + contenu ------------------------------------------------------ */
+
+.cadre {
+  display: grid;
+  grid-template-columns: var(--largeur-menu) 1fr;
+  min-height: calc(100vh - 44px);
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--espace-3) 0;
+  background: var(--couleur-surface);
+  border-right: 1px solid var(--couleur-bordure);
+}
+
+.menu__lien {
+  padding: var(--espace-2) var(--espace-4);
+  color: var(--couleur-texte);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.menu__lien:hover {
+  background: var(--couleur-ardoise-clair);
+}
+
+.menu__lien--actif {
+  border-left-color: var(--couleur-ardoise);
+  background: var(--couleur-ardoise-clair);
+  font-weight: 600;
+}
+
 .contenu {
+  padding: var(--espace-4) var(--espace-5);
+  min-width: 0;
+}
+
+/* --- Éléments communs ---------------------------------------------------------------- */
+
+.panneau {
+  margin-bottom: var(--espace-4);
   padding: var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+}
+
+.grille-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-4);
+  align-items: start;
+}
+
+.texte-doux {
+  color: var(--couleur-texte-doux);
+}
+
+.texte-alerte {
+  color: var(--couleur-alerte);
+  font-weight: 600;
+}
+
+.texte-surveiller {
+  color: var(--couleur-surveiller);
+  font-weight: 600;
+}
+
+.fort {
+  font-weight: 600;
+}
+
+.nombre {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.etiquette {
+  padding: 1px var(--espace-2);
+  border-radius: var(--rayon);
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  font-weight: 600;
+}
+
+.bouton {
+  padding: var(--espace-1) var(--espace-3);
+  border: 1px solid var(--couleur-ardoise);
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise);
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bouton--discret {
+  background: transparent;
+  color: var(--couleur-ardoise);
+}
+
+.bouton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--espace-1) var(--espace-2);
+  border-bottom: 1px solid var(--couleur-bordure);
+  text-align: left;
+}
+
+.table th {
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  font-weight: 600;
+}
+
+.table th.nombre,
+.table td.nombre {
+  text-align: right;
+}
+
+/* --- Tuiles du tableau de bord ------------------------------------------------------ */
+
+.tuiles {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-4);
+}
+
+.tuile {
+  padding: var(--espace-3);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-top: 4px solid var(--couleur-neutre);
+  border-radius: var(--rayon);
+}
+
+.tuile--conforme {
+  border-top-color: var(--couleur-conforme);
+}
+
+.tuile--surveiller {
+  border-top-color: var(--couleur-surveiller);
+}
+
+.tuile--alerte {
+  border-top-color: var(--couleur-alerte);
+  background: var(--couleur-alerte-fond);
+}
+
+.tuile__titre {
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+}
+
+.tuile__valeur {
+  margin-top: var(--espace-1);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tuile--alerte .tuile__valeur {
+  color: var(--couleur-alerte);
+}
+
+.tuile__precision {
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+}
+
+/* --- Jauge de budget ------------------------------------------------------------------ */
+
+.jauge {
+  position: relative;
+  display: flex;
+  height: 22px;
+  background: var(--couleur-neutre-fond);
+  border-radius: var(--rayon);
+}
+
+.jauge__dans-budget {
+  background: var(--couleur-ardoise);
+  border-radius: var(--rayon) 0 0 var(--rayon);
+}
+
+.jauge__depassement {
+  background: var(--couleur-alerte);
+}
+
+.jauge__trait {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--couleur-texte);
+}
+
+.jauge__legende {
+  display: flex;
+  gap: var(--espace-5);
+  margin-top: var(--espace-2);
+  font-size: var(--taille-petit);
+}
+
+/* --- Graphiques ----------------------------------------------------------------------------- */
+
+.graphique {
+  position: relative;
+}
+
+.graphique--barres {
+  height: 300px;
+}
+
+.graphique--anneau {
+  height: 240px;
+}
+
+/* --- Alertes --------------------------------------------------------------------------------- */
+
+.alertes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alerte {
+  margin-bottom: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  border-left: 4px solid var(--couleur-neutre);
+  border-radius: var(--rayon);
+  background: var(--couleur-neutre-fond);
+}
+
+.alerte a {
+  color: var(--couleur-texte-doux);
+  text-decoration: none;
+}
+
+.alerte--alerte {
+  border-left-color: var(--couleur-alerte);
+  background: var(--couleur-alerte-fond);
+}
+
+.alerte--alerte a {
+  color: var(--couleur-texte);
+}
+
+.alerte a:hover {
+  text-decoration: underline;
+}
+
+.alerte__nombre {
+  font-weight: 700;
+}
+
+/* --- Cartes (blocs) -------------------------------------------------------------------------- */
+
+.grille-cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: var(--espace-3);
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-left: 5px solid var(--couleur-bloc, var(--couleur-neutre));
+  border-radius: var(--rayon);
+}
+
+.carte--cliquable {
+  cursor: pointer;
+}
+
+.carte--cliquable:hover,
+.carte--cliquable:focus-visible {
+  border-color: var(--couleur-ardoise);
+  border-left-color: var(--couleur-bloc, var(--couleur-neutre));
+  outline: none;
+}
+
+.carte__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.carte__entete h2 {
+  margin: 0;
+}
+
+.carte__chiffres {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--espace-1) var(--espace-3);
+  margin: 0;
+}
+
+.carte__chiffres dt {
+  color: var(--couleur-texte-doux);
+}
+
+.carte__chiffres dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.carte__avancement-libelle {
+  display: flex;
+  justify-content: space-between;
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+}
+
+.carte__pied {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ecart--conforme {
+  color: var(--couleur-conforme);
+}
+
+.ecart--surveiller {
+  color: var(--couleur-surveiller);
+}
+
+.ecart--alerte {
+  color: var(--couleur-alerte);
+  font-weight: 600;
+}
+
+.ecart--neutre {
+  color: var(--couleur-neutre);
+}
+
+.barre {
+  height: 8px;
+  margin-top: var(--espace-1);
+  background: var(--couleur-neutre-fond);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+
+.barre__remplissage {
+  height: 100%;
+  background: var(--couleur-conforme);
+}
+
+.champ-montant {
+  width: 110px;
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  font: inherit;
+  text-align: right;
+}
+
+.champ-montant:focus {
+  border-color: var(--couleur-ardoise);
+  outline: none;
+}
+
+.champ-montant:disabled {
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+}
+
+.bloc-1 { --couleur-bloc: var(--bloc-1); }
+.bloc-2 { --couleur-bloc: var(--bloc-2); }
+.bloc-3 { --couleur-bloc: var(--bloc-3); }
+.bloc-4 { --couleur-bloc: var(--bloc-4); }
+.bloc-5 { --couleur-bloc: var(--bloc-5); }
+.bloc-6 { --couleur-bloc: var(--bloc-6); }
+.bloc-7 { --couleur-bloc: var(--bloc-7); }
+.bloc-8 { --couleur-bloc: var(--bloc-8); }
+.bloc-9 { --couleur-bloc: var(--bloc-9); }
+
+.code {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }

@@ -3,7 +3,20 @@
 export function lireRoute() {
   const brut = window.location.hash.replace(/^#/, "") || "/";
   const [chemin, requete = ""] = brut.split("?");
-  return { chemin, parametres: new URLSearchParams(requete) };
+  return { chemin: chemin || "/", parametres: new URLSearchParams(requete) };
+}
+
+export function lienRoute(chemin, parametres = {}) {
+  const requete = new URLSearchParams();
+  for (const [cle, valeur] of Object.entries(parametres)) {
+    if (valeur !== undefined && valeur !== null && valeur !== "") requete.set(cle, valeur);
+  }
+  const texte = requete.toString();
+  return `#${chemin}${texte ? "?" + texte : ""}`;
+}
+
+export function naviguer(chemin, parametres = {}) {
+  window.location.hash = lienRoute(chemin, parametres);
 }
 
 export function demarrerRouteur(surChangement) {
