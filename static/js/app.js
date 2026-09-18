@@ -9,6 +9,8 @@ import { afficherDetailCommande } from "./pages/commande_detail.js";
 import { afficherComposants } from "./pages/composants.js";
 import { afficherDetailEnsemble } from "./pages/ensemble_detail.js";
 import { afficherEnsembles } from "./pages/ensembles.js";
+import { afficherRevueImport } from "./pages/import_revue.js";
+import { afficherImports } from "./pages/imports.js";
 import { afficherParametres } from "./pages/parametres.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
@@ -24,6 +26,7 @@ const ROUTES = {
   "/achats": afficherAchats,
   "/stock": afficherStock,
   "/parametres": afficherParametres,
+  "/imports": afficherImports,
 };
 
 // Routes à paramètre : #/ensembles/CODE et #/achats/NUMERO.
@@ -33,6 +36,8 @@ function routeParametree(chemin) {
     const code = decodeURIComponent(detail[1]);
     return (conteneur, parametres) => afficherDetailEnsemble(conteneur, parametres, code);
   }
+  const depot = chemin.match(/^\/imports\/(\d+)$/);
+  if (depot) return (conteneur, parametres) => afficherRevueImport(conteneur, parametres, depot[1]);
   const commande = chemin.match(/^\/achats\/([^/]+)$/);
   if (commande) {
     const numero = decodeURIComponent(commande[1]);
@@ -42,7 +47,6 @@ function routeParametree(chemin) {
 }
 
 const TITRES_A_VENIR = {
-  "/imports": "Imports",
 };
 
 const contenu = document.getElementById("contenu");

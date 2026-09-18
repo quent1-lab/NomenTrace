@@ -266,7 +266,7 @@ function sectionHistorique(journal) {
     "Historique",
     tableSimple(
       [["Date"], ["Champ"], ["Ancienne"], ["Nouvelle"], ["Origine"]],
-      journal.map((j) => el("tr", {}, el("td", { class: "code" }, `${formatDate(j.horodatage)} ${j.horodatage.slice(11, 16)}`), el("td", {}, j.table_cible === "affectation" ? `affectation ${j.cle_cible.split(":")[0]}` : j.champ), el("td", {}, j.ancienne_valeur ?? "—"), el("td", {}, j.nouvelle_valeur ?? "—"), el("td", { class: "texte-doux" }, j.origine))),
+      journal.map((j) => el("tr", {}, el("td", { class: "code" }, `${formatDate(j.horodatage)} ${j.horodatage.slice(11, 16)}`), el("td", {}, j.table_cible === "affectation" ? `affectation ${j.cle_cible.split(":")[0]}` : j.champ), el("td", {}, j.ancienne_valeur ?? "—"), el("td", {}, j.nouvelle_valeur ?? "—"), el("td", { class: "texte-doux", title: j.nom_fichier ?? "" }, j.nom_fichier ? `import : ${j.nom_fichier}` : j.origine))),
       "Aucune modification enregistrée.",
     ),
   );

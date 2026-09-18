@@ -49,6 +49,11 @@ async function requeteFormulaire(chemin, donnees) {
   return resultat;
 }
 
+// Adresses de téléchargement des modèles à remplir (liens, pas des appels fetch).
+export function lienModele(type, code) {
+  return `/api/${type === "bloc" ? "blocs" : "ensembles"}/${encodeURIComponent(code)}/modele`;
+}
+
 // Adresse d'ouverture d'un document joint (lien, pas un appel fetch).
 export function lienFichierDocument(id) {
   return `/api/documents/${id}/fichier`;
@@ -115,6 +120,12 @@ export const api = {
   deposerDocumentsComposant: (id, donnees) =>
     requeteFormulaire(`/api/composants/${encodeURIComponent(id)}/documents`, donnees),
   retirerDocument: (id) => requete("DELETE", `/api/documents/${id}`),
+
+  getImports: () => requete("GET", "/api/imports"),
+  getImport: (depot) => requete("GET", `/api/imports/${depot}`),
+  deposerImport: (donnees) => requeteFormulaire("/api/imports", donnees),
+  appliquerImport: (depot, decisions) => requete("POST", `/api/imports/${depot}/appliquer`, { decisions }),
+  abandonnerImport: (depot) => requete("POST", `/api/imports/${depot}/abandonner`),
 
   createAffectation: (ensemble, valeurs) =>
     requete("POST", `/api/ensembles/${encodeURIComponent(ensemble)}/affectations`, valeurs),

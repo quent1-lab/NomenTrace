@@ -36,12 +36,13 @@ def write_journal(
     ancienne: Any,
     nouvelle: Any,
     origine: str = ORIGINE_INTERFACE,
+    lot_id: int | None = None,
 ) -> None:
-    """Écrit une ligne de journal."""
+    """Écrit une ligne de journal ; `lot_id` relie une modification au fichier importé."""
     conn.execute(
         "INSERT INTO journal (table_cible, cle_cible, champ, ancienne_valeur, nouvelle_valeur,"
-        " origine) VALUES (?, ?, ?, ?, ?, ?)",
-        (table, _texte(cle), champ, _texte(ancienne), _texte(nouvelle), origine),
+        " origine, lot_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (table, _texte(cle), champ, _texte(ancienne), _texte(nouvelle), origine, lot_id),
     )
 
 
@@ -60,6 +61,7 @@ def update_with_journal(
     colonnes_autorisees: frozenset[str],
     origine: str = ORIGINE_INTERFACE,
     cle_journal: str | None = None,
+    lot_id: int | None = None,
 ) -> dict[str, Any]:
     """Applique les champs qui changent réellement et journalise chacun d'eux.
 
@@ -83,7 +85,9 @@ def update_with_journal(
             f"UPDATE {table} SET {champ} = ? WHERE {col_cle} = ?",  # noqa: S608
             (valeur, cle),
         )
-        write_journal(conn, table, cle_journal or cle, champ, actuel[champ], valeur, origine)
+        write_journal(
+            conn, table, cle_journal or cle, champ, actuel[champ], valeur, origine, lot_id
+        )
     return changes
 
 

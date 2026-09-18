@@ -20,22 +20,44 @@ from backend.services import commandes, composants, journal
 TAILLE_MAX: int = 20 * 1024 * 1024
 EXTENSIONS: frozenset[str] = frozenset(
     {
-        ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif",
-        ".xlsx", ".xls", ".ods", ".csv", ".docx", ".doc", ".odt", ".txt",
-        ".eml", ".msg", ".step", ".stp", ".dxf",
+        ".pdf",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".gif",
+        ".xlsx",
+        ".xls",
+        ".ods",
+        ".csv",
+        ".docx",
+        ".doc",
+        ".odt",
+        ".txt",
+        ".eml",
+        ".msg",
+        ".step",
+        ".stp",
+        ".dxf",
     }
-)  # fmt: skip
+)
 # Types ouverts directement dans le navigateur ; les autres sont téléchargés.
 TYPES_EN_LIGNE: frozenset[str] = frozenset(
     {"application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif", "text/plain"}
 )
 TYPES_DOCUMENT: tuple[str, ...] = (
-    "Devis", "Bon de commande", "Facture", "Bon de livraison",
-    "Fiche technique", "Plan", "Photo", "Autre",
-)  # fmt: skip
+    "Devis",
+    "Bon de commande",
+    "Facture",
+    "Bon de livraison",
+    "Fiche technique",
+    "Plan",
+    "Photo",
+    "Autre",
+)
 
 
-def _nom_sur(nom: str) -> str:
+def nom_sur(nom: str) -> str:
     """Nom de fichier sans chemin, sans accents ni caractères spéciaux."""
     base = Path(nom.replace("\\", "/")).name
     base = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode()
@@ -72,11 +94,11 @@ def ensure_cible(conn: sqlite3.Connection, commande: str | None, composant: str 
     """Vérifie la cible du rattachement et renvoie son sous-dossier."""
     if commande is not None:
         commandes.get_commande(conn, commande)
-        return Path("commandes") / _nom_sur(commande)
+        return Path("commandes") / nom_sur(commande)
     if composant is None:
         raise ErreurMetier("Un document se rattache à une commande ou à un composant.")
     composants.get_composant(conn, composant)
-    return Path("composants") / _nom_sur(composant)
+    return Path("composants") / nom_sur(composant)
 
 
 def add_document(
@@ -102,7 +124,7 @@ def add_document(
         )
         if doublon:
             raise Conflit(f"Ce fichier est déjà joint (sous le nom « {doublon['nom_origine']} »).")
-        relatif = _chemin_libre(dossier, sous_dossier, _nom_sur(nom))
+        relatif = _chemin_libre(dossier, sous_dossier, nom_sur(nom))
         (dossier / relatif).parent.mkdir(parents=True, exist_ok=True)
         (dossier / relatif).write_bytes(contenu)
         identifiant = _insert_fiche(
@@ -173,8 +195,12 @@ def get_fichier(conn: sqlite3.Connection, dossier: Path, identifiant: int) -> di
             f"Le fichier de « {document['nom_origine']} » est absent du dossier des documents."
         )
     en_ligne = document["type_mime"] in TYPES_EN_LIGNE
-    return {"chemin": chemin, "nom": document["nom_origine"], "type_mime": document["type_mime"],
-            "en_ligne": en_ligne}  # fmt: skip
+    return {
+        "chemin": chemin,
+        "nom": document["nom_origine"],
+        "type_mime": document["type_mime"],
+        "en_ligne": en_ligne,
+    }
 
 
 def patch_document(conn: sqlite3.Connection, identifiant: int, modifs: dict[str, Any]) -> dict:

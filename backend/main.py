@@ -21,6 +21,7 @@ from backend.routes import (
     documents,
     ensembles,
     fournisseurs,
+    imports,
     listes,
     pilotage,
     sante,
@@ -145,6 +146,7 @@ def create_app(
     app.state.chemin_base = base
     app.state.export = export
     app.state.dossier_documents = echange / "documents"
+    app.state.dossier_echange = echange
     _install_error_handlers(app)
 
     @app.middleware("http")
@@ -167,8 +169,17 @@ def create_app(
         return reponse
 
     modules = (
-        sante, pilotage, blocs, ensembles, fournisseurs, composants, commandes, listes, documents,
-    )  # fmt: skip
+        sante,
+        pilotage,
+        blocs,
+        ensembles,
+        fournisseurs,
+        composants,
+        commandes,
+        listes,
+        documents,
+        imports,
+    )
     for module in modules:
         app.include_router(module.router)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")

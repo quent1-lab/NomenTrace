@@ -1304,3 +1304,177 @@ td.editable:hover {
   max-width: 320px;
   font: inherit;
 }
+
+/* --- Import de l'équipe --------------------------------------------------------------------- */
+
+.resume-import {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1);
+}
+
+.puce-import {
+  padding: 0 var(--espace-2);
+  border-radius: 10px;
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  white-space: nowrap;
+}
+
+.puce-import--modifie,
+.puce-import--creation_affectation,
+.puce-import--modif_affectation,
+.puce-import--suppression_affectation {
+  background: var(--couleur-ardoise-clair);
+  color: var(--couleur-ardoise);
+}
+
+.puce-import--doublon {
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+}
+
+.puce-import--nouveau {
+  background: var(--couleur-conforme-fond);
+  color: var(--couleur-conforme);
+}
+
+.puce-import--inconnu,
+.puce-import--invalide {
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.statut-import {
+  padding: 0 var(--espace-2);
+  border-radius: 10px;
+  font-size: var(--taille-petit);
+  font-weight: 600;
+}
+
+.statut-import--analyse {
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+}
+
+.statut-import--applique {
+  background: var(--couleur-conforme-fond);
+  color: var(--couleur-conforme);
+}
+
+.statut-import--abandonne {
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+}
+
+.liste-fichiers {
+  margin: 0 0 var(--espace-2);
+  padding-left: var(--espace-5);
+}
+
+.liste-fichiers .etiquette {
+  margin-left: var(--espace-2);
+}
+
+.carte-import {
+  margin-bottom: var(--espace-3);
+  padding: var(--espace-3);
+  border: 1px solid var(--couleur-bordure);
+  border-left: 4px solid var(--couleur-ardoise);
+  border-radius: var(--rayon);
+}
+
+.carte-import--doublon {
+  border-left-color: var(--couleur-surveiller);
+}
+
+.carte-import__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-2);
+}
+
+.avertissements-ligne {
+  margin: 0 0 var(--espace-2);
+  padding-left: var(--espace-5);
+  color: var(--couleur-surveiller);
+  font-size: var(--taille-petit);
+}
+
+.valeur-actuelle {
+  color: var(--couleur-texte-doux);
+  text-decoration: line-through;
+}
+
+.valeur-proposee {
+  font-weight: 600;
+}
+
+.grille-doublon {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 2fr;
+  gap: var(--espace-4);
+}
+
+.grille-doublon h4 {
+  margin: 0 0 var(--espace-2);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  text-transform: uppercase;
+}
+
+.fiche__champs--compact {
+  grid-template-columns: 110px 1fr;
+}
+
+.choix-doublons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.choix-doublon {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: flex-start;
+  padding: var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  cursor: pointer;
+}
+
+.choix-doublon:has(input:checked) {
+  border-color: var(--couleur-ardoise);
+  background: var(--couleur-ardoise-clair);
+}
+
+.score-doublon {
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+}
+
+.score-doublon--fort {
+  color: var(--couleur-surveiller);
+  font-weight: 600;
+}
+
+.barre-application {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-ardoise);
+  border-radius: var(--rayon);
+  box-shadow: 0 -2px 8px rgb(0 0 0 / 8%);
+}
+
+.barre-application .texte-doux {
+  margin-right: auto;
+}

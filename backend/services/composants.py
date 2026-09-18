@@ -153,8 +153,9 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
         ),
         "journal": db.fetch_all(
             conn,
-            "SELECT * FROM journal WHERE (table_cible = 'composant' AND cle_cible = ?)"
-            " OR (table_cible = 'affectation' AND cle_cible LIKE '%:' || ?) ORDER BY id DESC",
+            "SELECT j.*, l.nom_fichier FROM journal j LEFT JOIN import_lot l ON l.id = j.lot_id"
+            " WHERE (j.table_cible = 'composant' AND j.cle_cible = ?)"
+            " OR (j.table_cible = 'affectation' AND j.cle_cible LIKE '%:' || ?) ORDER BY j.id DESC",
             (identifiant, identifiant),
         ),
     }
@@ -194,17 +195,28 @@ def preview_id(conn: sqlite3.Connection, bloc_code: str) -> str:
     return next_id(conn, bloc_code)
 
 
+def insert_composant(
+    conn: sqlite3.Connection,
+    valeurs: dict[str, Any],
+    origine: str = journal.ORIGINE_INTERFACE,
+    lot_id: int | None = None,
+) -> str:
+    """Insère un composant avec un identifiant généré. À appeler dans une transaction."""
+    _ensure_bloc(conn, valeurs["bloc_code"])
+    _check_listes(conn, valeurs)
+    fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
+    if valeurs.get("taux_tva") is None:
+        valeurs = {**valeurs, "taux_tva": parametres.get_taux_tva_defaut(conn)}
+    identifiant = next_id(conn, valeurs["bloc_code"])
+    db.insert_row(conn, "composant", {"id": identifiant, **valeurs})
+    journal.write_journal(conn, "composant", identifiant, "creation", None, "créé", origine, lot_id)
+    return identifiant
+
+
 def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Crée un composant ; l'identifiant est généré et inséré dans la même transaction."""
     with db.transaction(conn, immediate=True):
-        _ensure_bloc(conn, valeurs["bloc_code"])
-        _check_listes(conn, valeurs)
-        fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
-        if valeurs.get("taux_tva") is None:
-            valeurs["taux_tva"] = parametres.get_taux_tva_defaut(conn)
-        identifiant = next_id(conn, valeurs["bloc_code"])
-        db.insert_row(conn, "composant", {"id": identifiant, **valeurs})
-        journal.write_journal(conn, "composant", identifiant, "creation", None, "créé")
+        identifiant = insert_composant(conn, valeurs)
     return get_composant(conn, identifiant)
 
 

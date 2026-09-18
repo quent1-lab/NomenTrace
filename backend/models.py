@@ -4,7 +4,7 @@ Les listes figées reprennent la section « Valeurs autorisées » de docs/MODEL
 paramétrables sont validées contre la table valeur_liste par les services.
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -241,6 +241,12 @@ TypeDocument = Literal[
 class DocumentModif(Modele):
     type_document: TypeDocument | None = None
     commentaire: str | None = None
+
+
+class ApplicationImport(Modele):
+    """Décisions par ligne d'import : champs retenus, action choisie, cible d'une fusion."""
+
+    decisions: dict[str, dict[str, Any]]
 
 
 class ReceptionLigne(Modele):
