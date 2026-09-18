@@ -21,9 +21,24 @@ def chemin_base(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def client(chemin_base: Path) -> Iterator[TestClient]:
+def dossier_echange(tmp_path: Path) -> Path:
+    """Dossier d'échange temporaire : exports et sauvegardes des tests n'en sortent pas."""
+    return tmp_path / "echange"
+
+
+@pytest.fixture
+def client(chemin_base: Path, dossier_echange: Path) -> Iterator[TestClient]:
     """Client HTTP sur une application branchée sur une base temporaire vide."""
-    with TestClient(create_app(chemin_base, fichier_import=None)) as test_client:
+    app = create_app(chemin_base, fichier_import=None, dossier_echange=dossier_echange)
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def client_spoc(chemin_base: Path, dossier_echange: Path) -> Iterator[TestClient]:
+    """Client HTTP sur une base temporaire peuplée par le fichier de départ."""
+    app = create_app(chemin_base, fichier_import=FICHIER_SPOC, dossier_echange=dossier_echange)
+    with TestClient(app) as test_client:
         yield test_client
 
 

@@ -52,6 +52,21 @@ def fetch_one(conn: sqlite3.Connection, sql: str, params: tuple[Any, ...] = ()) 
     return dict(ligne) if ligne is not None else None
 
 
+def insert_row(conn: sqlite3.Connection, table: str, valeurs: dict[str, Any]) -> int:
+    """Insère une ligne et renvoie son rowid.
+
+    Les noms de table et de colonnes viennent toujours du code (modèles Pydantic à champs
+    fermés), jamais d'une saisie : seules les valeurs sont des paramètres liés.
+    """
+    colonnes = ", ".join(valeurs)
+    marques = ", ".join("?" for _ in valeurs)
+    curseur = conn.execute(
+        f"INSERT INTO {table} ({colonnes}) VALUES ({marques})",  # noqa: S608
+        tuple(valeurs.values()),
+    )
+    return int(curseur.lastrowid or 0)
+
+
 def table_existe(conn: sqlite3.Connection, nom: str) -> bool:
     """Indique si une table existe dans la base."""
     ligne = conn.execute(

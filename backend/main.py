@@ -1,21 +1,26 @@
 """Point d'entrée de l'application Nomentrace."""
 
 import logging
-from collections.abc import AsyncIterator
+import sqlite3
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
-from backend.routes import sante
-from backend.services import import_initial
+from backend.erreurs import ErreurMetier
+from backend.routes import blocs, commandes, composants, ensembles, fournisseurs, pilotage, sante
+from backend.services import import_initial, sauvegardes
+from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger("nomentrace")
+
+METHODES_ECRITURE: frozenset[str] = frozenset({"POST", "PATCH", "PUT", "DELETE"})
 
 
 def _configure_logging() -> None:
@@ -23,24 +28,41 @@ def _configure_logging() -> None:
     logging.basicConfig(level=logging.INFO, format=config.FORMAT_LOG)
 
 
+def _message_validation(exc: RequestValidationError) -> str:
+    details = []
+    for erreur in exc.errors():
+        champ = ".".join(str(p) for p in erreur.get("loc", ()) if p not in ("body", "query"))
+        details.append(f"{champ} : {erreur.get('msg', 'valeur invalide')}")
+    return "Données invalides — " + " ; ".join(details)
+
+
 def _install_error_handlers(app: FastAPI) -> None:
     """Traduit toutes les erreurs en {"erreur": "..."} sans trace Python."""
+
+    @app.exception_handler(ErreurMetier)
+    async def _metier(_: Request, exc: ErreurMetier) -> JSONResponse:
+        return JSONResponse({"erreur": exc.message}, status_code=exc.statut)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:
         message = exc.detail if isinstance(exc.detail, str) else "Requête refusée."
         if exc.status_code == 404 and message == "Not Found":
             message = "Ressource introuvable."
+        if exc.status_code == 405:
+            message = "Méthode non autorisée sur cette ressource."
         return JSONResponse({"erreur": message}, status_code=exc.status_code)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:
-        details = []
-        for erreur in exc.errors():
-            champ = ".".join(str(p) for p in erreur.get("loc", ()) if p != "body")
-            details.append(f"{champ} : {erreur.get('msg', 'valeur invalide')}")
-        message = "Données invalides — " + " ; ".join(details)
-        return JSONResponse({"erreur": message}, status_code=422)
+        return JSONResponse({"erreur": _message_validation(exc)}, status_code=422)
+
+    @app.exception_handler(sqlite3.IntegrityError)
+    async def _integrite(_: Request, exc: sqlite3.IntegrityError) -> JSONResponse:
+        journal_log.warning("Contrainte de base refusée : %s", exc)
+        return JSONResponse(
+            {"erreur": f"Opération refusée par une contrainte de la base ({exc})."},
+            status_code=409,
+        )
 
     @app.exception_handler(Exception)
     async def _inattendue(_: Request, exc: Exception) -> JSONResponse:
@@ -50,33 +72,64 @@ def _install_error_handlers(app: FastAPI) -> None:
         )
 
 
+def _prepare_base(base: Path, fichier_import: Path | None, dossier_sauvegardes: Path) -> None:
+    """Sauvegarde, migrations puis import initial éventuel, au démarrage."""
+    sauvegardes.create_sauvegarde(base, dossier_sauvegardes)
+    conn = db.connect(base)
+    try:
+        version = db.apply_migrations(conn)
+        journal_log.info("Base %s prête, schéma version %d", base, version)
+        if fichier_import is not None:
+            import_initial.run_import_initial(conn, fichier_import)
+    finally:
+        conn.close()
+
+
 def create_app(
-    chemin_base: Path | None = None, fichier_import: Path | None = config.FICHIER_IMPORT_INITIAL
+    chemin_base: Path | None = None,
+    fichier_import: Path | None = config.FICHIER_IMPORT_INITIAL,
+    dossier_echange: Path | None = None,
 ) -> FastAPI:
     """Construit l'application.
 
-    `chemin_base` permet aux tests d'utiliser une base temporaire ; `fichier_import` à None
-    désactive l'import initial.
+    Les tests passent une base et un dossier d'échange temporaires ; `fichier_import` à
+    None désactive l'import initial.
     """
     _configure_logging()
     base = chemin_base or config.CHEMIN_BASE
+    echange = dossier_echange or config.DOSSIER_ECHANGE
+    export = PlanificateurExport(base, echange / "exports")
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        conn = db.connect(base)
-        try:
-            version = db.apply_migrations(conn)
-            journal_log.info("Base %s prête, schéma version %d", base, version)
-            if fichier_import is not None:
-                import_initial.run_import_initial(conn, fichier_import)
-        finally:
-            conn.close()
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        _prepare_base(base, fichier_import, echange / "sauvegardes")
+        export.start()
+        export.signaler()
         yield
+        export.stop()
 
     app = FastAPI(title="Nomentrace", lifespan=lifespan)
     app.state.chemin_base = base
+    app.state.export = export
     _install_error_handlers(app)
-    app.include_router(sante.router)
+
+    @app.middleware("http")
+    async def _signaler_modification(
+        request: Request, suite: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Toute écriture réussie sur l'API programme un export Excel."""
+        reponse = await suite(request)
+        if (
+            request.method in METHODES_ECRITURE
+            and request.url.path.startswith("/api/")
+            and request.url.path != "/api/export"
+            and reponse.status_code < 400
+        ):
+            export.signaler()
+        return reponse
+
+    for module in (sante, pilotage, blocs, ensembles, fournisseurs, composants, commandes):
+        app.include_router(module.router)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")
     return app
 
