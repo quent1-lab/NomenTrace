@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
 from backend.routes import sante
+from backend.services import import_initial
 
 journal_log = logging.getLogger("nomentrace")
 
@@ -49,8 +50,14 @@ def _install_error_handlers(app: FastAPI) -> None:
         )
 
 
-def create_app(chemin_base: Path | None = None) -> FastAPI:
-    """Construit l'application ; `chemin_base` permet aux tests d'utiliser une base temporaire."""
+def create_app(
+    chemin_base: Path | None = None, fichier_import: Path | None = config.FICHIER_IMPORT_INITIAL
+) -> FastAPI:
+    """Construit l'application.
+
+    `chemin_base` permet aux tests d'utiliser une base temporaire ; `fichier_import` à None
+    désactive l'import initial.
+    """
     _configure_logging()
     base = chemin_base or config.CHEMIN_BASE
 
@@ -60,6 +67,8 @@ def create_app(chemin_base: Path | None = None) -> FastAPI:
         try:
             version = db.apply_migrations(conn)
             journal_log.info("Base %s prête, schéma version %d", base, version)
+            if fichier_import is not None:
+                import_initial.run_import_initial(conn, fichier_import)
         finally:
             conn.close()
         yield
