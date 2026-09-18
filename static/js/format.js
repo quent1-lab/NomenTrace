@@ -1,6 +1,6 @@
 // Formatage français centralisé : montants, dates, pourcentages, libellés accentués.
 
-const ESPACE_FINE = " ";
+const ESPACE_FINE = "\u202f";
 
 function grouperMilliers(entier) {
   return entier.replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_FINE);
@@ -43,7 +43,7 @@ export function aujourdhui() {
 
 // Lit un nombre saisi à la française (« 1 234,50 ») ; renvoie null si vide, NaN si illisible.
 export function lireNombre(texte) {
-  const nettoye = String(texte ?? "").replace(/[\s  €]/g, "").replace(",", ".");
+  const nettoye = String(texte ?? "").replace(/[\s\u202f\u00a0€]/g, "").replace(",", ".");
   if (nettoye === "") return null;
   return /^-?\d+(\.\d+)?$/.test(nettoye) ? Number(nettoye) : Number.NaN;
 }
