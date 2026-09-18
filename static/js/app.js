@@ -5,6 +5,8 @@ import { detruireGraphiques } from "./graphiques.js";
 import { fermerPanneau } from "./panneau.js";
 import { afficherBlocs } from "./pages/blocs.js";
 import { afficherComposants } from "./pages/composants.js";
+import { afficherDetailEnsemble } from "./pages/ensemble_detail.js";
+import { afficherEnsembles } from "./pages/ensembles.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur } from "./router.js";
 import { afficherErreur, el } from "./ui.js";
@@ -13,10 +15,20 @@ const ROUTES = {
   "/": afficherTableau,
   "/blocs": afficherBlocs,
   "/composants": afficherComposants,
+  "/ensembles": afficherEnsembles,
 };
 
+// Routes à paramètre : #/ensembles/CODE.
+function routeParametree(chemin) {
+  const detail = chemin.match(/^\/ensembles\/([^/]+)$/);
+  if (detail) {
+    const code = decodeURIComponent(detail[1]);
+    return (conteneur, parametres) => afficherDetailEnsemble(conteneur, parametres, code);
+  }
+  return null;
+}
+
 const TITRES_A_VENIR = {
-  "/ensembles": "Ensembles",
   "/achats": "Achats",
   "/stock": "Stock",
   "/imports": "Imports",
@@ -44,7 +56,7 @@ async function afficherRoute({ chemin, parametres }) {
   detruireGraphiques();
   fermerPanneau({ silencieux: true });
   marquerMenu(chemin);
-  const page = ROUTES[chemin];
+  const page = ROUTES[chemin] ?? routeParametree(chemin);
   const racine = "/" + (chemin.split("/")[1] ?? "");
   try {
     if (page) {

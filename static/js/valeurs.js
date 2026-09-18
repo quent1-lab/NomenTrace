@@ -17,3 +17,4 @@ export const STATUTS_APPRO = [
 export const CRITICITES = ["Bloquant", "Important", "Confort"];
 export const BASES_PRIX = ["HT", "TTC"];
 export const AVANCEMENTS = ["A commander", "Commande", "Recu", "Hors achat"];
+export const STATUTS_MONTAGE = ["Non commence", "En cours", "Monte", "Valide"];

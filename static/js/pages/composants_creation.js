@@ -43,7 +43,7 @@ const LIBELLES = {
 
 const OBLIGATOIRES = ["bloc_code", "fonction", "designation", "mode_appro", "qte_besoin"];
 
-export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree }) {
+export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree, note = "" }) {
   const parametres = await api.getParametres();
   const tauxDefaut = Number(parametres.taux_tva_defaut ?? 0.2) * 100;
   const apercu = el("strong", { class: "code" }, "choisir un bloc");
@@ -74,6 +74,7 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
   const formulaire = el(
     "form",
     { class: "formulaire", novalidate: true },
+    note ? el("p", { class: "note-formulaire" }, note) : null,
     el("p", { class: "apercu-id" }, "Identifiant attribué : ", apercu, el("span", { class: "texte-doux" }, " (aperçu, confirmé à l'enregistrement)")),
     el("fieldset", {}, el("legend", {}, "Identification"),
       ligneChamp("Bloc fonctionnel", bloc, { requis: true }),

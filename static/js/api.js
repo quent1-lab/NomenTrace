@@ -55,6 +55,13 @@ export const api = {
 
   getFournisseurs: () => requete("GET", "/api/fournisseurs"),
   getEnsembles: () => requete("GET", "/api/ensembles"),
+  getEnsemble: (code) => requete("GET", `/api/ensembles/${encodeURIComponent(code)}`),
+  createEnsemble: (valeurs) => requete("POST", "/api/ensembles", valeurs),
+  patchEnsemble: (code, modifs) => requete("PATCH", `/api/ensembles/${encodeURIComponent(code)}`, modifs),
+  archiveEnsemble: (code) => requete("DELETE", `/api/ensembles/${encodeURIComponent(code)}`),
+  getComposantsEnsemble: (code) => requete("GET", `/api/ensembles/${encodeURIComponent(code)}/composants`),
+  getRepartition: () => requete("GET", "/api/ensembles/repartition"),
+  getIncoherences: () => requete("GET", "/api/ensembles/incoherences"),
 
   getComposants: (filtres) => requete("GET", avecParametres("/api/composants", filtres)),
   getComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}`),

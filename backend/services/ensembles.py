@@ -18,6 +18,22 @@ def list_ensembles(conn: sqlite3.Connection) -> list[dict]:
     return db.fetch_all(conn, "SELECT * FROM v_ensemble ORDER BY ordre, code")
 
 
+def list_repartition(conn: sqlite3.Connection) -> list[dict]:
+    """Répartition de chaque ensemble par bloc fonctionnel (coût, pièces, composants)."""
+    return db.fetch_all(
+        conn,
+        "SELECT r.* FROM v_ensemble_bloc r JOIN bloc b ON b.code = r.bloc_code"
+        " ORDER BY r.ensemble_code, b.ordre",
+    )
+
+
+def list_incoherences(conn: sqlite3.Connection) -> list[dict]:
+    """Incohérences d'affectation, de commande et de montage."""
+    return db.fetch_all(
+        conn, "SELECT * FROM v_incoherence ORDER BY type, composant_id, ensemble_code"
+    )
+
+
 def get_ensemble(conn: sqlite3.Connection, code: str) -> dict:
     """Renvoie un ensemble non archivé avec ses indicateurs."""
     ensemble = db.fetch_one(conn, "SELECT * FROM v_ensemble WHERE code = ?", (code,))

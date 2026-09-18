@@ -19,6 +19,21 @@ def read_ensembles(conn: Conn) -> list[dict]:
     return round_output(ensembles.list_ensembles(conn))
 
 
+@router.get("/ensembles/repartition")
+def read_repartition(conn: Conn) -> list[dict]:
+    return round_output(ensembles.list_repartition(conn))
+
+
+@router.get("/ensembles/incoherences")
+def read_incoherences(conn: Conn) -> list[dict]:
+    return ensembles.list_incoherences(conn)
+
+
+@router.get("/ensembles/{code}")
+def read_ensemble(code: str, conn: Conn) -> dict:
+    return round_output(ensembles.get_ensemble(conn, code))
+
+
 @router.post("/ensembles", status_code=201)
 def create_ensemble(corps: EnsembleCreation, conn: Conn) -> dict:
     return round_output(ensembles.create_ensemble(conn, corps.model_dump()))

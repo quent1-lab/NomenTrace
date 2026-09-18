@@ -28,11 +28,34 @@ def _configure_logging() -> None:
     logging.basicConfig(level=logging.INFO, format=config.FORMAT_LOG)
 
 
+# Messages Pydantic les plus courants, traduits ; les autres gardent leur texte d'origine.
+MESSAGES_VALIDATION: dict[str, str] = {
+    "missing": "champ obligatoire manquant",
+    "greater_than": "doit être supérieur à {gt}",
+    "greater_than_equal": "doit être supérieur ou égal à {ge}",
+    "less_than": "doit être inférieur à {lt}",
+    "int_parsing": "un nombre entier est attendu",
+    "int_from_float": "un nombre entier est attendu",
+    "float_parsing": "un nombre est attendu",
+    "string_too_short": "ne doit pas être vide",
+    "string_too_long": "trop long ({max_length} caractères au plus)",
+    "string_pattern_mismatch": "format invalide",
+    "literal_error": "valeur non autorisée ; valeurs possibles : {expected}",
+    "extra_forbidden": "champ inconnu",
+    "bool_parsing": "vrai ou faux attendu",
+}
+
+
 def _message_validation(exc: RequestValidationError) -> str:
     details = []
     for erreur in exc.errors():
         champ = ".".join(str(p) for p in erreur.get("loc", ()) if p not in ("body", "query"))
-        details.append(f"{champ} : {erreur.get('msg', 'valeur invalide')}")
+        modele = MESSAGES_VALIDATION.get(erreur.get("type", ""))
+        try:
+            message = modele.format(**erreur.get("ctx", {})) if modele else erreur.get("msg")
+        except KeyError:
+            message = erreur.get("msg", "valeur invalide")
+        details.append(f"{champ} : {message}")
     return "Données invalides — " + " ; ".join(details)
 
 
