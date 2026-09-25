@@ -18,8 +18,8 @@ const ONGLETS = [
   ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs],
   ["listes", "Listes de valeurs", afficherListes],
   ["attributs", "Attributs", afficherOngletAttributs],
-  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes],
   ["historique", "Historique", afficherOngletHistorique],
+  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes],
 ];
 
 // L'en-tête (nom du projet) se relit aussitôt après une modification du projet.

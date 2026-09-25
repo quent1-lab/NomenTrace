@@ -2259,3 +2259,42 @@ td.editable:hover {
   flex-direction: column;
   gap: var(--espace-2);
 }
+
+/* Demandes de devis : un cadre par fournisseur, ses composants en dessous. */
+.devis__groupe {
+  margin-bottom: var(--espace-3);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+
+.devis__fournisseur {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bordure);
+  background: var(--couleur-ardoise-clair);
+  cursor: pointer;
+}
+
+.devis__nom {
+  color: var(--couleur-ardoise-fonce);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.devis__lignes {
+  margin: 0;
+}
+
+.devis__lignes th {
+  font-size: var(--taille-petit);
+  font-weight: 400;
+  color: var(--couleur-texte-doux);
+}
+
+.devis__lignes td:first-child,
+.devis__lignes th:first-child {
+  padding-left: var(--espace-4);
+}

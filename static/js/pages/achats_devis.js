@@ -36,16 +36,24 @@ function tableGroupe(groupe, cases, surChangement) {
     casesGroupe.forEach((c) => (c.checked = tout.checked));
     surChangement();
   });
+  // Estimation indicative : reste à commander × PU HT connu, composants chiffrés seulement.
+  const estimation = groupe.lignes.reduce((s, l) => s + (l.pu_ht ?? 0) * l.reste_a_commander, 0);
   return el(
-    "table",
-    { class: "table table--dense selecteur" },
+    "section",
+    { class: "devis__groupe" },
     el(
-      "thead",
-      {},
-      el("tr", {}, el("th", {}, tout), el("th", { colspan: 6 }, groupe.fournisseur_nom, el("span", { class: "texte-doux" }, ` — ${groupe.lignes.length} composant(s)`))),
-      el("tr", { class: "texte-petit" }, ["", "ID", "Désignation", "Bloc", "Reste à commander", "PU HT connu", ""].map((t, i) => el("th", { class: i === 4 || i === 5 ? "nombre texte-doux" : "texte-doux" }, t))),
+      "label",
+      { class: "devis__fournisseur" },
+      tout,
+      el("span", { class: "devis__nom" }, groupe.fournisseur_nom),
+      el("span", { class: "texte-doux texte-petit" }, `${groupe.lignes.length} composant(s) · environ ${formatMontant(estimation)} HT`),
     ),
-    el("tbody", {}, lignes),
+    el(
+      "table",
+      { class: "table table--dense devis__lignes" },
+      el("thead", {}, el("tr", {}, ["", "ID", "Désignation", "Bloc", "À commander", "PU HT connu", ""].map((t, i) => el("th", { class: i === 4 || i === 5 ? "nombre" : "" }, t)))),
+      el("tbody", {}, lignes),
+    ),
   );
 }
 
