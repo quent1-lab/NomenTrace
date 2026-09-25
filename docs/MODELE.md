@@ -73,7 +73,43 @@ l'export.
 | `v_repartition_liste` | Nombre de composants et coût par valeur de liste (graphiques). |
 | `v_pilotage` | Une ligne : tous les indicateurs du tableau de bord. |
 
-## Définitions de calcul
+## Valeurs autorisées
+
+Deux sortes de listes.
+
+**Listes figées**, qui pilotent le fonctionnement de l'outil (contraintes CHECK) :
+
+```
+base_prix_releve  HT | TTC
+commande.type     Devis | Commande
+commande.statut   A demander | Devis demande | Devis recu | Devis valide | Commande |
+                  Livre partiel | Livre | Refuse
+statut_ligne      A commander | Commandee | Recue partiel | Recue | Annulee
+sens              Entree | Sortie
+statut_montage    Non commence | En cours | Monte | Valide
+```
+
+**Listes paramétrables**, propres au projet suivi, dans la table `valeur_liste` et gérées
+depuis l'écran Paramètres : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`,
+`type_mouvement` (avec son sens imposé, ou libre). Des déclencheurs refusent une valeur
+absente de la liste ; l'API refuse en plus une valeur désactivée pour une nouvelle saisie.
+Le code stocké ne change jamais : renommer une valeur ne modifie que son libellé.
+
+Valeurs **système**, dont dépendent les calculs et les vues : ni supprimables ni
+désactivables, code figé.
+
+```
+mode_appro        Achat
+statut_appro      Non lance (valeur par défaut)
+criticite         Bloquant
+type_mouvement    Reception achat (Entree) | Sortie montage (Sortie) |
+                  Retour montage (Entree) | Inventaire (sens libre)
+```
+
+Aucune valeur propre à un projet n'est écrite dans le code : le vocabulaire d'une instance
+est une donnée, saisie dans l'écran Paramètres.
+
+## Définitions de calcul communes
 
 Quantités et prix d'un composant (`v_composant`) :
 

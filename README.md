@@ -178,14 +178,14 @@ Sous Linux / macOS, remplacer `.venv\Scripts\python.exe` par `.venv/bin/python`.
   fictif (`tests/jeu_essai.py`).
 - Les variables d'environnement `NOMENTRACE_BASE` et `NOMENTRACE_ECHANGE` déplacent la base
   et le dossier d'échange (pratique pour essayer sans toucher à ses données).
-- Les conventions du code sont dans `docs/MODELE.md` ; le modèle de données et les définitions
-  de calcul dans [docs/MODELE.md](docs/MODELE.md).
+- Le modèle de données, les valeurs autorisées et les définitions de calcul sont décrits
+  dans [docs/MODELE.md](docs/MODELE.md).
 
 ## Licence
 
 Nomentrace est un logiciel libre, distribué sous la licence
 [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
-Copyright © 2026 Quentin C.
+Copyright © 2026 Quentin Cunha.
 
 En résumé : vous pouvez utiliser, étudier, modifier et redistribuer Nomentrace, y compris
 dans un cadre commercial. Si vous distribuez une version modifiée, **ou si vous la mettez à
