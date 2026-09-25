@@ -3,7 +3,7 @@
 import { api } from "../api.js";
 import { formatDate, formatMontant, formatNombre, libelle } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
-import { afficherErreur, el, lienProduit, masquerErreur } from "../ui.js";
+import { afficherErreur, el, lienExterne, lienProduit, masquerErreur } from "../ui.js";
 import { A_VALIDER, LIBELLES_FOURNISSEUR, archiverFournisseur, badgeAValider, ouvrirFormulaireFournisseur, routeFournisseur, vueContact } from "./fournisseurs_commun.js";
 
 function boutonCopier(texte) {
@@ -20,7 +20,7 @@ function boutonCopier(texte) {
 }
 
 function coordonnees(f) {
-  const site = f.site_web ? el("span", {}, el("a", { href: f.site_web, target: "_blank", rel: "noopener noreferrer" }, f.site_web), " ", lienProduit(f.site_web)) : null;
+  const site = f.site_web ? el("span", {}, lienExterne(f.site_web), " ", lienProduit(f.site_web)) : null;
   const paires = [
     [LIBELLES_FOURNISSEUR.categorie, f.categorie],
     [LIBELLES_FOURNISSEUR.contact, f.contact ? vueContact(f.contact) : null],
@@ -104,7 +104,7 @@ function sectionCommandes(f) {
 }
 
 function bandeauValidation(f, recharger) {
-  const valider = el("button", { type: "button", class: "bouton" }, "Valider ce fournisseur");
+  const valider = el("button", { type: "button", class: "bouton si-admin" }, "Valider ce fournisseur");
   valider.addEventListener("click", async () => {
     const manque = [["catégorie", f.categorie], ["contact", f.contact], ["site web", f.site_web]].filter(([, v]) => !v).map(([t]) => t);
     if (manque.length && !confirm(`La fiche n'a pas encore de ${manque.join(", ")}. Valider quand même ?`)) return;
@@ -141,8 +141,8 @@ export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
       el(
         "div",
         { class: "actions" },
-        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: recharger }) }, "Modifier"),
-        f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
+        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: recharger }) }, "Modifier"),
+        f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger si-admin", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
       ),
     ),
     f.statut === A_VALIDER ? bandeauValidation(f, recharger) : null,

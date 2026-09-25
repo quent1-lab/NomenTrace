@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from backend.deps import get_conn
+from backend.deps import Connecte, get_conn
 from backend.models import ApplicationImport
 from backend.services import import_analyse, import_application, import_depots, modeles
 
@@ -57,17 +57,20 @@ def read_depot(depot: int, conn: Conn) -> dict:
 
 
 @router.post("/imports/{depot}/appliquer")
-def apply_depot(depot: int, corps: ApplicationImport, request: Request, conn: Conn) -> dict:
+def apply_depot(
+    depot: int, corps: ApplicationImport, request: Request, conn: Conn, utilisateur: Connecte
+) -> dict:
     return import_application.apply_depot(
         conn,
         request.app.state.chemin_base,
         request.app.state.dossier_echange / "sauvegardes",
         depot,
         corps.decisions,
+        utilisateur,
     )
 
 
 @router.post("/imports/{depot}/abandonner")
-def abandon_depot(depot: int, conn: Conn) -> dict:
-    import_depots.abandon_depot(conn, depot)
+def abandon_depot(depot: int, conn: Conn, utilisateur: Connecte) -> dict:
+    import_depots.abandon_depot(conn, depot, utilisateur)
     return {"statut": "abandonné"}

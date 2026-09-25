@@ -86,8 +86,8 @@ export async function afficherAchats(conteneur, parametres) {
       el(
         "div",
         { class: "actions" },
-        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirDemandesDevis().catch(afficherErreur) }, "Préparer les demandes de devis"),
-        el("button", { type: "button", class: "bouton", onclick: creer }, "+ Nouvelle commande"),
+        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirDemandesDevis().catch(afficherErreur) }, "Préparer les demandes de devis"),
+        el("button", { type: "button", class: "bouton si-achats", onclick: creer }, "+ Nouvelle commande"),
       ),
     ),
     filtres(),

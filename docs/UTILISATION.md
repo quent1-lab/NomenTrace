@@ -44,6 +44,36 @@ Les montants s'affichent en euros, au format français, hors taxes sauf mention 
 Les filtres, le tri et la fiche ouverte sont gardés dans l'adresse de la page : on peut
 la mettre en favori ou l'envoyer à quelqu'un qui a accès au même serveur.
 
+## Se connecter
+
+Sur un serveur partagé, on entre avec son adresse mail et son mot de passe. Le premier
+accès passe par le lien d'invitation reçu d'un administrateur : il ouvre une page où l'on
+choisit son mot de passe, puis l'outil s'ouvre directement. Le lien ne sert qu'une fois et
+expire au bout de trois jours. Un mot de passe oublié se règle de la même manière, en
+demandant un nouveau lien.
+
+L'en-tête affiche son nom, son rôle et le bouton de déconnexion. Lancé en double-clic sur
+un poste (`lancer.bat`), l'outil tourne en mode local : pas de connexion, l'en-tête
+indique « Mode local » et tout est permis.
+
+Trois rôles se partagent le travail. Le lecteur consulte tout et télécharge les exports
+Excel, sans rien modifier. Le contributeur modifie les composants des blocs fonctionnels
+qui lui sont attribués (champs, caractéristiques, affectations, documents, imports), fait
+les mouvements de stock et peut proposer un nouveau fournisseur, qui restera « à valider ».
+Deux permissions s'ajoutent au cas par cas : « achats » ouvre les commandes, les
+réceptions, les demandes de devis et la modification des fiches fournisseurs ; « ensembles
+» ouvre la création et la modification de l'arborescence des ensembles. L'administrateur a
+tout le reste : paramètres, blocs, listes, attributs, budgets, validation des
+fournisseurs, nettoyage, sauvegardes et comptes.
+
+Ce qui n'est pas permis n'apparaît pas : la fiche d'un composant d'un autre bloc s'ouvre
+en lecture seule, les boutons de commande disparaissent sans la permission « achats ».
+
+Deux personnes peuvent travailler en même temps. Si quelqu'un modifie un composant pendant
+que vous remplissez sa fiche, votre enregistrement est refusé avec le nom de l'autre
+personne et l'heure de sa modification : recharger la fiche, puis refaire la vôtre. Rien
+n'est écrasé sans qu'on le sache.
+
 ## Régler le projet
 
 Paramètres › Projet reçoit le nom du projet, le préfixe des identifiants, le budget HT
@@ -279,8 +309,9 @@ L'écran Blocs donne une carte par bloc fonctionnel avec son coût, son budget c
 modifiable sur place, le montant engagé et l'avancement des achats.
 
 Paramètres › Historique lit tout le journal du projet, cent lignes par page, les plus
-récentes en haut. On filtre par type d'élément, par origine (interface ou import), par
-période et par texte. Chaque clé mène à l'élément concerné, et « Exporter la sélection »
+récentes en haut. La colonne « Par » donne l'auteur de chaque modification (les lignes
+antérieures aux comptes n'en ont pas). On filtre par type d'élément, par origine
+(interface ou import), par période et par texte. Chaque clé mène à l'élément concerné, et « Exporter la sélection »
 produit un classeur Excel des lignes filtrées.
 
 ## Nettoyer la base
@@ -301,8 +332,25 @@ ramener.
 Le même écran permet de vider le journal, pour repartir d'un historique propre après une
 phase d'essais. Une sauvegarde est prise avant, et une ligne trace la purge.
 
+## Gérer les comptes
+
+Paramètres › Utilisateurs, réservé à l'administrateur, liste les comptes avec leur rôle,
+leurs blocs, leurs permissions et leur état : invitation en attente, dernière connexion,
+désactivé. « Nouvel utilisateur » crée un compte à partir de son adresse mail et d'un nom
+affiché, qui apparaîtra dans l'historique à chacune de ses modifications et doit donc
+rester distinctif. Le lien d'invitation s'affiche alors une seule fois, avec un bouton pour
+le copier ; il faut le transmettre soi-même.
+
+« Modifier » change le nom, le rôle, les blocs et les permissions ; l'effet est immédiat,
+même pour une session ouverte. Un compte ne se supprime pas, il se désactive, ce qui ferme
+ses sessions et garde son nom dans l'historique. « Nouveau lien » efface le mot de passe
+actuel et en donne un nouveau à choisir : c'est la réponse à un mot de passe oublié. Le
+dernier administrateur actif ne peut être ni désactivé ni rétrogradé.
+
 ## Exporter, sauvegarder, restaurer
 
 L'export Excel de toute la base, les sauvegardes, l'archive complète et la corbeille des
-documents se gèrent dans Paramètres › Export et sauvegardes. Leur fonctionnement, et la
-restauration depuis une archive, sont décrits dans [EXPLOITATION.md](EXPLOITATION.md).
+documents se gèrent dans Paramètres › Export et sauvegardes. Seul l'administrateur y voit
+les sauvegardes, l'archive et la corbeille, qui contiennent toute la base ; les autres y
+trouvent l'Excel global. Leur fonctionnement, et la restauration depuis une archive, sont
+décrits dans [EXPLOITATION.md](EXPLOITATION.md).

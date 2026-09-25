@@ -29,6 +29,14 @@ def get_bloc(conn: sqlite3.Connection, code: str) -> dict:
     return bloc
 
 
+def check_codes(conn: sqlite3.Connection, codes: list[str]) -> None:
+    """Refuse un code de bloc inconnu (les blocs archivés restent acceptés)."""
+    connus = {ligne["code"] for ligne in db.fetch_all(conn, "SELECT code FROM bloc")}
+    inconnus = sorted(set(codes) - connus)
+    if inconnus:
+        raise ErreurMetier(f"Bloc inconnu : {', '.join(inconnus)}.")
+
+
 def create_bloc(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Crée un bloc ; son code, figé dans les identifiants, ne changera plus."""
     code = valeurs["code"]

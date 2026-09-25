@@ -6,6 +6,7 @@ from collections import Counter
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
+from backend.services import droits
 
 ORDRE_CATEGORIES: tuple[str, ...] = (
     "NOUVELLE_ENTITE",
@@ -82,10 +83,23 @@ def get_depot(conn: sqlite3.Connection, depot: int) -> dict:
     }
 
 
-def abandon_depot(conn: sqlite3.Connection, depot: int) -> None:
-    """Abandonne un dépôt non appliqué : ses propositions restent consultables."""
+def abandon_depot(
+    conn: sqlite3.Connection, depot: int, utilisateur: droits.Utilisateur | None = None
+) -> None:
+    """Abandonne un dépôt non appliqué : ses propositions restent consultables.
+
+    Un contributeur n'abandonne que ses propres dépôts ; l'administrateur, tous.
+    """
     with db.transaction(conn):
         lots = get_lots(conn, depot)
+        if (
+            utilisateur is not None
+            and not utilisateur.admin
+            and lots[0].get("utilisateur") != utilisateur.nom
+        ):
+            raise droits.AccesRefuse(
+                "Seul l'auteur d'un dépôt ou un administrateur peut l'abandonner."
+            )
         if lots[0]["statut"] != "analyse":
             raise ErreurMetier(f"Le dépôt {depot} est déjà {lots[0]['statut']}.")
         conn.execute("UPDATE import_lot SET statut = 'abandonne' WHERE depot = ?", (depot,))

@@ -3,6 +3,7 @@
 import { api } from "../api.js";
 import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
+import { estAdmin } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX } from "../valeurs.js";
 
@@ -137,9 +138,12 @@ export function ouvrirFormulaireFournisseur(fournisseur, { fournisseurs = [], su
     ligneChamp(LIBELLES_FOURNISSEUR.pays, champTexte("pays", f.pays ?? "")),
     ligneChamp(LIBELLES_FOURNISSEUR.delai_moyen_j, champNombre("delai_moyen_j", f.delai_moyen_j ?? null)),
     ligneChamp(LIBELLES_FOURNISSEUR.commentaire, champZone("commentaire", f.commentaire ?? "")),
-    ligneChamp("Statut", champChoix("statut", [["Valide", "Validé"], [A_VALIDER, "À valider"]], f.statut ?? "Valide"), {
-      aide: "« À valider » : trouvé par l'équipe, pas encore vérifié par une personne autorisée.",
-    }),
+    // Valider un fournisseur revient à l'administrateur ; proposé par un autre, il reste à valider.
+    estAdmin()
+      ? ligneChamp("Statut", champChoix("statut", [["Valide", "Validé"], [A_VALIDER, "À valider"]], f.statut ?? "Valide"), {
+          aide: "« À valider » : trouvé par l'équipe, pas encore vérifié par une personne autorisée.",
+        })
+      : null,
     el(
       "div",
       { class: "actions-formulaire" },
@@ -149,7 +153,8 @@ export function ouvrirFormulaireFournisseur(fournisseur, { fournisseurs = [], su
   );
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const lu = lireFormulaire(formulaire, DESCRIPTION, { delai_moyen_j: "Délai moyen" });
+    const { statut: _statut, ...sansStatut } = DESCRIPTION;
+    const lu = lireFormulaire(formulaire, estAdmin() ? DESCRIPTION : sansStatut, { delai_moyen_j: "Délai moyen" });
     if (lu.erreur) return afficherErreur(lu.erreur);
     if (!lu.valeurs.nom) return afficherErreur("Le nom du fournisseur est obligatoire.");
     try {

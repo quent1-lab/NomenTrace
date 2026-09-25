@@ -150,9 +150,13 @@ export function formatHorodatage(horodatage) {
   return `${formatDate(horodatage)}${heure}`;
 }
 
+// Auteur de la modification (depuis la phase des comptes) et, pour un import, son fichier.
 export function origineEvenement(e) {
-  if (e.nom_fichier) return el("a", { href: lienRoute(`/imports/${e.lot_id}`), title: e.nom_fichier }, "import");
-  return e.origine === "import" ? "import" : "";
+  const source = e.nom_fichier
+    ? el("a", { href: lienRoute(`/imports/${e.lot_id}`), title: e.nom_fichier }, "import")
+    : e.origine === "import" ? "import" : "";
+  if (!e.utilisateur) return source;
+  return source ? [e.utilisateur, " · ", source] : e.utilisateur;
 }
 
 /** Frise d'un composant, filtrable par catégorie. */

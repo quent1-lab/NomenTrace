@@ -6,9 +6,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response
 
 from backend.arrondi import round_output
-from backend.deps import get_conn
+from backend.deps import Connecte, get_conn
 from backend.models import ComposantCreation, ComposantModif, Reclassement, ValeursAttributs
-from backend.services import composants, export_composants, reclassement
+from backend.services import composants, droits, export_composants, reclassement
 from backend.services.composants import FiltresComposants
 
 router = APIRouter(prefix="/api/composants", tags=["composants"])
@@ -55,7 +55,8 @@ def read_composant(identifiant: str, conn: Conn) -> dict:
 
 
 @router.post("", status_code=201)
-def create_composant(corps: ComposantCreation, conn: Conn) -> dict:
+def create_composant(corps: ComposantCreation, conn: Conn, utilisateur: Connecte) -> dict:
+    droits.exiger_bloc(utilisateur, corps.bloc_code)
     return round_output(composants.create_composant(conn, corps.model_dump()))
 
 

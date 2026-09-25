@@ -103,7 +103,7 @@ def dupliquer_ensemble(conn: sqlite3.Connection, code: str, demande: dict[str, A
     `codes` associe à chaque sous-ensemble copié son nouveau code ; un code absent reçoit
     le code proposé. Renvoie la copie de l'ensemble de départ.
     """
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         source = ensembles.verifier_ensemble(conn, code)
         parent = demande["parent_code"] if "parent_code" in demande else source["parent_code"]
         descendants = _descendants_ordonnes(conn, code) if demande["avec_sous_ensembles"] else []

@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { champFournisseur } from "./fournisseurs_commun.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
+import { ecritBloc } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
 
@@ -49,7 +50,10 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
   const tauxDefaut = Number(parametres.taux_tva_defaut ?? 0.2) * 100;
   const apercu = el("strong", { class: "code" }, "choisir un bloc");
 
-  const bloc = champChoix("bloc_code", blocs.map((b) => [b.code, `${b.code} — ${b.nom}`]), blocInitial || null, { vide: "— choisir —", requis: true });
+  // Un contributeur ne crée que dans ses blocs ; l'administrateur, dans tous.
+  const permis = blocs.filter((b) => ecritBloc(b.code));
+  const initial = permis.some((b) => b.code === blocInitial) ? blocInitial : null;
+  const bloc = champChoix("bloc_code", permis.map((b) => [b.code, `${b.code} — ${b.nom}`]), initial, { vide: "— choisir —", requis: true });
   const choixFournisseur = champFournisseur(fournisseurs, null);
   const fournisseur = choixFournisseur.select;
   const base = champChoix("base_prix_releve", BASES_PRIX, "HT");

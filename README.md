@@ -49,21 +49,23 @@ cd nomentrace
 ```
 
 Sous Windows, double-cliquer sur `lancer.bat` : le script prépare l'environnement au
-premier lancement, démarre le serveur et ouvre <http://127.0.0.1:8000>. Sous Linux ou
-macOS :
+premier lancement, démarre le serveur en mode local (sans connexion, sur ce poste seul) et
+ouvre <http://127.0.0.1:8000>. Sous Linux ou macOS :
 
 ```
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m backend
+NOMENTRACE_MODE_LOCAL=1 .venv/bin/python -m backend
 ```
 
 Dans l'outil, commencer par Paramètres › Projet (nom, préfixe des identifiants, budget),
 puis Paramètres › Blocs fonctionnels. On peut ensuite saisir les composants.
 
-En l'état, Nomentrace n'a pas de comptes utilisateurs et n'écoute que sur la machine
-locale. Il ne faut pas l'exposer sur un réseau avant la phase des comptes, décrite dans la
-feuille de route.
+Pour partager l'outil avec une équipe, on le lance sans mode local : chacun entre alors
+avec un compte, créé par un administrateur, et un rôle (lecteur, contributeur de certains
+blocs, administrateur). La création du premier administrateur et les règles de sécurité
+sont dans [docs/EXPLOITATION.md](docs/EXPLOITATION.md). Exposé au-delà du poste, l'outil
+doit être servi en HTTPS.
 
 ## Documentation
 
@@ -75,7 +77,7 @@ feuille de route.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Comment le code est construit, et comment y ajouter une fonctionnalité |
 | [docs/API.md](docs/API.md) | Les routes de l'API JSON |
 | [docs/CONTRIBUER.md](docs/CONTRIBUER.md) | Les règles de code, de tests et de documentation |
-| [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md) | Ce qui est prévu : comptes, hébergement, rapports, multi-projet |
+| [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md) | Ce qui est prévu : hébergement, rapports, multi-projet |
 
 ## Licence
 

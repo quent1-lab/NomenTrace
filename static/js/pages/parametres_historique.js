@@ -105,7 +105,7 @@ export async function afficherOngletHistorique(cible) {
       el(
         "table",
         { class: "table table--dense table--parametres" },
-        el("thead", {}, el("tr", {}, ["Date", "Élément", "Clé", "Détail", "Origine"].map((t) => el("th", {}, t)))),
+        el("thead", {}, el("tr", {}, ["Date", "Élément", "Clé", "Détail", "Par"].map((t) => el("th", {}, t)))),
         corps,
       ),
     ),

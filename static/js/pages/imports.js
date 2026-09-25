@@ -3,6 +3,7 @@
 import { api, lienModele } from "../api.js";
 import { formatDate } from "../format.js";
 import { naviguer } from "../router.js";
+import { peutEcrire } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 
 export const LIBELLES_CATEGORIES = {
@@ -118,7 +119,7 @@ export async function afficherImports(conteneur) {
   const [blocs, ensembles, depots] = await Promise.all([api.getBlocs(), api.getEnsembles(), api.getImports()]);
   conteneur.replaceChildren(
     el("h1", {}, "Imports"),
-    el("div", { class: "grille-2" }, sectionModeles(blocs, ensembles), sectionDepot()),
+    el("div", { class: "grille-2" }, sectionModeles(blocs, ensembles), peutEcrire() ? sectionDepot() : null),
     sectionHistorique(depots),
   );
 }

@@ -2,9 +2,9 @@
 
 L'interface de Nomentrace ne fait rien que l'API ne permette : tout passe par des routes
 JSON sous `/api/`, qu'on peut appeler depuis un script. Ce document les liste par domaine.
-Le détail exact des champs acceptés est dans les modèles Pydantic de `backend/models.py`,
-et FastAPI publie une description interactive sur <http://127.0.0.1:8000/docs> pendant
-que l'outil tourne.
+Le détail exact des champs acceptés est dans les modèles Pydantic de `backend/models.py`.
+En mode local, FastAPI publie une description interactive sur
+<http://127.0.0.1:8000/docs> ; en mode connecté, elle n'est pas publiée.
 
 ## Conventions
 
@@ -27,7 +27,44 @@ refus métier, 404 pour un élément introuvable ou archivé, 409 pour un confli
 de la base (code déjà pris, cycle, contrainte), 422 pour des données invalides, 500 pour
 un cas imprévu.
 
-L'API n'a pas d'authentification. Elle ne doit pas être exposée sur un réseau en l'état.
+## Connexion et droits
+
+En mode connecté, l'API s'utilise avec la session ouverte par `POST /api/session`, portée
+par le cookie `nomentrace_session` (HttpOnly, SameSite=Lax, Secure en HTTPS). Sans session
+valide, une route répond 401 ; avec une session mais sans le droit demandé, 403. Seules
+`/api/sante`, l'ouverture et la fermeture de session et les routes d'invitation sont
+accessibles sans connexion ; `/api/sante` ne donne alors ni le nom du projet ni l'état de
+l'export.
+
+La condition de chaque route (lecture, écriture, permission « achats » ou « ensembles »,
+bloc du composant concerné, administrateur) est écrite dans la table `REGLES` de
+`backend/services/droits.py`, qui fait référence. Une route absente de cette table est
+réservée à l'administrateur.
+
+Toute écriture (POST, PATCH, PUT, DELETE) doit porter un en-tête `Origin` égal à l'adresse
+du serveur, comme le fait un navigateur ; un script qui appelle l'API l'ajoute lui-même.
+Sinon la requête est refusée en 403. En mode local, seules les requêtes émises depuis le
+poste et adressées à `127.0.0.1` ou `localhost` sont servies.
+
+Le PATCH d'un composant accepte `modifie_le`, la date de modification lue avant l'édition :
+si le composant a changé depuis, rien n'est écrit et la réponse est un 409 qui nomme
+l'auteur de la dernière modification.
+
+## Session et comptes
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| POST | `/api/session` | Connexion : `identifiant`, `mot_de_passe` ; 401 si refusée, 429 après trop d'échecs |
+| GET | `/api/session` | Utilisateur connecté, son rôle, ses blocs et permissions, nom du projet, mode local |
+| DELETE | `/api/session` | Déconnexion : la session est supprimée côté serveur |
+| POST | `/api/invitation/verifier` | Validité d'un jeton d'invitation (`jeton`) : compte concerné, ou 410 |
+| POST | `/api/invitation` | Choix du mot de passe (`jeton`, `mot_de_passe`), puis session ouverte |
+| GET, POST | `/api/utilisateurs` | Comptes du projet ; création (renvoie le jeton d'invitation, une seule fois) |
+| PATCH | `/api/utilisateurs/{id}` | Nom, rôle, blocs, permissions, actif |
+| POST | `/api/utilisateurs/{id}/invitation` | Nouveau lien : efface le mot de passe et ferme les sessions |
+
+Les routes `/api/utilisateurs` sont réservées à l'administrateur et répondent 409 en mode
+local, où il n'y a pas de comptes.
 
 ## Projet, pilotage et historique
 

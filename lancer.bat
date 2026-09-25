@@ -9,6 +9,10 @@ set "PY=.venv\Scripts\python.exe"
 rem Port : NOMENTRACE_PORT s'il est défini, 8000 sinon.
 if not defined NOMENTRACE_PORT set "NOMENTRACE_PORT=8000"
 set "PORT=%NOMENTRACE_PORT%"
+rem Mode local : sans connexion, administrateur implicite, poste local seulement.
+rem Sans cette variable, Nomentrace exige un compte (voir docs/EXPLOITATION.md).
+set "NOMENTRACE_MODE_LOCAL=1"
+set "NOMENTRACE_HOTE=127.0.0.1"
 
 rem 1. Environnement virtuel
 if exist "%PY%" goto venv_ok

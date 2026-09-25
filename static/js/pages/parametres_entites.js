@@ -122,8 +122,8 @@ Il ne sera plus proposé à la création de composant. Il peut être réactivé 
         "td",
         { class: "nombre" },
         el("span", { class: "actions actions--droite" },
-          el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireBloc(b, ordreSuggere, rafraichir) }, "Modifier"),
-          el("button", { type: "button", class: `bouton bouton--petit ${b.archive ? "bouton--discret" : "bouton--danger"}`, onclick: () => basculerArchive(b) }, b.archive ? "Réactiver" : "Archiver"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--discret si-admin", onclick: () => ouvrirFormulaireBloc(b, ordreSuggere, rafraichir) }, "Modifier"),
+          el("button", { type: "button", class: `bouton bouton--petit si-admin ${b.archive ? "bouton--discret" : "bouton--danger"}`, onclick: () => basculerArchive(b) }, b.archive ? "Réactiver" : "Archiver"),
         ),
       ),
     ),
@@ -133,7 +133,7 @@ Il ne sera plus proposé à la création de composant. Il peut être réactivé 
       "div",
       { class: "titre-section" },
       el("p", { class: "texte-doux" }, "Le bloc est le découpage fonctionnel : un seul par composant, figé dans son identifiant. Un bloc archivé n'accepte plus de composant ; un bloc qui n'a jamais porté de composant se supprime depuis l'écran Nettoyage."),
-      el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireBloc(null, ordreSuggere, rafraichir) }, "Nouveau bloc"),
+      el("button", { type: "button", class: "bouton si-admin", onclick: () => ouvrirFormulaireBloc(null, ordreSuggere, rafraichir) }, "Nouveau bloc"),
     ),
     table(
       [["Code"], ["Nom"], ["Ordre", "nombre"], ["Budget cible HT", "nombre"], ["Responsable"], ["Composants", "nombre"], [""]],
@@ -177,8 +177,8 @@ export async function afficherOngletEnsembles(cible) {
         "td",
         { class: "nombre" },
         el("span", { class: "actions actions--droite" },
-          el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: rafraichir }) }, "Modifier"),
-          el("button", { type: "button", class: "bouton bouton--petit bouton--danger", onclick: () => archiver(e) }, "Archiver"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--discret si-ensembles", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: rafraichir }) }, "Modifier"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--danger si-ensembles", onclick: () => archiver(e) }, "Archiver"),
         ),
       ),
     ),
@@ -188,7 +188,7 @@ export async function afficherOngletEnsembles(cible) {
       "div",
       { class: "titre-section" },
       el("p", { class: "texte-doux" }, "L'ensemble est le découpage physique : un composant peut entrer dans plusieurs ensembles, avec une quantité pour chacun. Un ensemble peut avoir un ensemble parent."),
-      el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireEnsemble({ ordreSuggere, surEnregistre: rafraichir }) }, "Nouvel ensemble"),
+      el("button", { type: "button", class: "bouton si-ensembles", onclick: () => ouvrirFormulaireEnsemble({ ordreSuggere, surEnregistre: rafraichir }) }, "Nouvel ensemble"),
     ),
     table(
       [["Code"], ["Nom"], ["Parent"], ["Ordre", "nombre"], ["Responsable"], ["Montage"], ["Composants", "nombre"], [""]],
@@ -222,7 +222,7 @@ function champFichierListe(surComparaison) {
       fichier.value = "";
     }
   });
-  const bouton = el("button", { type: "button", class: "bouton bouton--discret", title: "Comparer avec un classeur Excel de fournisseurs (liste des fournisseurs autorisés…)" }, "Comparer avec une liste…");
+  const bouton = el("button", { type: "button", class: "bouton bouton--discret si-admin", title: "Comparer avec un classeur Excel de fournisseurs (liste des fournisseurs autorisés…)" }, "Comparer avec une liste…");
   bouton.addEventListener("click", () => fichier.click());
   return [fichier, bouton];
 }
@@ -245,8 +245,8 @@ export async function afficherOngletFournisseurs(cible, parametres = null) {
         "td",
         { class: "nombre", onclick: (e) => e.stopPropagation() },
         el("span", { class: "actions actions--droite" },
-          el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: rafraichir }) }, "Modifier"),
-          el("button", { type: "button", class: "bouton bouton--petit bouton--danger", onclick: async () => (await archiverFournisseur(f)) && rafraichir() }, "Archiver"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--discret si-achats", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: rafraichir }) }, "Modifier"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--danger si-admin", onclick: async () => (await archiverFournisseur(f)) && rafraichir() }, "Archiver"),
         ),
       ),
     );
@@ -274,7 +274,7 @@ export async function afficherOngletFournisseurs(cible, parametres = null) {
       el("p", { class: "texte-doux" }, "Cliquer sur un fournisseur ouvre sa fiche. Un fournisseur archivé n'est plus proposé, mais les composants et les commandes qui le citent le gardent."),
       el("span", { class: "actions" },
         champFichierListe(comparer),
-        el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),
+        el("button", { type: "button", class: "bouton si-ecriture", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),
       ),
     ),
     fournisseurs.length

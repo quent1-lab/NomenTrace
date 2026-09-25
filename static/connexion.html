@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Nomentrace — connexion</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="page-connexion">
+  <main class="connexion">
+    <h1 class="connexion__titre">Nomentrace</h1>
+    <p class="connexion__sous-titre" id="connexion-sous-titre">Nomenclature et traçabilité</p>
+
+    <form class="connexion__formulaire" id="formulaire-connexion" novalidate>
+      <label class="ligne-champ">
+        <span class="ligne-champ__libelle">Adresse mail</span>
+        <input class="champ" type="email" name="identifiant" autocomplete="username" required>
+      </label>
+      <label class="ligne-champ">
+        <span class="ligne-champ__libelle">Mot de passe</span>
+        <input class="champ" type="password" name="mot_de_passe" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="bouton">Se connecter</button>
+      <p class="texte-doux texte-petit">
+        Mot de passe oublié : demander un nouveau lien à un administrateur du projet.
+      </p>
+    </form>
+
+    <form class="connexion__formulaire" id="formulaire-invitation" novalidate hidden>
+      <p id="invitation-bienvenue"></p>
+      <label class="ligne-champ">
+        <span class="ligne-champ__libelle">Adresse mail</span>
+        <input class="champ" type="email" name="identifiant" autocomplete="username" readonly>
+      </label>
+      <label class="ligne-champ">
+        <span class="ligne-champ__libelle">Nouveau mot de passe</span>
+        <input class="champ" type="password" name="mot_de_passe" autocomplete="new-password" minlength="12" required>
+        <span class="ligne-champ__aide">12 caractères au moins. Une phrase de plusieurs mots est plus sûre et plus facile à retenir.</span>
+      </label>
+      <label class="ligne-champ">
+        <span class="ligne-champ__libelle">Confirmer le mot de passe</span>
+        <input class="champ" type="password" name="confirmation" autocomplete="new-password" required>
+      </label>
+      <button type="submit" class="bouton">Enregistrer et entrer</button>
+    </form>
+
+    <p class="message message-erreur" id="connexion-message" role="alert" hidden></p>
+  </main>
+
+  <script type="module" src="/js/connexion.js"></script>
+</body>
+</html>

@@ -78,7 +78,7 @@ def create_demandes(conn: sqlite3.Connection, identifiants: list[str]) -> list[d
     if not identifiants:
         raise ErreurMetier("Aucun composant choisi.")
     numeros: list[str] = []
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         taux_tva = parametres.get_taux_tva_defaut(conn)
         for fournisseur, lignes in _choisis(conn, identifiants).items():
             numero = commandes.next_numero(conn)

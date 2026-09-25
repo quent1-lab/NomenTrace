@@ -3,6 +3,7 @@
 import { api } from "../api.js";
 import { formatEcart, formatMontant, formatNombre, formatPourcent, lireNombre } from "../format.js";
 import { naviguer } from "../router.js";
+import { ecritBloc, estAdmin } from "../session.js";
 import { afficherErreur, classeBloc, el, largeur, masquerErreur, rangsBlocs } from "../ui.js";
 
 function etatEcart(bloc) {
@@ -19,6 +20,8 @@ function texteEcart(bloc) {
 // Champ de budget : envoi au flou ou à Entrée, Échap annule, ancienne valeur rétablie en cas d'échec.
 function champBudget(bloc, rafraichir) {
   const initial = bloc.budget_cible_ht === null ? "" : formatNombre(bloc.budget_cible_ht, 2);
+  // Les budgets se saisissent par l'administrateur seulement.
+  if (!estAdmin()) return initial ? formatMontant(bloc.budget_cible_ht) : el("span", { class: "texte-doux" }, "non défini");
   const champ = el("input", {
     class: "champ-montant",
     type: "text",
@@ -66,7 +69,7 @@ function carte(bloc, rang, rafraichir) {
   const barre = largeur(el("div", { class: "barre__remplissage" }), bloc.avancement_pct ?? 0);
   const ajouter = el(
     "button",
-    { type: "button", class: "bouton bouton--discret", title: `Créer un composant dans le bloc ${bloc.code}` },
+    { type: "button", class: "bouton bouton--discret", title: `Créer un composant dans le bloc ${bloc.code}`, hidden: !ecritBloc(bloc.code) },
     "+ Ajouter un composant",
   );
   ajouter.addEventListener("click", (e) => {

@@ -38,7 +38,7 @@ def _reporter_affectations(conn: sqlite3.Connection, ancien: str, nouveau: str) 
 
 def reclasser_composant(conn: sqlite3.Connection, identifiant: str, bloc_cible: str) -> dict:
     """Recrée le composant dans le bloc cible ; renvoie le nouveau composant."""
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         composants.get_composant(conn, identifiant)
         ancien = composants.get_existant(conn, identifiant)
         if ancien["bloc_code"] == bloc_cible:

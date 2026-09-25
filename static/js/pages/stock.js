@@ -190,7 +190,7 @@ export async function afficherStock(conteneur, parametres) {
     zoneMouvements: el("div"),
   };
   conteneur.replaceChildren(
-    el("div", { class: "titre-page" }, el("h1", {}, "Stock"), el("button", { type: "button", class: "bouton", onclick: ouvrirSaisie }, "+ Nouveau mouvement")),
+    el("div", { class: "titre-page" }, el("h1", {}, "Stock"), el("button", { type: "button", class: "bouton si-ecriture", onclick: ouvrirSaisie }, "+ Nouveau mouvement")),
     el("section", { class: "panneau" }, el("h2", {}, "État du stock"), etat.zoneStock),
     el("section", { class: "panneau" }, el("h2", {}, "Journal des mouvements"), filtresMouvements(), etat.zoneMouvements),
   );

@@ -349,8 +349,8 @@ function rendre() {
     etat.modifiable
       ? el("div", { class: "barre-application" },
           el("span", { class: "texte-doux" }, "Rien n'est modifié tant que la sélection n'est pas appliquée."),
-          el("button", { type: "button", class: "bouton bouton--discret", onclick: abandonner }, "Abandonner le dépôt"),
-          el("button", { type: "button", class: "bouton", onclick: appliquer }, "Appliquer la sélection"))
+          el("button", { type: "button", class: "bouton bouton--discret si-ecriture", onclick: abandonner }, "Abandonner le dépôt"),
+          el("button", { type: "button", class: "bouton si-ecriture", onclick: appliquer }, "Appliquer la sélection"))
       : null,
   );
 }

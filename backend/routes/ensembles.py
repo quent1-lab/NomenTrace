@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from backend.arrondi import round_output
-from backend.deps import get_conn
+from backend.deps import Connecte, get_conn
 from backend.models import (
     AffectationCreation,
     AffectationModif,
@@ -14,7 +14,7 @@ from backend.models import (
     EnsembleDuplication,
     EnsembleModif,
 )
-from backend.services import ensembles, ensembles_arbre, ensembles_copie
+from backend.services import droits, ensembles, ensembles_arbre, ensembles_copie
 
 router = APIRouter(prefix="/api", tags=["ensembles"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -46,13 +46,15 @@ def read_ensemble(code: str, conn: Conn) -> dict:
 
 
 @router.post("/ensembles", status_code=201)
-def create_ensemble(corps: EnsembleCreation, conn: Conn) -> dict:
+def create_ensemble(corps: EnsembleCreation, conn: Conn, utilisateur: Connecte) -> dict:
+    droits.exiger_budget(utilisateur, corps.model_fields_set)
     return round_output(ensembles.create_ensemble(conn, corps.model_dump()))
 
 
 @router.patch("/ensembles/{code}")
-def update_ensemble(code: str, corps: EnsembleModif, conn: Conn) -> dict:
+def update_ensemble(code: str, corps: EnsembleModif, conn: Conn, utilisateur: Connecte) -> dict:
     modifications = corps.model_dump(exclude_unset=True)
+    droits.exiger_budget(utilisateur, set(modifications))
     return round_output(ensembles.patch_ensemble(conn, code, modifications))
 
 
@@ -82,7 +84,10 @@ def read_composants_ensemble(code: str, conn: Conn) -> list[dict]:
 
 
 @router.post("/ensembles/{code}/affectations", status_code=201)
-def create_affectation(code: str, corps: AffectationCreation, conn: Conn) -> dict:
+def create_affectation(
+    code: str, corps: AffectationCreation, conn: Conn, utilisateur: Connecte
+) -> dict:
+    droits.exiger_composant(conn, utilisateur, corps.composant_id)
     return round_output(ensembles.create_affectation(conn, code, corps.model_dump()))
 
 

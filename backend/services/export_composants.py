@@ -13,7 +13,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from backend import db
 from backend.arrondi import round_value
 from backend.erreurs import ErreurMetier
-from backend.services import attributs, composants
+from backend.services import attributs, composants, tableur
 from backend.services.composants import FiltresComposants
 
 FORMAT_ENTIER: str = "#,##0"
@@ -185,6 +185,7 @@ def build_export_composants(
     for rang, cle in enumerate(colonnes, start=1):
         largeur = 40 if cle in ("designation", "fonction", "lien_produit") else 14
         feuille.column_dimensions[get_column_letter(rang)].width = largeur
+    tableur.neutraliser_formules(classeur)
     tampon = io.BytesIO()
     classeur.save(tampon)
     return tampon.getvalue()

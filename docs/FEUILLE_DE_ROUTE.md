@@ -12,50 +12,29 @@ La nomenclature, les deux découpages (blocs fonctionnels et ensembles en arbre)
 budgets, les achats de la demande de devis à la réception, le stock et le montage, les
 attributs paramétrables, le travail en équipe par modèles Excel, le nettoyage de la base,
 l'historique complet, la recherche globale, les sauvegardes avec leur corbeille de
-documents. Le tout en mode local : un seul utilisateur, sans connexion, sur 127.0.0.1.
+documents.
 
-## Comptes, droits et connexion
-
-C'est la prochaine étape, et elle conditionne la suivante : l'outil ne sera pas exposé sur
-un réseau tant qu'elle n'est pas faite.
-
-Les comptes seront internes à l'outil. Il n'y aura pas d'inscription libre :
-l'administrateur crée chaque utilisateur et lui transmet un lien d'invitation à usage
-unique, par lequel la personne choisit son mot de passe. Un mot de passe oublié se règle de
-la même façon, par un nouveau lien. Les mots de passe ne sont jamais stockés en clair, et
-les tentatives répétées bloquent le compte pour quelques minutes. Trois rôles sont prévus.
-Le lecteur voit tout et télécharge les exports. Le contributeur écrit, mais seulement sur
-les composants des blocs qui lui sont attribués ; les commandes, les réceptions et le stock
-lui restent ouverts. L'administrateur a tout, y compris les paramètres, les utilisateurs,
-le nettoyage, la restauration et la validation des fournisseurs proposés. Les droits seront
-vérifiés côté serveur, l'interface se contentant de masquer ce qui est interdit.
-
-Les comptes vivront dans une base à part, avec des rôles attribués projet par projet, pour
-que plusieurs projets puissent un jour partager le même serveur sans rien changer à cette
-organisation. L'identité d'un utilisateur ne dépendra pas du moyen de connexion : une
-connexion par un compte Microsoft ou GitHub pourra s'ajouter plus tard, rattachée au même
-utilisateur.
-
-Chaque ligne du journal portera l'auteur de la modification. Plusieurs personnes écrivant
-en même temps, une modification faite sur une donnée changée entre-temps sera signalée
-plutôt qu'écrasée.
-
-Le mode local restera disponible pour les essais : sans clé de session configurée, et seulement
-en écoute sur 127.0.0.1, l'outil fonctionnera comme aujourd'hui avec un administrateur
-implicite. Il refusera de démarrer sur une autre adresse sans authentification.
-
-Une seule dépendance s'ajoutera, `itsdangerous`, pour signer le cookie de session ; le
-hachage des mots de passe utilise la bibliothèque standard.
+Les comptes et les droits aussi. Les comptes sont internes à l'outil : un administrateur
+crée chaque utilisateur et lui transmet un lien d'invitation, par lequel la personne
+choisit son mot de passe. Le lecteur voit tout ; le contributeur modifie les composants de
+ses blocs, avec en plus, au cas par cas, les achats ou l'arborescence des ensembles ;
+l'administrateur a le reste. Chaque modification porte son auteur dans le journal, et une
+modification faite sur un composant changé entre-temps est signalée au lieu d'écraser
+l'autre. Le mode local, sans connexion, reste celui du double-clic sur `lancer.bat`. Le
+détail est dans [UTILISATION.md](UTILISATION.md) et [EXPLOITATION.md](EXPLOITATION.md).
 
 ## Hébergement
 
-L'outil sera ensuite hébergé sur une petite machine virtuelle de l'offre gratuite d'Oracle
+C'est la prochaine étape. L'outil sera hébergé sur une petite machine virtuelle de l'offre gratuite d'Oracle
 Cloud, suffisante pour une quinzaine d'utilisateurs. Pas de Docker : un service systemd
 fait tourner Uvicorn, Caddy le sert en HTTPS avec un certificat automatique. Un projet par
 serveur.
 
 Une sauvegarde quotidienne enverra l'archive complète (base et documents, corbeille
-comprise) hors de la machine, dans un stockage objet, avec trente jours de rétention. Un
+comprise) et la base des comptes hors de la machine, dans un stockage objet, avec trente
+jours de rétention. Caddy limitera aussi la taille des requêtes, et Uvicorn ne fera
+confiance qu'à lui pour l'adresse IP des visiteurs, dont dépend la limite des tentatives de
+connexion. Un
 script de mise à jour sauvegardera, installera la nouvelle version, contrôlera qu'elle
 répond, et reviendra à la précédente sinon. Le tout sera décrit dans un guide pas à pas,
 dans un dossier `deploiement/`.

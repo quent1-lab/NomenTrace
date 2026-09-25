@@ -23,4 +23,4 @@ def test_lancement_utilise_la_configuration(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(config, "HOTE", "127.0.0.1")
     monkeypatch.setattr(config, "PORT", 8765)
     lancement.main()
-    assert appels == [{"host": "127.0.0.1", "port": 8765}]
+    assert appels == [{"host": "127.0.0.1", "port": 8765, "server_header": False}]

@@ -9,7 +9,8 @@ import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireN
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { ecritBloc, estAdmin } from "../session.js";
+import { afficherErreur, el, lienExterne, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
 import { champFournisseur, lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
 
@@ -104,7 +105,7 @@ async function ouvrirReclassement(c, zone, surReclasse) {
 }
 
 function vueChamps(c, statuts) {
-  const lien = c.lien_produit ? el("a", { href: c.lien_produit, target: "_blank", rel: "noopener noreferrer" }, "ouvrir la page produit") : null;
+  const lien = c.lien_produit ? lienExterne(c.lien_produit, "ouvrir la page produit") : null;
   return [
     definitions([
       ["Bloc fonctionnel", c.bloc_code],
@@ -177,7 +178,8 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
       lu.valeurs.fournisseur_nom = await choixFournisseur.resoudre();
       const modifs = Object.fromEntries(Object.entries(lu.valeurs).filter(([cle, v]) => v !== c[cle]));
       if (Object.keys(modifs).length === 0) return surAnnule();
-      await api.patchComposant(c.id, modifs);
+      // Date lue à l'ouverture : si quelqu'un a modifié le composant depuis, le serveur refuse.
+      await api.patchComposant(c.id, { ...modifs, modifie_le: c.modifie_le });
       masquerErreur();
       await surEnregistre();
     } catch (erreur) {
@@ -224,19 +226,19 @@ function champQteAffectation(affectation, surChangement) {
   return champ;
 }
 
-function sectionAffectations(fiche, ensembles, surChangement) {
+function sectionAffectations(fiche, ensembles, surChangement, modifiable) {
   const c = fiche.composant;
   const lignes = fiche.affectations.map((a) =>
     el(
       "tr",
       {},
       el("td", {}, el("a", { href: lienRoute(`/ensembles/${a.ensemble_code}`) }, a.ensemble_code), " ", el("span", { class: "texte-doux" }, a.ensemble_nom)),
-      el("td", { class: "nombre" }, champQteAffectation(a, surChangement)),
+      el("td", { class: "nombre" }, modifiable ? champQteAffectation(a, surChangement) : formatNombre(a.qte_affectee)),
       el("td", { class: "nombre" }, formatNombre(a.qte_montee)),
       el(
         "td",
         { class: "nombre" },
-        el("button", {
+        modifiable && el("button", {
           type: "button",
           class: "bouton-icone",
           title: "Retirer l'affectation",
@@ -260,7 +262,7 @@ function sectionAffectations(fiche, ensembles, surChangement) {
     "Ensembles où il est monté",
     resume,
     tableSimple([["Ensemble"], ["Qté", "nombre"], ["Montée", "nombre"], ["", "nombre"]], lignes, "Affecté à aucun ensemble pour l'instant."),
-    formulaireAffectation(c, disponibles, ensembles.length, surChangement),
+    modifiable ? formulaireAffectation(c, disponibles, ensembles.length, surChangement) : null,
   );
 }
 
@@ -336,9 +338,9 @@ function formulaireCaracteristiques(c, valeurs, { surEnregistre, surAnnule }) {
   return formulaire;
 }
 
-function sectionCaracteristiques(c, valeurs, surEnregistre) {
+function sectionCaracteristiques(c, valeurs, surEnregistre, droitEcriture) {
   const zone = el("div", {}, vueCaracteristiques(valeurs));
-  const modifiable = tousLesAttributs().some((a) => a.actif);
+  const modifiable = droitEcriture && tousLesAttributs().some((a) => a.actif);
   const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret", hidden: !modifiable }, "Modifier");
   bouton.addEventListener("click", () => {
     bouton.hidden = true;
@@ -385,7 +387,7 @@ function sectionHistorique(evenements, composant) {
 // notamment celui d'un composant reclassé dans un autre bloc.
 function ouvrirFicheArchivee(fiche, documents, surFermeture) {
   const c = fiche.composant;
-  const lien = c.lien_produit ? el("a", { href: c.lien_produit, target: "_blank", rel: "noopener noreferrer" }, "ouvrir la page produit") : null;
+  const lien = c.lien_produit ? lienExterne(c.lien_produit, "ouvrir la page produit") : null;
   ouvrirPanneau(
     `${c.id} — ${c.designation}`,
     [
@@ -434,6 +436,8 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   }
   const c = fiche.composant;
   if (c.archive) return ouvrirFicheArchivee(fiche, documents, surFermeture);
+  // Modifiable par l'administrateur et par les contributeurs du bloc du composant.
+  const modifiable = ecritBloc(c.bloc_code);
   const rafraichir = async () => {
     await surChangement();
     await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture });
@@ -480,14 +484,16 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   ouvrirPanneau(
     `${c.id} — ${c.designation}`,
     [
-      el("div", { class: "fiche__actions" }, boutonModifier, boutonReclasser, boutonArchiver),
+      modifiable
+        ? el("div", { class: "fiche__actions" }, boutonModifier, estAdmin() ? boutonReclasser : null, boutonArchiver)
+        : el("p", { class: "texte-doux texte-petit" }, `Lecture seule : le bloc ${c.bloc_code} ne vous est pas attribué.`),
       zoneReclassement,
       fiche.remplace.length
         ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
         : null,
       section("Composant", zoneChamps),
-      sectionCaracteristiques(c, fiche.attributs, rafraichir),
-      sectionAffectations(fiche, ensembles, rafraichir),
+      sectionCaracteristiques(c, fiche.attributs, rafraichir, modifiable),
+      sectionAffectations(fiche, ensembles, rafraichir, modifiable),
       sectionCommandes(fiche.lignes_commande),
       sectionDocuments({
         documents,
@@ -495,6 +501,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         typeParDefaut: "Fiche technique",
         aide: "Documents propres au composant (fiche technique, plan, photo) et documents des commandes où il figure.",
         deposer: (donnees) => api.deposerDocumentsComposant(id, donnees),
+        depot: modifiable,
         surChangement: rafraichir,
       }),
       sectionMouvements(fiche.mouvements),

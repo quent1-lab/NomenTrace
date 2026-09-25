@@ -8,6 +8,7 @@ import { api } from "../api.js";
 import { formatDate, formatMontant, formatNombre, libelle } from "../format.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
+import { estAdmin } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 
 const TYPES_ENTITE = { bloc: "Bloc fonctionnel", ensemble: "Ensemble", fournisseur: "Fournisseur" };
@@ -360,6 +361,10 @@ async function charger(section, afficher) {
 }
 
 export async function afficherNettoyage(conteneur) {
+  if (!estAdmin()) {
+    conteneur.replaceChildren(el("h1", {}, "Nettoyage de la base"), el("p", { class: "texte-doux" }, "Cet écran est réservé à un administrateur."));
+    return;
+  }
   const blocs = await api.getBlocs({ archives: true });
   const zones = [0, 1, 2, 3].map(() => el("section", { class: "panneau" }));
   conteneur.replaceChildren(

@@ -15,23 +15,41 @@ journal_log = logging.getLogger(__name__)
 _MOTIF_MIGRATION = re.compile(r"^(\d{3})_[a-z0-9_]+\.sql$")
 
 
-def connect(chemin: Path | None = None) -> sqlite3.Connection:
+class Connexion(sqlite3.Connection):
+    """Connexion SQLite qui connaît l'auteur des écritures, reporté dans le journal."""
+
+    utilisateur: str | None = None
+
+
+def connect(chemin: Path | None = None, utilisateur: str | None = None) -> Connexion:
     """Ouvre une connexion en mode autocommit, clés étrangères actives et journal WAL.
 
-    Les transactions sont ouvertes explicitement avec `transaction()`.
+    Les transactions sont ouvertes explicitement avec `transaction()`. Une écriture
+    concurrente attend jusqu'à 5 s que la base se libère avant d'échouer.
     """
     cible = chemin or config.CHEMIN_BASE
     cible.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(cible, isolation_level=None, check_same_thread=False)
+    conn = sqlite3.connect(cible, isolation_level=None, check_same_thread=False, factory=Connexion)
     conn.row_factory = sqlite3.Row
+    conn.utilisateur = utilisateur
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
+def auteur(conn: sqlite3.Connection) -> str | None:
+    """Nom de l'utilisateur à l'origine des écritures de cette connexion, s'il est connu."""
+    return getattr(conn, "utilisateur", None)
+
+
 @contextmanager
-def transaction(conn: sqlite3.Connection, immediate: bool = False) -> Iterator[None]:
-    """Exécute le bloc dans une transaction, annulée en cas d'exception."""
+def transaction(conn: sqlite3.Connection, immediate: bool = True) -> Iterator[None]:
+    """Exécute le bloc dans une transaction, annulée en cas d'exception.
+
+    Par défaut la transaction prend le verrou d'écriture dès son ouverture (BEGIN IMMEDIATE) :
+    deux écritures simultanées s'attendent au lieu d'échouer au moment d'écrire.
+    """
     conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
     try:
         yield

@@ -80,7 +80,14 @@ avec un message en français, que l'application transforme en réponse JSON.
 Les routes ne contiennent ni logique ni SQL. Les services ouvrent leurs transactions
 explicitement avec `db.transaction(conn)` et journalisent chaque modification par
 `journal.update_with_journal()`. `backend/db.py` ne contient que la connexion, les
-migrations et les helpers de requête. Aucune dépendance ne s'ajoute hors de
+migrations et les helpers de requête.
+
+Toute nouvelle route reçoit sa règle d'accès dans la table `REGLES` de
+`backend/services/droits.py`. Oubliée, elle serait réservée à l'administrateur, et le test
+`test_toutes_les_routes_ont_une_regle` échouerait. Une vérification qui dépend du corps de
+la requête (le bloc d'un composant créé, par exemple) se fait dans la route, par une
+fonction de `droits`, avant l'appel au service ; l'interface masque en plus ce qui est
+interdit, mais ce n'est jamais la protection. Aucune dépendance ne s'ajoute hors de
 `requirements.txt`, et tout ajout se justifie.
 
 ## Base de données
@@ -120,7 +127,10 @@ script chargé depuis un autre domaine. Une bibliothèque tierce se place dans
 `static/js/api.js`, tout le formatage des nombres et des dates par `static/js/format.js`.
 
 Le CSS s'écrit dans `static/css/style.css`, avec des variables pour les couleurs et les
-espacements, sans style en ligne dans le HTML. Aucune donnée métier n'est gardée dans
+espacements, sans style en ligne dans le HTML. La politique de sécurité du contenu interdit
+d'ailleurs tout script ou style en ligne. Un texte saisi par un utilisateur s'affiche par
+`el()`, jamais par `innerHTML`, et une adresse saisie ne devient un lien que par
+`ui.lienExterne()`. Aucune donnée métier n'est gardée dans
 `localStorage`. Une erreur s'affiche dans le bandeau visible, pas seulement dans la
 console.
 

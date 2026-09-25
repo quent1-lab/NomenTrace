@@ -22,7 +22,7 @@ function formatTaille(octets) {
   return `${(octets / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
 }
 
-function ligneDocument(document, { avecSource, surChangement }) {
+function ligneDocument(document, { avecSource, surChangement, depot }) {
   const retirer = el("button", {
     type: "button",
     class: "bouton-icone",
@@ -51,7 +51,7 @@ function ligneDocument(document, { avecSource, surChangement }) {
     el("td", { class: "texte-doux" }, formatDate(document.ajoute_le)),
     el("td", { class: "tronque", title: document.commentaire ?? "" }, document.commentaire ?? ""),
     // Un document de commande se retire depuis la commande, pas depuis le composant.
-    el("td", { class: "nombre" }, avecSource && document.source === "commande" ? null : retirer),
+    el("td", { class: "nombre" }, !depot || (avecSource && document.source === "commande") ? null : retirer),
   );
 }
 
@@ -84,7 +84,8 @@ function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
 
 /**
  * documents : liste renvoyée par l'API ; deposer(FormData) renvoie une promesse ;
- * avecSource : affiche d'où vient chaque document (fiche composant).
+ * avecSource : affiche d'où vient chaque document (fiche composant) ;
+ * depot : faux en lecture seule (ni dépôt ni retrait).
  */
 export function sectionDocuments({ titre = "Documents", documents, deposer, surChangement, typeParDefaut, avecSource = false, aide, depot = true }) {
   const entetes = ["Type", "Fichier", avecSource ? "Source" : null, "Taille", "Ajouté le", "Commentaire", ""].filter((t) => t !== null);
@@ -98,7 +99,7 @@ export function sectionDocuments({ titre = "Documents", documents, deposer, surC
           "table",
           { class: "table table--dense" },
           el("thead", {}, el("tr", {}, entetes.map((t) => el("th", { class: t === "Taille" ? "nombre" : "" }, t)))),
-          el("tbody", {}, documents.map((d) => ligneDocument(d, { avecSource, surChangement }))),
+          el("tbody", {}, documents.map((d) => ligneDocument(d, { avecSource, surChangement, depot }))),
         )
       : el("p", { class: "texte-doux" }, "Aucun document joint."),
     depot ? formulaireDepot({ typeParDefaut, deposer, surChangement }) : null,

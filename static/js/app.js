@@ -1,6 +1,6 @@
 // Point d'entrée du front : en-tête, état de l'export, menu et routage.
 
-import { api, surEcriture } from "./api.js";
+import { allerConnexion, api, surEcriture } from "./api.js";
 import { detruireGraphiques } from "./graphiques.js";
 import { installerMenu } from "./menu.js";
 import { fermerPanneau } from "./panneau.js";
@@ -20,6 +20,7 @@ import { afficherFicheFournisseur } from "./pages/fournisseur_detail.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur } from "./router.js";
+import { chargerSession, libelleRole, modeLocal, utilisateur } from "./session.js";
 import { chargerListes } from "./valeurs.js";
 import { afficherErreur, el } from "./ui.js";
 
@@ -122,7 +123,40 @@ surEcriture(() => setTimeout(rafraichirEntete, 3500));
 setInterval(rafraichirEntete, 15000);
 window.addEventListener("nomentrace:projet", rafraichirEntete);
 
+// Nom de l'utilisateur, son rôle et la déconnexion ; rien en mode local, sans compte.
+function afficherUtilisateur() {
+  const zone = document.getElementById("entete-utilisateur");
+  const moi = utilisateur();
+  if (!moi || modeLocal()) {
+    zone.replaceChildren(el("span", { class: "entete__role", title: "Lancé sans connexion, sur ce poste seulement" }, "Mode local"));
+    return;
+  }
+  const deconnexion = el("button", { type: "button", class: "bouton bouton--petit bouton--discret" }, "Déconnexion");
+  deconnexion.addEventListener("click", async () => {
+    try {
+      await api.deconnecter();
+    } catch (erreur) {
+      afficherErreur(erreur);
+      return;
+    }
+    window.location.assign("/connexion.html");
+  });
+  zone.replaceChildren(
+    el("span", { class: "entete__nom", title: moi.identifiant }, moi.nom),
+    el("span", { class: "entete__role" }, libelleRole(moi.role)),
+    deconnexion,
+  );
+}
+
 async function demarrer() {
+  try {
+    await chargerSession();
+  } catch (erreur) {
+    if (erreur.statut === 401) allerConnexion();
+    else afficherErreur(erreur);
+    return;
+  }
+  afficherUtilisateur();
   installerMenu();
   installerRecherche(document.getElementById("recherche-globale"));
   try {

@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { formatEcart, formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
+import { aPermission, estAdmin } from "../session.js";
 import { afficherErreur, classeBloc, el, largeur, masquerErreur } from "../ui.js";
 import { STATUTS_MONTAGE } from "../valeurs.js";
 
@@ -62,6 +63,7 @@ export function texteCout(ensemble) {
 
 // Sélecteur du statut de montage, enregistré dès qu'il change.
 export function selectStatutMontage(ensemble, surChangement) {
+  if (!aPermission("ensembles")) return el("span", {}, libelle(ensemble.statut_montage));
   const select = el("select", { class: "filtre", "aria-label": "Statut de montage" });
   for (const statut of STATUTS_MONTAGE) {
     select.append(el("option", { value: statut, selected: statut === ensemble.statut_montage }, libelle(statut)));
@@ -185,8 +187,9 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
     ligneChamp("Ordre d'affichage", champNombre("ordre", ensemble?.ordre ?? ordreSuggere), { aide: "Ordre parmi les ensembles de même parent." }),
     ligneChamp("Responsable", champTexte("responsable", ensemble?.responsable ?? "")),
     ligneChamp("Description", champZone("description", ensemble?.description ?? "")),
-    ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part égale de ce qui reste du budget du parent, après ses ensembles verrouillés et ses composants propres." }),
-    el("label", { class: "filtre-case" }, verrou, "Verrouiller le budget sur ce montant"),
+    // Les budgets restent à l'administrateur.
+    estAdmin() ? ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part égale de ce qui reste du budget du parent, après ses ensembles verrouillés et ses composants propres." }) : null,
+    estAdmin() ? el("label", { class: "filtre-case" }, verrou, "Verrouiller le budget sur ce montant") : null,
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),
       el("button", { type: "submit", class: "bouton" }, creation ? "Créer l'ensemble" : "Enregistrer"),
@@ -194,12 +197,17 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
   );
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const lu = lireFormulaire(formulaire, DESCRIPTION, LIBELLES);
+    const { budget_cible_ht: _budget, ...sansBudget } = DESCRIPTION;
+    const lu = lireFormulaire(formulaire, estAdmin() ? DESCRIPTION : sansBudget, LIBELLES);
     if (lu.erreur) return afficherErreur(lu.erreur);
     if (creation && !code.value) return afficherErreur("Le code de l'ensemble est obligatoire.");
     if (!lu.valeurs.nom) return afficherErreur("Le nom de l'ensemble est obligatoire.");
     if (verrou.checked && lu.valeurs.budget_cible_ht === null) return afficherErreur("Saisir un budget cible HT avant de verrouiller le budget.");
     const valeurs = { ...lu.valeurs, ordre: lu.valeurs.ordre ?? 0, budget_verrouille: verrou.checked };
+    if (!estAdmin()) {
+      delete valeurs.budget_cible_ht;
+      delete valeurs.budget_verrouille;
+    }
     try {
       const resultat = creation
         ? await api.createEnsemble({ code: code.value, ...valeurs })

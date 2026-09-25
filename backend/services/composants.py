@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from backend import db
-from backend.erreurs import ErreurMetier, Introuvable
+from backend.erreurs import Conflit, ErreurMetier, Introuvable
 from backend.services import (
     attributs,
     attributs_requetes,
@@ -275,7 +275,7 @@ def insert_composant(
 
 def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Crée un composant ; l'identifiant est généré et inséré dans la même transaction."""
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         identifiant = insert_composant(conn, valeurs)
     return get_composant(conn, identifiant)
 
@@ -283,9 +283,17 @@ def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
 def patch_composant(
     conn: sqlite3.Connection, identifiant: str, modifications: dict[str, Any]
 ) -> dict:
-    """Modifie un composant non archivé, champ par champ, avec journal."""
+    """Modifie un composant non archivé, champ par champ, avec journal.
+
+    Si `modifie_le` est fourni et que le composant a été modifié depuis, rien n'est écrit :
+    la modification de l'autre personne est signalée au lieu d'être écrasée.
+    """
+    modifications = dict(modifications)
+    lu = modifications.pop("modifie_le", None)
     with db.transaction(conn):
         actuel = get_composant(conn, identifiant)
+        if lu is not None and lu != actuel["modifie_le"]:
+            raise Conflit(_message_conflit(conn, identifiant))
         # Une valeur désactivée déjà portée par le composant reste acceptée telle quelle.
         _check_listes(
             conn, {k: v for k, v in modifications.items() if k in CHAMPS_LISTES and v != actuel[k]}
@@ -301,6 +309,21 @@ def patch_composant(
                 (datetime.now().isoformat(timespec="seconds"), identifiant),
             )
     return get_composant(conn, identifiant)
+
+
+def _message_conflit(conn: sqlite3.Connection, identifiant: str) -> str:
+    derniere = db.fetch_one(
+        conn,
+        "SELECT utilisateur, horodatage FROM journal WHERE table_cible = 'composant'"
+        " AND cle_cible = ? ORDER BY id DESC LIMIT 1",
+        (identifiant,),
+    )
+    auteur = f" par {derniere['utilisateur']}" if derniere and derniere["utilisateur"] else ""
+    quand = f" à {derniere['horodatage'][11:16]}" if derniere else ""
+    return (
+        f"{identifiant} a été modifié{auteur}{quand} pendant votre saisie. Recharger la fiche"
+        " pour voir sa version actuelle, puis refaire la modification."
+    )
 
 
 def patch_attributs(conn: sqlite3.Connection, identifiant: str, valeurs: dict[str, Any]) -> dict:

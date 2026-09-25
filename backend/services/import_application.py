@@ -13,7 +13,7 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier
-from backend.services import attributs, composants, import_depots, journal, sauvegardes
+from backend.services import attributs, composants, droits, import_depots, journal, sauvegardes
 from backend.services.import_analyse import avec_attributs, identiques
 
 ORIGINE = journal.ORIGINE_IMPORT
@@ -26,9 +26,15 @@ class LigneRefusee(Exception):
 class Application:
     """État d'une application : composants créés par ligne, décompte, refus."""
 
-    def __init__(self, conn: sqlite3.Connection, decisions: dict[str, dict]) -> None:
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        decisions: dict[str, dict],
+        utilisateur: droits.Utilisateur | None = None,
+    ) -> None:
         self.conn = conn
         self.decisions = decisions
+        self.utilisateur = utilisateur
         self.crees: dict[int, str] = {}
         self.appliquees = 0
         self.refus: list[str] = []
@@ -266,6 +272,44 @@ def _appliquer_affectation(app: Application, ligne: dict, decision: dict) -> boo
     return True
 
 
+# --- Droits de l'utilisateur ----------------------------------------------------------------------
+
+
+def _bloc_touche(app: Application, ligne: dict, decision: dict) -> str | None:
+    """Bloc du composant qu'une ligne crée ou modifie."""
+    if ligne["categorie"] in ("NOUVEAU", "DOUBLON"):
+        cible = decision.get("cible") or {}
+        existant = cible.get("composant") if decision.get("action") == "fusionner" else None
+        if decision.get("action") == "fusionner" and cible.get("ligne"):
+            existant = app.crees.get(int(cible["ligne"]))
+        if existant:
+            return droits.bloc_composant(app.conn, existant)
+        return ligne["donnees"]["valeurs"].get("bloc_code")
+    return droits.bloc_composant(app.conn, ligne["composant_id"])
+
+
+def _verifier_droits(app: Application, ligne: dict, decision: dict) -> None:
+    """Refuse la ligne qui sort des droits de l'utilisateur ; les autres s'appliquent."""
+    utilisateur = app.utilisateur
+    if utilisateur is None or utilisateur.admin:
+        return
+    if ligne["categorie"] == "NOUVELLE_ENTITE":
+        entite = ligne["donnees"]["entite"]
+        permis = {
+            "fournisseur": utilisateur.a_permission(droits.ACHATS),
+            "ensemble": utilisateur.a_permission(droits.ENSEMBLES),
+        }.get(entite["type"], False)
+        if not permis:
+            raise LigneRefusee(f"vous n'avez pas le droit de créer ce {entite['type']}.")
+        return
+    try:
+        bloc = _bloc_touche(app, ligne, decision)
+    except ErreurMetier as erreur:
+        raise LigneRefusee(erreur.message) from erreur
+    if not utilisateur.ecrit_bloc(bloc):
+        raise LigneRefusee(f"le bloc « {bloc} » ne vous est pas attribué.")
+
+
 APPLICATEURS: dict[str, Any] = {
     "NOUVELLE_ENTITE": _appliquer_entite,
     "MODIFIE": _appliquer_modifie,
@@ -284,6 +328,7 @@ def _appliquer_ligne(app: Application, ligne: dict) -> None:
         return
     app.conn.execute("SAVEPOINT ligne")
     try:
+        _verifier_droits(app, ligne, decision)
         applique = applicateur(app, ligne, decision)
     except (LigneRefusee, sqlite3.IntegrityError) as refus:
         app.conn.execute("ROLLBACK TO ligne")
@@ -309,16 +354,21 @@ def apply_depot(
     dossier_sauvegardes: Path,
     depot: int,
     decisions: dict[str, dict],
+    utilisateur: droits.Utilisateur | None = None,
 ) -> dict:
-    """Applique les décisions ; une sauvegarde de la base est prise juste avant."""
+    """Applique les décisions ; une sauvegarde de la base est prise juste avant.
+
+    Pour un contributeur, chaque ligne hors de ses droits est refusée et signalée, les
+    autres s'appliquent.
+    """
     lots = import_depots.get_lots(conn, depot)
     if lots[0]["statut"] != "analyse":
         raise ErreurMetier(
             f"Le dépôt {depot} est déjà {lots[0]['statut']} : il ne peut plus être appliqué."
         )
     sauvegardes.create_sauvegarde(chemin_base, dossier_sauvegardes)
-    app = Application(conn, decisions)
-    with db.transaction(conn, immediate=True):
+    app = Application(conn, decisions, utilisateur)
+    with db.transaction(conn):
         lignes = import_depots.list_lignes(conn, depot)
         # Les entités d'abord : les lignes qui les citent en ont besoin.
         lignes.sort(key=lambda ligne: ligne["categorie"] != "NOUVELLE_ENTITE")

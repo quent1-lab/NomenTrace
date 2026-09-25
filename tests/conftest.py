@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend import db
@@ -24,11 +25,25 @@ def dossier_echange(tmp_path: Path) -> Path:
     return tmp_path / "echange"
 
 
+# Le client de test se présente comme un navigateur du poste local, sur une page de Nomentrace :
+# c'est ce que le mode local et le contrôle d'origine des écritures exigent.
+ADRESSE_LOCALE = "http://127.0.0.1:8000"
+
+
+def client_local(app: FastAPI) -> TestClient:
+    return TestClient(
+        app,
+        base_url=ADRESSE_LOCALE,
+        client=("127.0.0.1", 50000),
+        headers={"Origin": ADRESSE_LOCALE},
+    )
+
+
 @pytest.fixture
 def client(chemin_base: Path, dossier_echange: Path) -> Iterator[TestClient]:
-    """Client HTTP sur une application branchée sur une base temporaire vide."""
-    app = create_app(chemin_base, dossier_echange=dossier_echange)
-    with TestClient(app) as test_client:
+    """Client HTTP sur une application en mode local, branchée sur une base temporaire vide."""
+    app = create_app(chemin_base, dossier_echange=dossier_echange, mode_local=True)
+    with client_local(app) as test_client:
         yield test_client
 
 
@@ -52,8 +67,8 @@ def conn_essai(conn_vide: sqlite3.Connection) -> sqlite3.Connection:
 def client_essai(
     conn_essai: sqlite3.Connection, chemin_base: Path, dossier_echange: Path
 ) -> Iterator[TestClient]:
-    """Client HTTP sur une application branchée sur la base du jeu d'essai."""
+    """Client HTTP sur une application en mode local, branchée sur la base du jeu d'essai."""
     conn_essai.close()
-    app = create_app(chemin_base, dossier_echange=dossier_echange)
-    with TestClient(app) as test_client:
+    app = create_app(chemin_base, dossier_echange=dossier_echange, mode_local=True)
+    with client_local(app) as test_client:
         yield test_client

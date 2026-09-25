@@ -6,9 +6,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from backend.arrondi import round_output
-from backend.deps import get_conn
+from backend.deps import Connecte, get_conn
 from backend.models import ApplicationListeFournisseurs, FournisseurCreation, FournisseurModif
-from backend.services import fournisseurs, fournisseurs_liste
+from backend.services import droits, fournisseurs, fournisseurs_liste
 
 router = APIRouter(prefix="/api/fournisseurs", tags=["fournisseurs"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -20,8 +20,12 @@ def read_fournisseurs(conn: Conn) -> list[dict]:
 
 
 @router.post("", status_code=201)
-def create_fournisseur(corps: FournisseurCreation, conn: Conn) -> dict:
-    return fournisseurs.create_fournisseur(conn, corps.model_dump())
+def create_fournisseur(corps: FournisseurCreation, conn: Conn, utilisateur: Connecte) -> dict:
+    valeurs = corps.model_dump()
+    if not utilisateur.admin:
+        # Proposé par un contributeur : à valider par un administrateur.
+        valeurs["statut"] = "A valider"
+    return fournisseurs.create_fournisseur(conn, valeurs)
 
 
 @router.post("/comparaison")
@@ -54,5 +58,8 @@ def archive_fournisseur(nom: str, conn: Conn) -> dict:
 
 
 @router.patch("/{nom:path}")
-def update_fournisseur(nom: str, corps: FournisseurModif, conn: Conn) -> dict:
+def update_fournisseur(
+    nom: str, corps: FournisseurModif, conn: Conn, utilisateur: Connecte
+) -> dict:
+    droits.exiger_statut_fournisseur(conn, utilisateur, nom, corps.statut)
     return fournisseurs.patch_fournisseur(conn, nom, corps.model_dump(exclude_unset=True))

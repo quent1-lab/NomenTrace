@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, formatPourcent } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
+import { estAdmin } from "../session.js";
 import { vueSchema } from "./ensembles_schema.js";
 import { el, rangsBlocs } from "../ui.js";
 import {
@@ -115,6 +116,9 @@ function celluleBudgetCible(valeur, enregistrer, rafraichir, contenu) {
 
 function budgetCibleEnsemble(e, rafraichir) {
   const valeur = e.budget_verrouille ? e.budget_cible_ht : null;
+  const lecture = valeur === null ? el("span", { class: "texte-doux" }, "calculé") : [formatMontant(valeur), cadenas()];
+  // Les budgets se saisissent par l'administrateur seulement.
+  if (!estAdmin()) return el("td", { class: "nombre" }, lecture);
   const enregistrer = (montant) =>
     api.patchEnsemble(e.code, montant === null ? { budget_verrouille: false, budget_cible_ht: null } : { budget_cible_ht: montant, budget_verrouille: true });
   const contenu = valeur === null ? el("span", { class: "texte-doux" }, "calculé") : [formatMontant(valeur), cadenas()];
@@ -235,7 +239,7 @@ function etatVide(surCreer) {
         "son identifiant, mais il peut être monté dans plusieurs ensembles, en quantités " +
         "différentes. Un même connecteur peut ainsi se retrouver dans quatre ensembles.",
     ),
-    el("button", { type: "button", class: "bouton", onclick: surCreer }, "+ Créer le premier ensemble"),
+    el("button", { type: "button", class: "bouton si-ensembles", onclick: surCreer }, "+ Créer le premier ensemble"),
   );
 }
 
@@ -288,7 +292,7 @@ export async function afficherEnsembles(conteneur, parametres) {
     "div",
     { class: "titre-page" },
     el("h1", {}, "Ensembles"),
-    ensembles.length ? el("button", { type: "button", class: "bouton", onclick: creer }, "+ Nouvel ensemble") : null,
+    ensembles.length ? el("button", { type: "button", class: "bouton si-ensembles", onclick: creer }, "+ Nouvel ensemble") : null,
   );
   if (!ensembles.length) {
     conteneur.replaceChildren(entete, etatVide(creer), encadreCoherence(incoherences));

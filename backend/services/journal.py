@@ -39,11 +39,23 @@ def write_journal(
     origine: str = ORIGINE_INTERFACE,
     lot_id: int | None = None,
 ) -> None:
-    """Écrit une ligne de journal ; `lot_id` relie une modification au fichier importé."""
+    """Écrit une ligne de journal ; `lot_id` relie une modification au fichier importé.
+
+    L'auteur est celui de la connexion, posé par l'application à chaque requête.
+    """
     conn.execute(
         "INSERT INTO journal (table_cible, cle_cible, champ, ancienne_valeur, nouvelle_valeur,"
-        " origine, lot_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (table, _texte(cle), champ, _texte(ancienne), _texte(nouvelle), origine, lot_id),
+        " origine, lot_id, utilisateur) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            table,
+            _texte(cle),
+            champ,
+            _texte(ancienne),
+            _texte(nouvelle),
+            origine,
+            lot_id,
+            db.auteur(conn),
+        ),
     )
 
 

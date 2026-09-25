@@ -16,7 +16,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from backend import db
 from backend.arrondi import round_value
-from backend.services import attributs
+from backend.services import attributs, tableur
 
 journal_log = logging.getLogger(__name__)
 
@@ -103,6 +103,7 @@ def build_workbook(chemin_base: Path) -> Workbook:
             _write_rows(feuille, db.fetch_all(conn, sql), _colonnes(conn, sql))
             if nom == "composant":
                 _write_attributs(feuille, conn)
+        tableur.neutraliser_formules(classeur)
         return classeur
     finally:
         conn.close()

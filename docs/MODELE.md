@@ -48,8 +48,8 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
 | `mouvement_stock` | Entrées et sorties de stock, montages (avec `ensemble_code`). | `id` |
 | `document` | Fichiers joints (devis, factures…) rangés dans `echange/documents/`, rattachés à une commande et/ou un composant. | `id` |
-| `import_lot`, `import_ligne` | Dépôts de fichiers d'équipe et leurs lignes analysées, en attente ou appliquées. | `id` |
-| `journal` | Historique de toutes les modifications : table, clé, champ, ancienne et nouvelle valeur, origine (`interface` ou `import`), lot d'import éventuel. | `id` |
+| `import_lot`, `import_ligne` | Dépôts de fichiers d'équipe et leurs lignes analysées, en attente ou appliquées ; `import_lot.utilisateur` nomme qui a déposé le fichier dans l'outil. | `id` |
+| `journal` | Historique de toutes les modifications : table, clé, champ, ancienne et nouvelle valeur, origine (`interface` ou `import`), lot d'import éventuel, `utilisateur` (nom affiché de l'auteur au moment de l'écriture, `local` en mode local, vide avant la migration 015). | `id` |
 
 Composants, blocs, ensembles, commandes et fournisseurs portent une colonne `archive` qui
 les retire des listes et des calculs ; l'historique reste. Un bloc archivé n'accepte plus
@@ -244,6 +244,27 @@ est conservé mais ignoré.
 **Exception à la règle des vues** : ce budget n'est pas calculé par une vue SQL, parce
 qu'une répartition récursive s'y exprime mal. Il est recalculé à chaque
 lecture, sans arrondi et sans rien stocker, par `backend/services/ensembles_arbre.py`.
+
+## Base des comptes
+
+Les comptes vivent dans une base SQLite séparée (`data/comptes.db`), avec ses propres
+migrations dans `backend/migrations_comptes/`. Aucune clé étrangère ne la relie à la base
+du projet : le journal garde le nom de l'auteur tel qu'il était, en texte. Séparer les deux
+bases permettra à plusieurs projets de partager un jour les mêmes comptes, et empêche une
+restauration de la base du projet de toucher aux comptes.
+
+| Table | Rôle | Clé |
+|---|---|---|
+| `utilisateur` | Identité interne : `identifiant` (adresse mail, jamais utilisée pour écrire), `nom` affiché, unique, `actif`, `derniere_connexion`. | `id` |
+| `identite` | Moyens de connexion d'un utilisateur. Seul `mot_de_passe` existe : `secret` est l'empreinte scrypt `scrypt$N$r$p$sel$hash`. Une connexion par un compte externe s'ajoutera ici. | `id` ; unique (`fournisseur`, `sujet`) |
+| `acces` | Rôle d'un utilisateur dans un projet (`lecteur`, `contributeur`, `administrateur`). Sans ligne, le projet lui est fermé. | `utilisateur_id`, `projet` |
+| `utilisateur_bloc` | Blocs fonctionnels dont un contributeur modifie les composants. | `utilisateur_id`, `projet`, `bloc_code` |
+| `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`. | `utilisateur_id`, `projet`, `permission` |
+| `invitation` | Liens d'invitation : empreinte SHA-256 du jeton, `expire_le` (72 heures), `utilisee_le`. | `id` |
+| `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |
+
+Le code du projet (`projet`) vient de `NOMENTRACE_PROJET`, pas du nom du projet, qui peut
+changer.
 
 ## Historique
 

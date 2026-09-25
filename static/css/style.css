@@ -2298,3 +2298,106 @@ td.editable:hover {
 .devis__lignes th:first-child {
   padding-left: var(--espace-4);
 }
+
+/* --- Connexion et droits ------------------------------------------------------------------ */
+
+/* Actions masquées selon les droits de l'utilisateur ; le serveur les refuse de toute façon. */
+body:not(.peut-ecrire) .si-ecriture,
+body:not(.est-admin) .si-admin,
+body:not(.peut-achats) .si-achats,
+body:not(.peut-ensembles) .si-ensembles {
+  display: none !important;
+}
+
+.entete__utilisateur {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  font-size: var(--taille-petit);
+  color: #c8d2de;
+}
+
+.entete__nom {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.entete__role {
+  padding: 1px var(--espace-2);
+  border: 1px solid var(--couleur-ardoise);
+  border-radius: var(--rayon);
+}
+
+.entete__utilisateur .bouton--discret {
+  color: #ffffff;
+  border-color: var(--couleur-ardoise);
+  background: transparent;
+}
+
+.page-connexion {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 10vh var(--espace-4) var(--espace-4);
+}
+
+.connexion {
+  width: 100%;
+  max-width: 380px;
+  padding: var(--espace-5);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-surface);
+}
+
+.connexion__titre {
+  margin: 0;
+  color: var(--couleur-ardoise-fonce);
+}
+
+.connexion__sous-titre {
+  margin: var(--espace-1) 0 var(--espace-5);
+  color: var(--couleur-texte-doux);
+}
+
+.connexion__formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.connexion__formulaire .champ {
+  width: 100%;
+}
+
+.message-erreur {
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.lien-invitation {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: center;
+  margin-top: var(--espace-2);
+}
+
+.lien-invitation .champ {
+  flex: 1;
+  font-family: monospace;
+  font-size: var(--taille-petit);
+}
+
+.cases-a-cocher {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+}
+
+.connexion .ligne-champ {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--espace-1);
+}

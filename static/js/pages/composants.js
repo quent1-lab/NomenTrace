@@ -7,6 +7,7 @@ import { editerCellule } from "../edition.js";
 import { formatEcart, formatMontant, formatNombre, libelle } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
+import { ecritBloc } from "../session.js";
 import { afficherErreur, classeBloc, el, enregistrerFichier, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
@@ -349,9 +350,12 @@ function entete() {
 
 function ligne(c) {
   const tr = el("tr", { "data-id": c.id, class: c.id === etat.ficheOuverte ? "ligne--selection" : "", onclick: () => ouvrirFicheComposant(c.id) });
+  // Cellules modifiables seulement dans les blocs de l'utilisateur.
+  const modifiable = ecritBloc(c.bloc_code);
   for (const col of colonnes()) {
-    const td = el("td", { class: [col.classe ?? "", col.edition ? "editable" : ""].join(" "), title: col.infobulle?.(c) ?? null }, col.rendu(c));
-    if (col.edition) {
+    const editable = col.edition && modifiable;
+    const td = el("td", { class: [col.classe ?? "", editable ? "editable" : ""].join(" "), title: col.infobulle?.(c) ?? null }, col.rendu(c));
+    if (editable) {
       td.addEventListener("click", (e) => {
         e.stopPropagation();
         editerCellule(td, col.edition, etat.parId.get(c.id), {
@@ -420,7 +424,8 @@ async function rechargerListe() {
 }
 
 async function enregistrerModif(id, modifs) {
-  const maj = await api.patchComposant(id, modifs);
+  // Date de modification connue de la ligne : une modification faite entre-temps est signalée.
+  const maj = await api.patchComposant(id, { ...modifs, modifie_le: etat.parId.get(id).modifie_le });
   etat.parId.set(id, maj);
   etat.composants = etat.composants.map((c) => (c.id === id ? maj : c));
   rendrePied();
@@ -504,7 +509,7 @@ export async function afficherComposants(conteneur, parametres) {
         "div",
         { class: "actions" },
         el("button", { type: "button", class: "bouton bouton--discret", title: "Classeur Excel de la liste affichée", onclick: exporterListe }, "Exporter"),
-        el("button", { type: "button", class: "bouton", onclick: ouvrirCreationComposant }, "+ Ajouter un composant"),
+        el("button", { type: "button", class: "bouton si-ecriture", onclick: ouvrirCreationComposant }, "+ Ajouter un composant"),
       ),
     ),
     etat.indicateurs,

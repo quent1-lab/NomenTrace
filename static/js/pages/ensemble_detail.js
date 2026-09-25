@@ -7,6 +7,7 @@ import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.
 import { ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
 import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
+import { ecritBloc } from "../session.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import {
   alerteDepassement,
@@ -48,13 +49,17 @@ async function retirer(ligne) {
 }
 
 function ligneComposant(ligne) {
-  const qte = el("td", { class: "nombre editable", title: "Cliquer pour modifier la quantité" }, formatNombre(ligne.qte_affectee));
-  qte.addEventListener("click", () =>
-    editerCellule(qte, EDITION_QTE, ligne, {
-      enregistrer: (modifs) => enregistrerQte(ligne, modifs),
-      terminer: (reussi) => reussi && recharger(),
-    }),
-  );
+  // Affectation modifiable seulement pour un composant des blocs de l'utilisateur.
+  const modifiable = ecritBloc(ligne.bloc_code);
+  const qte = el("td", { class: `nombre ${modifiable ? "editable" : ""}`, title: modifiable ? "Cliquer pour modifier la quantité" : null }, formatNombre(ligne.qte_affectee));
+  if (modifiable) {
+    qte.addEventListener("click", () =>
+      editerCellule(qte, EDITION_QTE, ligne, {
+        enregistrer: (modifs) => enregistrerQte(ligne, modifs),
+        terminer: (reussi) => reussi && recharger(),
+      }),
+    );
+  }
   return el(
     "tr",
     {},
@@ -68,7 +73,7 @@ function ligneComposant(ligne) {
     el("td", {}, libelle(ligne.statut_appro)),
     el("td", { class: "nombre" }, formatMontant(ligne.pu_ht)),
     el("td", { class: "nombre" }, coutLigne(ligne)),
-    el("td", { class: "nombre" }, el("button", { type: "button", class: "bouton-icone", title: "Retirer de l'ensemble", onclick: () => retirer(ligne) }, "×")),
+    el("td", { class: "nombre" }, modifiable ? el("button", { type: "button", class: "bouton-icone", title: "Retirer de l'ensemble", onclick: () => retirer(ligne) }, "×") : null),
   );
 }
 
@@ -244,11 +249,11 @@ function rendre() {
       el(
         "div",
         { class: "actions" },
-        el("button", { type: "button", class: "bouton", onclick: ouvrirSelecteur }, "+ Affecter un composant"),
-        el("button", { type: "button", class: "bouton bouton--discret", onclick: creerSousEnsemble }, "+ Sous-ensemble"),
-        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: recharger }) }, "Modifier"),
-        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirDuplication(e, (copie) => naviguer(`/ensembles/${copie.code}`)) }, "Dupliquer"),
-        el("button", { type: "button", class: "bouton bouton--danger", onclick: archiver }, "Archiver"),
+        el("button", { type: "button", class: "bouton si-ecriture", onclick: ouvrirSelecteur }, "+ Affecter un composant"),
+        el("button", { type: "button", class: "bouton bouton--discret si-ensembles", onclick: creerSousEnsemble }, "+ Sous-ensemble"),
+        el("button", { type: "button", class: "bouton bouton--discret si-ensembles", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: recharger }) }, "Modifier"),
+        el("button", { type: "button", class: "bouton bouton--discret si-ensembles", onclick: () => ouvrirDuplication(e, (copie) => naviguer(`/ensembles/${copie.code}`)) }, "Dupliquer"),
+        el("button", { type: "button", class: "bouton bouton--danger si-ensembles", onclick: archiver }, "Archiver"),
       ),
     ),
     bandeau(),
@@ -345,7 +350,9 @@ function ligneSelecteur(c, ici, surAffecte) {
 
 async function ouvrirSelecteur() {
   const [composants, fournisseurs] = await Promise.all([api.getComposants({ tri: "id" }), api.getFournisseurs()]);
-  let liste = composants;
+  // Seuls les composants des blocs de l'utilisateur peuvent être affectés par lui.
+  const permis = (liste) => liste.filter((c) => ecritBloc(c.bloc_code));
+  let liste = permis(composants);
   const recherche = el("input", { class: "champ", type: "search", placeholder: "Identifiant, désignation ou référence…", "aria-label": "Rechercher un composant" });
   const corps = el("tbody");
   const compte = el("p", { class: "texte-doux texte-petit" });
@@ -360,7 +367,7 @@ async function ouvrirSelecteur() {
   };
   const surAffecte = async () => {
     await recharger();
-    liste = await api.getComposants({ tri: "id" });
+    liste = permis(await api.getComposants({ tri: "id" }));
     afficherListe();
   };
   recherche.addEventListener("input", afficherListe);

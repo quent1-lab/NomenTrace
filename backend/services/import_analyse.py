@@ -453,11 +453,12 @@ def analyse_depot(
 ) -> int:
     """Analyse un ou plusieurs fichiers en un dépôt ; renvoie le numéro du dépôt."""
     depot = None
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         etat = _charger_etat(conn)
         for nom, contenu in fichiers:
             meta_lot = {
                 "depose_par": depose_par,
+                "utilisateur": db.auteur(conn),
                 "fichier_copie": _copier(dossier_imports, nom, contenu),
             }
             lot_id = _analyse_fichier(conn, etat, depot, nom, contenu, meta_lot)

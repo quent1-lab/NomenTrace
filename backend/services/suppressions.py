@@ -201,7 +201,7 @@ def process_composants(
         return recap
     if recap["supprimes"]:
         _sauvegarder(emplacements)
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         # Relu dans la transaction : rien n'a pu laisser de trace entre-temps.
         recap = _trier_composants(conn, ids, action)
         for identifiant in recap["supprimes"]:
@@ -243,7 +243,7 @@ def process_commandes(
     if recap["supprimes"]:
         _sauvegarder(emplacements)
     fichiers: list[dict] = []
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         recap = _trier_commandes(conn, numeros, action)
         for numero in recap["supprimes"]:
             fichiers.extend(_delete_commande(conn, numero))
@@ -301,7 +301,7 @@ def delete_entite(
     if raison := RAISONS[type_entite](conn, cle):
         raise Conflit(f"{entite.libelle} « {cle} » non supprimable : {raison}. Archivez-le.")
     _sauvegarder(emplacements)
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         ligne = db.fetch_one(conn, entite.lecture, (cle,))
         if ligne is None:
             raise Introuvable(f"{entite.libelle} « {cle} » introuvable.")
@@ -340,7 +340,7 @@ def list_entites_supprimables(conn: sqlite3.Connection) -> list[dict]:
 def purge_journal(conn: sqlite3.Connection, emplacements: Emplacements) -> int:
     """Vide le journal après sauvegarde ; il repart avec une ligne qui trace la purge."""
     _sauvegarder(emplacements)
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         nombre = conn.execute("SELECT COUNT(*) FROM journal").fetchone()[0]
         conn.execute("DELETE FROM journal")
         journal.write_journal(

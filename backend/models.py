@@ -4,9 +4,10 @@ Les listes figées reprennent la section « Valeurs autorisées » de docs/MODEL
 paramétrables sont validées contre la table valeur_liste par les services.
 """
 
-from typing import Any, Literal
+import re
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 # Listes paramétrables (table valeur_liste) : validées contre la base par le service.
 ValeurListe = str
@@ -33,6 +34,20 @@ TypeMouvement = ValeurListe
 StatutMontage = Literal["Non commence", "En cours", "Monte", "Valide"]
 
 MOTIF_DATE = r"^\d{4}-\d{2}-\d{2}$"
+
+_SCHEMA_URL = re.compile(r"^\s*([a-zA-Z][a-zA-Z0-9+.-]*):")
+
+
+def _verifier_lien(valeur: str | None) -> str | None:
+    """Un lien est une adresse web : un autre schéma (javascript:, data:…) est refusé."""
+    if valeur:
+        schema = _SCHEMA_URL.match(valeur)
+        if schema and schema.group(1).lower() not in ("http", "https"):
+            raise ValueError("adresse web attendue (http:// ou https://)")
+    return valeur
+
+
+Lien = Annotated[str | None, AfterValidator(_verifier_lien)]
 
 
 class Modele(BaseModel):
@@ -173,7 +188,7 @@ class FournisseurCreation(Modele):
     type: str | None = None
     base_prix_defaut: BasePrix | None = None
     pays: str | None = None
-    site_web: str | None = None
+    site_web: Lien = None
     numero_compte: str | None = None
     categorie: str | None = None
     contact: str | None = None
@@ -187,7 +202,7 @@ class FournisseurModif(Modele):
     type: str | None = None
     base_prix_defaut: BasePrix | None = None
     pays: str | None = None
-    site_web: str | None = None
+    site_web: Lien = None
     numero_compte: str | None = None
     categorie: str | None = None
     contact: str | None = None
@@ -201,7 +216,7 @@ class ChampsFournisseur(Modele):
 
     type: str | None = None
     pays: str | None = None
-    site_web: str | None = None
+    site_web: Lien = None
     numero_compte: str | None = None
     categorie: str | None = None
     contact: str | None = None
@@ -229,7 +244,7 @@ class ComposantCreation(Modele):
     ref_fabricant: str | None = None
     fabricant: str | None = None
     fournisseur_nom: str | None = None
-    lien_produit: str | None = None
+    lien_produit: Lien = None
     qte_rechange: int = Field(default=0, ge=0)
     qte_disponible: int = Field(default=0, ge=0)
     pu_releve: float | None = Field(default=None, ge=0)
@@ -250,7 +265,7 @@ class ComposantModif(Modele):
     ref_fabricant: str | None = None
     fabricant: str | None = None
     fournisseur_nom: str | None = None
-    lien_produit: str | None = None
+    lien_produit: Lien = None
     qte_rechange: int | None = Field(default=None, ge=0)
     qte_disponible: int | None = Field(default=None, ge=0)
     pu_releve: float | None = Field(default=None, ge=0)
@@ -261,6 +276,9 @@ class ComposantModif(Modele):
     criticite: Criticite | None = None
     origine_exigence: str | None = None
     note_technique: str | None = None
+    # Date de modification lue avant l'édition : si elle a changé depuis, la modification
+    # est refusée plutôt que d'écraser celle d'un autre.
+    modifie_le: str | None = None
 
 
 class CommandeCreation(Modele):
@@ -276,7 +294,7 @@ class CommandeCreation(Modele):
     port_ht: float = Field(default=0, ge=0)
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
     reference_externe: str | None = None
-    lien_document: str | None = None
+    lien_document: Lien = None
     commentaire: str | None = None
 
 
@@ -293,7 +311,7 @@ class CommandeModif(Modele):
     port_ht: float | None = Field(default=None, ge=0)
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
     reference_externe: str | None = None
-    lien_document: str | None = None
+    lien_document: Lien = None
     commentaire: str | None = None
 
 
@@ -379,3 +397,46 @@ class ParametresModif(Modele):
     prefixe_id: str | None = Field(default=None, pattern=r"^[A-Z0-9]{1,10}$")
     budget_ht: float | None = Field(default=None, ge=0)
     taux_tva_defaut: float | None = Field(default=None, ge=0, lt=1)
+
+
+# --- Comptes ------------------------------------------------------------------------------------
+
+
+class ModeleSecret(BaseModel):
+    """Corps portant un mot de passe ou un jeton : rien n'est retouché, pas même les espaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class Connexion(ModeleSecret):
+    identifiant: str = Field(min_length=1, max_length=254)
+    mot_de_passe: str = Field(min_length=1, max_length=1024)
+
+
+class InvitationVerification(ModeleSecret):
+    jeton: str = Field(min_length=1, max_length=128)
+
+
+class InvitationAcceptation(ModeleSecret):
+    jeton: str = Field(min_length=1, max_length=128)
+    mot_de_passe: str = Field(min_length=1, max_length=1024)
+
+
+Role = Literal["lecteur", "contributeur", "administrateur"]
+Permission = Literal["achats", "ensembles"]
+
+
+class UtilisateurCreation(Modele):
+    identifiant: str = Field(min_length=3, max_length=254)
+    nom: str = Field(min_length=1, max_length=60)
+    role: Role
+    blocs: list[str] = []
+    permissions: list[Permission] = []
+
+
+class UtilisateurModif(Modele):
+    nom: str | None = Field(default=None, min_length=1, max_length=60)
+    role: Role | None = None
+    blocs: list[str] | None = None
+    permissions: list[Permission] | None = None
+    actif: bool | None = None

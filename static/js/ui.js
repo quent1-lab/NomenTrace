@@ -102,6 +102,22 @@ function iconeLienExterne() {
   return svg;
 }
 
+// Lien vers une adresse web saisie par un utilisateur : seules http et https sont suivies,
+// et une adresse sans schéma (www.exemple.fr) s'ouvre en https. Tout autre schéma
+// (javascript:, data:…) reste du texte : un lien piégé ne s'exécute jamais.
+export function adresseWeb(adresse) {
+  const texte = String(adresse ?? "").trim();
+  if (/^https?:\/\//i.test(texte)) return texte;
+  if (!texte || /^[a-z][a-z0-9+.-]*:/i.test(texte)) return null;
+  return `https://${texte}`;
+}
+
+export function lienExterne(adresse, contenu = adresse) {
+  const cible = adresseWeb(adresse);
+  if (!cible) return el("span", { title: "Adresse non reconnue comme lien web" }, contenu);
+  return el("a", { href: cible, target: "_blank", rel: "noopener noreferrer" }, contenu);
+}
+
 export function lienProduit(adresse) {
   if (!adresse || !/^https?:\/\//i.test(adresse)) return null;
   const lien = el("a", { class: "lien-produit", href: adresse, target: "_blank", rel: "noopener noreferrer", title: `Ouvrir la page produit : ${adresse}` }, iconeLienExterne());

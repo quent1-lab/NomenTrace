@@ -9,6 +9,14 @@ export class ErreurApi extends Error {
 
 const ecouteursEcriture = new Set();
 
+// Session expirée ou absente : retour à la page de connexion, qui ramènera ensuite à l'écran
+// en cours. Rien depuis la page de connexion elle-même, dont les refus s'affichent sur place.
+export function allerConnexion() {
+  if (window.location.pathname.endsWith("/connexion.html")) return;
+  const retour = encodeURIComponent(window.location.hash || "");
+  window.location.assign(`/connexion.html${retour ? `?retour=${retour}` : ""}`);
+}
+
 // Permet à l'interface de réagir après chaque écriture réussie (état de l'export).
 export function surEcriture(rappel) {
   ecouteursEcriture.add(rappel);
@@ -28,6 +36,7 @@ async function requete(methode, chemin, corps) {
   }
   const donnees = await reponse.json().catch(() => null);
   if (!reponse.ok) {
+    if (reponse.status === 401) allerConnexion();
     const message = donnees?.erreur ?? `Erreur ${reponse.status}`;
     throw new ErreurApi(message, reponse.status);
   }
@@ -44,7 +53,10 @@ async function requeteFormulaire(chemin, donnees) {
     throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
   }
   const resultat = await reponse.json().catch(() => null);
-  if (!reponse.ok) throw new ErreurApi(resultat?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
+  if (!reponse.ok) {
+    if (reponse.status === 401) allerConnexion();
+    throw new ErreurApi(resultat?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
+  }
   ecouteursEcriture.forEach((rappel) => rappel());
   return resultat;
 }
@@ -58,6 +70,7 @@ async function requeteFichier(chemin) {
     throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
   }
   if (!reponse.ok) {
+    if (reponse.status === 401) allerConnexion();
     const donnees = await reponse.json().catch(() => null);
     throw new ErreurApi(donnees?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
   }
@@ -89,6 +102,15 @@ function avecParametres(chemin, parametres = {}) {
 
 export const api = {
   getSante: () => requete("GET", "/api/sante"),
+  getSession: () => requete("GET", "/api/session"),
+  connecter: (identifiant, motDePasse) => requete("POST", "/api/session", { identifiant, mot_de_passe: motDePasse }),
+  deconnecter: () => requete("DELETE", "/api/session"),
+  verifierInvitation: (jeton) => requete("POST", "/api/invitation/verifier", { jeton }),
+  accepterInvitation: (jeton, motDePasse) => requete("POST", "/api/invitation", { jeton, mot_de_passe: motDePasse }),
+  getUtilisateurs: () => requete("GET", "/api/utilisateurs"),
+  createUtilisateur: (valeurs) => requete("POST", "/api/utilisateurs", valeurs),
+  patchUtilisateur: (id, modifs) => requete("PATCH", `/api/utilisateurs/${id}`, modifs),
+  renouvelerInvitation: (id) => requete("POST", `/api/utilisateurs/${id}/invitation`),
   rechercher: (q) => requete("GET", avecParametres("/api/recherche", { q })),
   getHistorique: (filtres) => requete("GET", avecParametres("/api/historique", filtres)),
   getTablesHistorique: () => requete("GET", "/api/historique/tables"),

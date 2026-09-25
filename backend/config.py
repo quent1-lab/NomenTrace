@@ -20,6 +20,7 @@ DOSSIER_IMPORTS: Path = DOSSIER_ECHANGE / "imports"
 DOSSIER_MODELES: Path = DOSSIER_ECHANGE / "modeles"
 DOSSIER_SAUVEGARDES: Path = DOSSIER_ECHANGE / "sauvegardes"
 DOSSIER_MIGRATIONS: Path = RACINE / "backend" / "migrations"
+DOSSIER_MIGRATIONS_COMPTES: Path = RACINE / "backend" / "migrations_comptes"
 DOSSIER_STATIC: Path = RACINE / "static"
 
 
@@ -37,5 +38,25 @@ def lire_port(valeur: str | None, defaut: int = 8000) -> int:
 # Adresse et port d'écoute, lus par `python -m backend` (backend/__main__.py).
 HOTE: str = os.environ.get("NOMENTRACE_HOTE") or "127.0.0.1"
 PORT: int = lire_port(os.environ.get("NOMENTRACE_PORT"))
+
+# Comptes : base distincte de celle du projet, partagée un jour par plusieurs projets. Chaque
+# instance sert un projet, désigné par un code stable (le nom du projet, lui, peut changer).
+CHEMIN_COMPTES: Path = _chemin("NOMENTRACE_COMPTES", DOSSIER_DATA / "comptes.db")
+CODE_PROJET: str = os.environ.get("NOMENTRACE_PROJET") or "principal"
+
+
+def lire_booleen(valeur: str | None) -> bool:
+    """Vrai pour « 1 », « oui », « true » ou « vrai » (casse ignorée), faux sinon."""
+    return (valeur or "").strip().lower() in {"1", "oui", "true", "vrai"}
+
+
+# Mode local : aucun compte, un administrateur implicite, écoute sur la boucle locale seulement.
+# Il doit être demandé explicitement (lancer.bat le fait) : sans lui, la connexion est exigée.
+MODE_LOCAL: bool = lire_booleen(os.environ.get("NOMENTRACE_MODE_LOCAL"))
+HOTES_LOCAUX: frozenset[str] = frozenset({"127.0.0.1", "::1", "localhost"})
+
+# Adresse publique de l'instance, utilisée seulement pour écrire les liens d'invitation
+# affichés en ligne de commande.
+URL_PUBLIQUE: str | None = os.environ.get("NOMENTRACE_URL") or None
 
 FORMAT_LOG: str = "%(asctime)s %(levelname)s %(name)s : %(message)s"

@@ -14,6 +14,7 @@ from io import BytesIO
 from openpyxl import Workbook
 
 from backend import db
+from backend.services import tableur
 
 CATEGORIES: tuple[str, ...] = ("modification", "achat", "stock", "montage", "document")
 ORIGINES: frozenset[str] = frozenset({"interface", "import"})
@@ -168,6 +169,7 @@ COLONNES_EXPORT: tuple[tuple[str, str], ...] = (
     ("ancienne_valeur", "Ancienne valeur"),
     ("nouvelle_valeur", "Nouvelle valeur"),
     ("origine", "Origine"),
+    ("utilisateur", "Utilisateur"),
     ("nom_fichier", "Fichier importé"),
 )
 
@@ -188,8 +190,9 @@ def build_export_journal(conn: sqlite3.Connection, filtres: FiltresJournal) -> b
     for ligne in lignes:
         feuille.append([ligne[cle] for cle, _ in COLONNES_EXPORT])
     feuille.freeze_panes = "A2"
-    for colonne, largeur in zip("ABCDEFGH", (20, 16, 24, 22, 30, 30, 11, 30), strict=True):
+    for colonne, largeur in zip("ABCDEFGHI", (20, 16, 24, 22, 30, 30, 11, 18, 30), strict=True):
         feuille.column_dimensions[colonne].width = largeur
+    tableur.neutraliser_formules(classeur)
     flux = BytesIO()
     classeur.save(flux)
     return flux.getvalue()

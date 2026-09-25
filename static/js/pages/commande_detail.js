@@ -6,7 +6,8 @@ import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
-import { afficherAvertissements, afficherErreur, el, lienProduit, masquerErreur } from "../ui.js";
+import { aPermission } from "../session.js";
+import { afficherAvertissements, afficherErreur, el, lienExterne, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { lienFournisseur } from "./fournisseurs_commun.js";
@@ -22,6 +23,7 @@ function ecartPrix(ligne) {
 }
 
 function celluleEditable(ligne, definition, contenu) {
+  if (!aPermission("achats")) return el("td", { class: "nombre" }, contenu);
   const td = el("td", { class: "nombre editable" }, contenu);
   td.addEventListener("click", () =>
     editerCellule(td, definition, ligne, {
@@ -37,13 +39,16 @@ function ligneCommande(ligne) {
   const attendent = ligne.ensembles.length
     ? ligne.ensembles.map((e) => el("a", { class: "etiquette", href: lienRoute(`/ensembles/${e.code}`), title: `${e.qte} affecté(s)` }, `${e.code} ×${e.qte}`))
     : el("span", { class: "texte-doux" }, "—");
-  const statut = el("td", { class: "editable" }, libelle(ligne.statut_ligne));
-  statut.addEventListener("click", () =>
-    editerCellule(statut, { champ: "statut_ligne", type: "choix", vide: false, options: () => STATUTS_LIGNE }, ligne, {
-      enregistrer: (modifs) => api.patchLigne(etat.numero, ligne.id, modifs),
-      terminer: (reussi) => reussi && recharger(),
-    }),
-  );
+  const achats = aPermission("achats");
+  const statut = el("td", { class: achats ? "editable" : "" }, libelle(ligne.statut_ligne));
+  if (achats) {
+    statut.addEventListener("click", () =>
+      editerCellule(statut, { champ: "statut_ligne", type: "choix", vide: false, options: () => STATUTS_LIGNE }, ligne, {
+        enregistrer: (modifs) => api.patchLigne(etat.numero, ligne.id, modifs),
+        terminer: (reussi) => reussi && recharger(),
+      }),
+    );
+  }
   return el(
     "tr",
     {},
@@ -58,7 +63,7 @@ function ligneCommande(ligne) {
     el("td", { class: "nombre" }, formatMontant(ligne.montant_ligne_ht)),
     el("td", { class: `nombre ${ligne.qte_recue > ligne.qte_commandee ? "texte-surveiller" : ""}` }, formatNombre(ligne.qte_recue)),
     statut,
-    el("td", { class: "nombre" }, el("button", { type: "button", class: "bouton-icone", title: "Supprimer la ligne", onclick: () => supprimerLigne(ligne) }, "×")),
+    el("td", { class: "nombre" }, achats ? el("button", { type: "button", class: "bouton-icone", title: "Supprimer la ligne", onclick: () => supprimerLigne(ligne) }, "×") : null),
   );
 }
 
@@ -193,7 +198,7 @@ function modeReception() {
 
 function infos() {
   const c = etat.commande;
-  const statut = el("select", { class: "filtre", "aria-label": "Statut de la commande" }, STATUTS_COMMANDE.map((s) => el("option", { value: s, selected: s === c.statut }, libelle(s))));
+  const statut = el("select", { class: "filtre", "aria-label": "Statut de la commande", disabled: !aPermission("achats") }, STATUTS_COMMANDE.map((s) => el("option", { value: s, selected: s === c.statut }, libelle(s))));
   statut.addEventListener("change", async () => {
     try {
       await api.patchCommande(c.numero, { statut: statut.value });
@@ -204,7 +209,7 @@ function infos() {
       afficherErreur(erreur);
     }
   });
-  const lien = c.lien_document ? el("a", { href: c.lien_document, target: "_blank", rel: "noopener noreferrer" }, "ouvrir") : "—";
+  const lien = c.lien_document ? lienExterne(c.lien_document, "ouvrir") : "—";
   const paires = [
     ["Fournisseur", lienFournisseur(c.fournisseur_nom, etat.fournisseurs.find((f) => f.nom === c.fournisseur_nom)?.statut)],
     ["Statut", statut],
@@ -241,9 +246,9 @@ function rendre() {
       el(
         "div",
         { class: "actions" },
-        receptionnable && !etat.reception ? el("button", { type: "button", class: "bouton", onclick: () => { etat.reception = true; rendre(); } }, "Réceptionner") : null,
-        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirFormulaireCommande({ commande: c, fournisseurs: etat.fournisseurs, surEnregistre: recharger }) }, "Modifier"),
-        el("button", { type: "button", class: "bouton bouton--danger", onclick: archiver }, "Archiver"),
+        receptionnable && !etat.reception ? el("button", { type: "button", class: "bouton si-achats", onclick: () => { etat.reception = true; rendre(); } }, "Réceptionner") : null,
+        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireCommande({ commande: c, fournisseurs: etat.fournisseurs, surEnregistre: recharger }) }, "Modifier"),
+        el("button", { type: "button", class: "bouton bouton--danger si-achats", onclick: archiver }, "Archiver"),
       ),
     ),
     infos(),
@@ -254,8 +259,8 @@ function rendre() {
           { class: "panneau" },
           el("h2", {}, "Lignes"),
           etat.lignes.length ? tableLignes() : el("p", { class: "texte-doux" }, "Aucune ligne pour l'instant."),
-          el("h3", { class: "sous-titre" }, "Ajouter une ligne"),
-          formulaireAjout(),
+          aPermission("achats") ? el("h3", { class: "sous-titre" }, "Ajouter une ligne") : null,
+          aPermission("achats") ? formulaireAjout() : null,
           el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %. « Attendu par » liste les ensembles où le composant est affecté.`),
         ),
     el(
@@ -266,6 +271,7 @@ function rendre() {
         typeParDefaut: etat.commande.type === "Devis" ? "Devis" : "Bon de commande",
         aide: "Devis, bon de commande, facture, bon de livraison… Ils apparaissent aussi dans la fiche de chaque composant de la commande.",
         deposer: (donnees) => api.deposerDocumentsCommande(etat.numero, donnees),
+        depot: aPermission("achats"),
         surChangement: recharger,
       }),
     ),

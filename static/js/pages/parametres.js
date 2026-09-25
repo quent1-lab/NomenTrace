@@ -10,16 +10,20 @@ import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseur
 import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherListes } from "./parametres_listes.js";
+import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
+import { estAdmin, modeLocal } from "../session.js";
 
+// [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur.
 const ONGLETS = [
-  ["projet", "Projet", afficherOngletProjet],
-  ["blocs", "Blocs fonctionnels", afficherOngletBlocs],
-  ["ensembles", "Ensembles", afficherOngletEnsembles],
-  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs],
-  ["listes", "Listes de valeurs", afficherListes],
-  ["attributs", "Attributs", afficherOngletAttributs],
-  ["historique", "Historique", afficherOngletHistorique],
-  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes],
+  ["projet", "Projet", afficherOngletProjet, () => true],
+  ["blocs", "Blocs fonctionnels", afficherOngletBlocs, () => true],
+  ["ensembles", "Ensembles", afficherOngletEnsembles, () => true],
+  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, () => true],
+  ["listes", "Listes de valeurs", afficherListes, estAdmin],
+  ["attributs", "Attributs", afficherOngletAttributs, estAdmin],
+  ["utilisateurs", "Utilisateurs", afficherOngletUtilisateurs, () => estAdmin() && !modeLocal()],
+  ["historique", "Historique", afficherOngletHistorique, () => true],
+  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes, () => true],
 ];
 
 // L'en-tête (nom du projet) se relit aussitôt après une modification du projet.
@@ -62,6 +66,12 @@ async function afficherOngletProjet(cible) {
     el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
     retour,
   );
+  if (!estAdmin()) {
+    // Consultable par tous, modifiable par l'administrateur seulement.
+    formulaire.querySelectorAll("input, select, textarea, button").forEach((champ) => {
+      champ.disabled = true;
+    });
+  }
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
     const lu = lireFormulaire(formulaire, DESCRIPTION_PROJET, LIBELLES_PROJET);
@@ -222,7 +232,7 @@ function sectionCorbeille(corbeille, rafraichir) {
 }
 
 function sectionExport(retour) {
-  const bouton = el("button", { type: "button", class: "bouton" }, "Exporter maintenant");
+  const bouton = el("button", { type: "button", class: "bouton si-ecriture" }, "Exporter maintenant");
   bouton.addEventListener("click", async () => {
     bouton.disabled = true;
     try {
@@ -261,8 +271,10 @@ function sectionExport(retour) {
 
 async function afficherOngletSauvegardes(cible) {
   const rafraichir = () => afficherOngletSauvegardes(cible);
-  const [sauvegardes, corbeille] = await Promise.all([api.getSauvegardes(), api.getCorbeille()]);
   const retourExport = el("div");
+  // Archive, sauvegardes et corbeille contiennent toute la base : administrateur seulement.
+  if (!estAdmin()) return cible.replaceChildren(sectionExport(retourExport));
+  const [sauvegardes, corbeille] = await Promise.all([api.getSauvegardes(), api.getCorbeille()]);
   const retourSauvegarde = el("div");
   const sauvegarder = el("button", { type: "button", class: "bouton" }, "Sauvegarder maintenant");
   sauvegarder.addEventListener("click", async () => {
@@ -320,12 +332,13 @@ async function afficherOngletSauvegardes(cible) {
 
 export async function afficherParametres(conteneur, parametres) {
   const demande = parametres?.get("onglet");
-  const courant = ONGLETS.some(([code]) => code === demande) ? demande : "projet";
+  const visibles = ONGLETS.filter(([, , , visible]) => visible());
+  const courant = visibles.some(([code]) => code === demande) ? demande : "projet";
   const corps = el("div", { class: "onglet-parametres" });
   const barre = el(
     "nav",
     { class: "onglets", role: "tablist" },
-    ONGLETS.map(([code, titre]) =>
+    visibles.map(([code, titre]) =>
       el(
         "button",
         {
@@ -346,10 +359,10 @@ export async function afficherParametres(conteneur, parametres) {
     "div",
     { class: "titre-page" },
     el("h1", {}, "Paramètres"),
-    el("a", { class: "bouton bouton--discret", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
+    el("a", { class: "bouton bouton--discret si-admin", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
   );
   conteneur.replaceChildren(titre, barre, corps);
-  const [, , afficher] = ONGLETS.find(([code]) => code === courant);
+  const [, , afficher] = visibles.find(([code]) => code === courant);
   try {
     await afficher(corps, parametres);
   } catch (erreur) {

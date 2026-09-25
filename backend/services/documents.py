@@ -114,7 +114,7 @@ def add_document(
         raise ErreurMetier(f"Type de document inconnu : « {meta['type_document']} ».")
     empreinte = hashlib.sha256(contenu).hexdigest()
     commande, composant = meta.get("commande_numero"), meta.get("composant_id")
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         sous_dossier = ensure_cible(conn, commande, composant)
         doublon = db.fetch_one(
             conn,

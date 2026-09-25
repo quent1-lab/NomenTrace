@@ -6,13 +6,14 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
+from backend.deps import verifier_acces
 from backend.erreurs import ErreurMetier
 from backend.routes import (
     attributs,
@@ -28,16 +29,47 @@ from backend.routes import (
     pilotage,
     recherche,
     sante,
+    session,
+    utilisateurs,
 )
 from backend.routes import (
     sauvegardes as routes_sauvegardes,
 )
-from backend.services import sauvegardes
+from backend.securite import install_securite
+from backend.services import authentification, comptes, sauvegardes
 from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger("nomentrace")
 
 METHODES_ECRITURE: frozenset[str] = frozenset({"POST", "PATCH", "PUT", "DELETE"})
+
+# Écritures qui ne touchent pas aux données du projet : elles ne relancent pas l'export.
+SANS_EXPORT: tuple[str, ...] = (
+    "/api/export",
+    "/api/session",
+    "/api/invitation",
+    "/api/utilisateurs",
+)
+
+# Routes de l'API, dans l'ordre d'inclusion ; chacune a sa règle dans services/droits.py.
+MODULES = (
+    sante,
+    session,
+    utilisateurs,
+    pilotage,
+    attributs,
+    blocs,
+    ensembles,
+    fournisseurs,
+    composants,
+    commandes,
+    listes,
+    documents,
+    imports,
+    nettoyage,
+    routes_sauvegardes,
+    recherche,
+)
 
 
 def _configure_logging() -> None:
@@ -60,6 +92,7 @@ MESSAGES_VALIDATION: dict[str, str] = {
     "literal_error": "valeur non autorisée ; valeurs possibles : {expected}",
     "extra_forbidden": "champ inconnu",
     "bool_parsing": "vrai ou faux attendu",
+    "value_error": "{error}",
 }
 
 
@@ -123,32 +156,73 @@ def _prepare_base(base: Path, dossier_sauvegardes: Path) -> None:
         conn.close()
 
 
+def _prepare_comptes(chemin: Path, dossier_sauvegardes: Path, projet: str) -> None:
+    """Sauvegarde et migrations de la base des comptes ; signale l'absence d'administrateur.
+
+    Ses sauvegardes vont dans un sous-dossier : elles ne se mêlent pas à celles du projet et
+    ne peuvent pas être restaurées à sa place depuis l'interface.
+    """
+    sauvegardes.create_sauvegarde(chemin, dossier_sauvegardes / "comptes")
+    version = comptes.prepare_base(chemin)
+    conn = db.connect(chemin)
+    try:
+        if comptes.count_admins(conn, projet) == 0:
+            journal_log.warning(
+                "Aucun administrateur pour le projet « %s » : en créer un avec "
+                "« python -m backend.comptes creer-admin ADRESSE --nom NOM ».",
+                projet,
+            )
+    finally:
+        conn.close()
+    journal_log.info("Base des comptes %s prête, schéma version %d", chemin, version)
+
+
 def create_app(
     chemin_base: Path | None = None,
     dossier_echange: Path | None = None,
+    *,
+    mode_local: bool | None = None,
+    chemin_comptes: Path | None = None,
+    code_projet: str | None = None,
 ) -> FastAPI:
     """Construit l'application.
 
-    Les tests passent une base et un dossier d'échange temporaires.
+    Les tests passent une base, un dossier d'échange et une base des comptes temporaires. Sans
+    mode local explicite, la connexion est exigée.
     """
     _configure_logging()
     base = chemin_base or config.CHEMIN_BASE
     echange = dossier_echange or config.DOSSIER_ECHANGE
+    local = config.MODE_LOCAL if mode_local is None else mode_local
+    fichier_comptes = chemin_comptes or config.CHEMIN_COMPTES
+    projet = code_projet or config.CODE_PROJET
     export = PlanificateurExport(base, echange / "exports")
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         _prepare_base(base, echange / "sauvegardes")
+        if local:
+            journal_log.warning(
+                "Mode local : aucune connexion demandée, requêtes acceptées depuis ce poste seul."
+            )
+        else:
+            _prepare_comptes(fichier_comptes, echange / "sauvegardes", projet)
         export.start()
         export.signaler()
         yield
         export.stop()
 
-    app = FastAPI(title="Nomentrace", lifespan=lifespan)
+    # La documentation interactive de l'API n'est publiée qu'en mode local.
+    documentation = {} if local else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(title="Nomentrace", lifespan=lifespan, **documentation)
     app.state.chemin_base = base
     app.state.export = export
     app.state.dossier_documents = echange / "documents"
     app.state.dossier_echange = echange
+    app.state.mode_local = local
+    app.state.chemin_comptes = fichier_comptes
+    app.state.code_projet = projet
+    app.state.limiteurs = authentification.Limiteurs()
     _install_error_handlers(app)
 
     @app.middleware("http")
@@ -164,30 +238,16 @@ def create_app(
         if (
             request.method in METHODES_ECRITURE
             and request.url.path.startswith("/api/")
-            and request.url.path != "/api/export"
+            and not request.url.path.startswith(SANS_EXPORT)
             and reponse.status_code < 400
         ):
             export.signaler()
         return reponse
 
-    modules = (
-        sante,
-        pilotage,
-        attributs,
-        blocs,
-        ensembles,
-        fournisseurs,
-        composants,
-        commandes,
-        listes,
-        documents,
-        imports,
-        nettoyage,
-        routes_sauvegardes,
-        recherche,
-    )
-    for module in modules:
-        app.include_router(module.router)
+    for module in MODULES:
+        app.include_router(module.router, dependencies=[Depends(verifier_acces)])
+    # Installé en dernier, donc exécuté en premier : les refus d'origine passent avant tout.
+    install_securite(app, local)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")
     return app
 

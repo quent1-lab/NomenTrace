@@ -86,7 +86,7 @@ def next_numero(conn: sqlite3.Connection) -> str:
 
 def create_commande(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Crée une commande avec un numéro généré par le serveur."""
-    with db.transaction(conn, immediate=True):
+    with db.transaction(conn):
         fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
         if valeurs.get("taux_tva") is None:
             valeurs["taux_tva"] = parametres.get_taux_tva_defaut(conn)
