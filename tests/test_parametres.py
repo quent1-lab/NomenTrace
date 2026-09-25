@@ -261,3 +261,21 @@ def test_modele_verrouille_enregistre_a_cote(
     chemin = modeles._enregistrer(Workbook(), tmp_path, "bloc", "MEC")
     assert len(enregistrements) == 2
     assert chemin.name == enregistrements[1] != enregistrements[0]
+
+
+def test_fournisseur_avec_barre_oblique(client: TestClient) -> None:
+    """Bug corrigé : « Amazon / StepperOnline » ne pouvait être ni modifié ni archivé (405)."""
+    client.post("/api/fournisseurs", json={"nom": "Amazon / StepperOnline"})
+    adresse = "/api/fournisseurs/Amazon%20%2F%20StepperOnline"
+    reponse = client.patch(adresse, json={"pays": "Chine"})
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["pays"] == "Chine"
+    assert client.delete(adresse).status_code == 200
+
+
+def test_valeur_de_liste_avec_barre_oblique(client: TestClient) -> None:
+    creation = client.post("/api/listes/criticite", json={"libelle": "Sécurité / réglementaire"})
+    assert creation.status_code == 201, creation.text
+    adresse = "/api/listes/criticite/Securite%20%2F%20reglementaire"
+    assert client.patch(adresse, json={"libelle": "Sécurité"}).status_code == 200
+    assert client.delete(adresse).status_code == 200
