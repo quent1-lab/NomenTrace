@@ -5,6 +5,7 @@
 import { formatMontant } from "../format.js";
 import { naviguer } from "../router.js";
 import { el } from "../ui.js";
+import { TRACE_CADENAS } from "./ensembles_commun.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const LARGEUR = 230;
@@ -79,7 +80,7 @@ function dessinerNoeud(noeud) {
     noeud.racine ? `${noeud.nom} (projet)` : `${noeud.nom} (${noeud.code})`,
     `Coût HT cumulé : ${formatMontant(noeud.cout)}`,
     `Budget HT : ${budget}${noeud.verrouille ? " (verrouillé)" : ""}`,
-    noeud.depassement ? `Budgets verrouillés des sous-ensembles au-delà de ce budget : ${formatMontant(noeud.depassement)}` : null,
+    noeud.depassement ? `Sous-ensembles verrouillés et composants propres au-delà de ce budget : ${formatMontant(noeud.depassement)}` : null,
   ].filter(Boolean).join("\n");
   const ouvrir = noeud.racine ? null : () => naviguer(`/ensembles/${noeud.code}`);
   return svg(
@@ -99,8 +100,10 @@ function dessinerNoeud(noeud) {
       "text",
       { class: "schema__code", x: 12, y: 38 },
       noeud.racine ? "projet" : noeud.code,
-      noeud.verrouille ? " · budget verrouillé" : "",
     ),
+    noeud.verrouille
+      ? svg("g", { class: "schema__cadenas", transform: `translate(${LARGEUR - 26},8) scale(0.75)` }, TRACE_CADENAS.map((d) => svg("path", { d })))
+      : null,
     svg("text", { class: "schema__montants", x: 12, y: 55 }, `${formatMontant(noeud.cout)} / ${budget}`),
     jauge(noeud),
   );
@@ -153,7 +156,7 @@ export function vueSchema(arbre) {
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Chaque nœud montre son coût HT cumulé (lui et ses sous-ensembles) face à son budget ; la jauge passe au rouge en cas de dépassement, le cadre quand des budgets verrouillés dépassent celui du parent. Survoler un nœud pour le détail, cliquer pour ouvrir l'ensemble.",
+      "Chaque nœud montre son coût HT cumulé (lui et ses sous-ensembles) face à son budget ; la jauge passe au rouge en cas de dépassement, le cadre quand les sous-ensembles verrouillés et les composants propres dépassent le budget du parent. Survoler un nœud pour le détail, cliquer pour ouvrir l'ensemble.",
     ),
     el("div", { class: "schema" }, dessin),
   );

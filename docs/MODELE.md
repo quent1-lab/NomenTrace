@@ -224,12 +224,14 @@ fonction. Il est réparti à chaque niveau, en partant de la racine (budget de l
 
 ```
 1. un enfant verrouillé (budget_verrouille = 1) garde son budget_cible_ht ;
-2. reste = budget du parent - somme des budgets verrouillés, partagé à parts égales
-   entre les enfants non verrouillés, qu'ils portent des composants ou non ; la part
-   propre du parent (ses affectations directes) compte pour une part s'il en a ;
-3. si les verrouillés dépassent le budget du parent (tolérance 0,01 €), les non
-   verrouillés reçoivent 0 et le dépassement est signalé sur le parent.
-part propre du budget = reste - somme des parts des enfants non verrouillés
+2. les composants affectés directement au parent prennent leur coût estimé (cout_ht
+   propre), rien de plus ;
+3. reste = budget du parent - budgets verrouillés - coût propre, partagé à parts égales
+   entre les enfants non verrouillés, qu'ils portent des composants ou non ; sans
+   enfant non verrouillé, le reste demeure au parent ;
+4. si verrouillés et coût propre dépassent le budget du parent (tolérance 0,01 €), les
+   non verrouillés reçoivent 0 et le dépassement est signalé sur le parent.
+part propre du budget = coût propre (+ le reste s'il n'y a aucun enfant non verrouillé)
 ecart_budget_ht       = coût cumulé - budget de l'ensemble   (positif = dépassement)
 ```
 

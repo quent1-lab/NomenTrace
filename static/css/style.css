@@ -2048,3 +2048,19 @@ td.editable:hover {
 .schema__jauge--depasse {
   fill: var(--couleur-alerte);
 }
+
+.icone--cadenas {
+  width: 14px;
+  height: 14px;
+  margin-left: var(--espace-1);
+  vertical-align: -2px;
+  color: var(--couleur-texte-doux);
+}
+
+.schema__cadenas {
+  fill: none;
+  stroke: var(--couleur-texte-doux);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

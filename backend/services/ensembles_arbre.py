@@ -9,11 +9,11 @@ se prête mal à une vue. C'est une exception à la règle « les calculs vivent
 vues », signalée dans docs/MODELE.md. Règle, appliquée à chaque niveau en partant de la
 racine :
 1. un enfant verrouillé garde son budget saisi ;
-2. le reste du budget du parent est partagé à parts égales entre les enfants non
-   verrouillés, vides ou non : on voit ainsi ce qu'il reste à chacun. La part propre du
-   parent (ses affectations directes) compte pour une part s'il en a ;
-3. si les verrouillés dépassent le budget du parent, les non verrouillés reçoivent 0 et le
-   parent porte le dépassement.
+2. les composants affectés directement au parent prennent leur coût estimé, rien de plus ;
+3. le reste est partagé à parts égales entre les enfants non verrouillés, vides ou non :
+   on voit ainsi ce qu'il reste à chacun. Sans enfant non verrouillé, il reste au parent ;
+4. si verrouillés et composants propres dépassent le budget du parent, les non verrouillés
+   reçoivent 0 et le parent porte le dépassement.
 Aucun arrondi : il se fait à la sortie de l'API.
 """
 
@@ -49,12 +49,13 @@ class Repartition:
 def repartir_budget(
     budget: float | None,
     enfants: list[NoeudBudget],
-    propre_eligible: bool,
+    cout_propre: float,
 ) -> Repartition:
-    """Répartit le budget d'un nœud, à parts égales, entre ses enfants et sa part propre.
+    """Répartit le budget d'un nœud entre sa part propre et ses enfants.
 
-    `propre_eligible` : le nœud porte des affectations directes, sa part propre compte donc
-    pour une part. Sans budget connu, seuls les verrouillés en ont un.
+    La part propre est le coût estimé des composants affectés directement au nœud ; le reste
+    va à parts égales aux enfants non verrouillés. Sans budget connu, seuls les verrouillés
+    en ont un.
     """
     parts: dict[str, float | None] = {
         e.code: e.budget_saisi for e in enfants if e.verrouille and e.budget_saisi is not None
@@ -63,15 +64,15 @@ def repartir_budget(
     if budget is None:
         parts.update({e.code: None for e in libres})
         return Repartition(parts, None, None)
-    reste = budget - sum(v for v in parts.values() if v is not None)
+    reste = budget - sum(v for v in parts.values() if v is not None) - cout_propre
     if reste < -TOLERANCE:
         parts.update({e.code: 0.0 for e in libres})
-        return Repartition(parts, 0.0, -reste)
+        return Repartition(parts, cout_propre, -reste)
     reste = max(reste, 0.0)
-    nb_parts = len(libres) + (1 if propre_eligible else 0)
-    parts.update({e.code: reste / nb_parts for e in libres})
-    propre = reste - sum(parts[e.code] or 0.0 for e in libres)
-    return Repartition(parts, max(propre, 0.0), None)
+    if not libres:
+        return Repartition(parts, cout_propre + reste, None)
+    parts.update({e.code: reste / len(libres) for e in libres})
+    return Repartition(parts, cout_propre, None)
 
 
 def _budget_projet(conn: sqlite3.Connection) -> float | None:
@@ -119,7 +120,7 @@ def _poser_budgets(
     repartition = repartir_budget(
         budget,
         [_noeud_budget(e) for e in enfants.get(code, [])],
-        bool(propres and propres["nb_composants_distincts"]),
+        propres["cout_ht"] if propres else 0.0,
     )
     for enfant in enfants.get(code, []):
         budget_enfant = repartition.parts[enfant["code"]]

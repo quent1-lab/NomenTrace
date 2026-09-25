@@ -84,6 +84,28 @@ export function selectStatutMontage(ensemble, surChangement) {
 
 // --- Budget d'ensemble -------------------------------------------------------------------------
 
+const SVG = "http://www.w3.org/2000/svg";
+// Tracé du cadenas (grille 24 × 24), partagé avec le schéma.
+export const TRACE_CADENAS = ["M7 11V8a5 5 0 0 1 10 0v3", "M5 11h14v10H5z"];
+
+// Cadenas d'un budget verrouillé, à la place d'une étiquette.
+export function cadenas(titre = "Budget verrouillé : il garde le montant saisi") {
+  const icone = document.createElementNS(SVG, "svg");
+  icone.setAttribute("class", "icone icone--cadenas");
+  icone.setAttribute("viewBox", "0 0 24 24");
+  icone.setAttribute("role", "img");
+  icone.setAttribute("aria-label", titre);
+  const infobulle = document.createElementNS(SVG, "title");
+  infobulle.textContent = titre;
+  icone.append(infobulle);
+  for (const d of TRACE_CADENAS) {
+    const trace = document.createElementNS(SVG, "path");
+    trace.setAttribute("d", d);
+    icone.append(trace);
+  }
+  return icone;
+}
+
 // Budget calculé (ou verrouillé) d'un ensemble, avec la mention du verrou.
 export function texteBudget(ensemble) {
   if (ensemble.budget_ht === null || ensemble.budget_ht === undefined) {
@@ -91,7 +113,7 @@ export function texteBudget(ensemble) {
   }
   return [
     formatMontant(ensemble.budget_ht),
-    ensemble.budget_verrouille ? el("span", { class: "etiquette etiquette--espace", title: "Budget verrouillé : il garde le montant saisi" }, "verrouillé") : null,
+    ensemble.budget_verrouille ? cadenas() : null,
   ];
 }
 
@@ -107,7 +129,7 @@ export function alerteDepassement(depassement, classe = "") {
   return el(
     "p",
     { class: `texte-alerte texte-petit ${classe}` },
-    `Les budgets verrouillés des sous-ensembles dépassent ce budget de ${formatMontant(depassement)} : les autres reçoivent 0.`,
+    `Sous-ensembles verrouillés et composants propres dépassent ce budget de ${formatMontant(depassement)} : les autres sous-ensembles reçoivent 0.`,
   );
 }
 
@@ -163,7 +185,7 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
     ligneChamp("Ordre d'affichage", champNombre("ordre", ensemble?.ordre ?? ordreSuggere), { aide: "Ordre parmi les ensembles de même parent." }),
     ligneChamp("Responsable", champTexte("responsable", ensemble?.responsable ?? "")),
     ligneChamp("Description", champZone("description", ensemble?.description ?? "")),
-    ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part égale du reste du budget du parent." }),
+    ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part égale de ce qui reste du budget du parent, après ses ensembles verrouillés et ses composants propres." }),
     el("label", { class: "filtre-case" }, verrou, "Verrouiller le budget sur ce montant"),
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),

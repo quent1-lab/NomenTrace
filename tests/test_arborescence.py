@@ -125,41 +125,42 @@ def _noeud(code: str, verrou: float | None = None) -> NoeudBudget:
 
 
 def test_parts_egales_entre_les_enfants() -> None:
-    resultat = repartir_budget(900, [_noeud("A"), _noeud("B"), _noeud("C")], False)
+    resultat = repartir_budget(900, [_noeud("A"), _noeud("B"), _noeud("C")], 0)
     assert resultat.parts == {"A": 300, "B": 300, "C": 300}
-    assert resultat.propre == pytest.approx(0)
+    assert resultat.propre == 0
     assert resultat.depassement is None
 
 
-def test_part_propre_si_le_parent_a_des_affectations() -> None:
-    avec_propre = repartir_budget(900, [_noeud("A"), _noeud("B")], True)
-    assert avec_propre.parts == {"A": 300, "B": 300}
-    assert avec_propre.propre == pytest.approx(300)
+def test_composants_propres_reduisent_le_reste() -> None:
+    # Le parent garde le coût de ses composants directs, pas une part du reste.
+    resultat = repartir_budget(900, [_noeud("A"), _noeud("B")], 100)
+    assert resultat.parts == {"A": 400, "B": 400}
+    assert resultat.propre == 100
 
 
 def test_verrouille_garde_son_budget() -> None:
     enfants = [_noeud("A", verrou=700), _noeud("B"), _noeud("C")]
-    resultat = repartir_budget(1000, enfants, False)
+    resultat = repartir_budget(1000, enfants, 0)
     assert resultat.parts == {"A": 700, "B": pytest.approx(150), "C": pytest.approx(150)}
-    assert resultat.propre == pytest.approx(0)
+    assert resultat.propre == 0
 
 
 def test_tout_verrouille_le_reste_va_au_parent() -> None:
-    resultat = repartir_budget(1000, [_noeud("A", verrou=600)], False)
+    resultat = repartir_budget(1000, [_noeud("A", verrou=600)], 50)
     assert resultat.parts == {"A": 600}
     assert resultat.propre == pytest.approx(400)
 
 
 def test_depassement_des_verrouilles() -> None:
-    enfants = [_noeud("A", verrou=800), _noeud("B", verrou=500), _noeud("C")]
-    resultat = repartir_budget(1000, enfants, True)
-    assert resultat.parts == {"A": 800, "B": 500, "C": 0}
-    assert resultat.propre == 0
-    assert resultat.depassement == pytest.approx(300)
+    enfants = [_noeud("A", verrou=800), _noeud("B", verrou=150), _noeud("C")]
+    resultat = repartir_budget(1000, enfants, 100)
+    assert resultat.parts == {"A": 800, "B": 150, "C": 0}
+    assert resultat.propre == 100
+    assert resultat.depassement == pytest.approx(50)
 
 
 def test_sans_budget_seuls_les_verrouilles_en_ont_un() -> None:
-    resultat = repartir_budget(None, [_noeud("A", verrou=50), _noeud("B")], False)
+    resultat = repartir_budget(None, [_noeud("A", verrou=50), _noeud("B")], 0)
     assert resultat.parts == {"A": 50, "B": None}
     assert resultat.propre is None
 
@@ -189,10 +190,10 @@ def test_budgets_sur_l_arbre(client_essai: TestClient) -> None:
     assert noeuds["MAT"]["budget_ht"] == pytest.approx(1500, abs=0.01)
     # ROBOT sans affectation propre : tout va à CHASSIS.
     assert noeuds["CHASSIS"]["budget_ht"] == pytest.approx(1500, abs=0.01)
-    # CHASSIS porte une affectation : sa part propre et ROUE ont une part chacun.
-    assert noeuds["ROUE"]["budget_ht"] == pytest.approx(750, abs=0.01)
-    assert noeuds["CHASSIS"]["budget_propre_ht"] == pytest.approx(750, abs=0.01)
-    assert noeuds["ROUE"]["ecart_budget_ht"] == pytest.approx(68 - 750, abs=0.01)
+    # CHASSIS garde le coût de son composant direct (34 €), ROUE reçoit le reste.
+    assert noeuds["CHASSIS"]["budget_propre_ht"] == pytest.approx(34, abs=0.01)
+    assert noeuds["ROUE"]["budget_ht"] == pytest.approx(1466, abs=0.01)
+    assert noeuds["ROUE"]["ecart_budget_ht"] == pytest.approx(68 - 1466, abs=0.01)
     assert racine["budget_non_reparti_ht"] == pytest.approx(0, abs=0.01)
 
     # Verrouiller MAT à 1000 € : ROBOT reçoit le reste.

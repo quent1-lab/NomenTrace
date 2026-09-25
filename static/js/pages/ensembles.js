@@ -8,6 +8,7 @@ import { vueSchema } from "./ensembles_schema.js";
 import { el, rangsBlocs } from "../ui.js";
 import {
   alerteDepassement,
+  cadenas,
   barreProgression,
   barreRepartition,
   ouvrirFormulaireEnsemble,
@@ -116,7 +117,7 @@ function budgetCibleEnsemble(e, rafraichir) {
   const valeur = e.budget_verrouille ? e.budget_cible_ht : null;
   const enregistrer = (montant) =>
     api.patchEnsemble(e.code, montant === null ? { budget_verrouille: false, budget_cible_ht: null } : { budget_cible_ht: montant, budget_verrouille: true });
-  const contenu = valeur === null ? el("span", { class: "texte-doux" }, "calculé") : [formatMontant(valeur), el("span", { class: "etiquette etiquette--espace" }, "verrouillé")];
+  const contenu = valeur === null ? el("span", { class: "texte-doux" }, "calculé") : [formatMontant(valeur), cadenas()];
   return celluleBudgetCible(valeur, enregistrer, rafraichir, contenu);
 }
 
@@ -171,7 +172,7 @@ function vueArbre(arbre, rafraichir) {
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Le budget du projet descend l'arbre : à chaque niveau, les ensembles verrouillés gardent leur montant, le reste est partagé à parts égales entre les autres, même vides, pour voir ce qu'il reste à chacun ; les composants affectés directement au parent comptent pour une part. " +
+      "Le budget du projet descend l'arbre : à chaque niveau, les ensembles verrouillés gardent leur montant, les composants affectés directement au parent prennent leur coût, et le reste est partagé à parts égales entre les autres sous-ensembles, même vides, pour voir ce qu'il reste à chacun. " +
         "Ces budgets d'ensemble sont un axe parallèle aux budgets de bloc : les deux découpent le même budget total, l'un par partie physique, l'autre par fonction.",
     ),
     el(
