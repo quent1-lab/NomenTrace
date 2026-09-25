@@ -38,7 +38,7 @@ function nomChamp(champ) {
     const a = attribut(champ.slice(PREFIXE.length));
     return a ? titreAttribut(a) : champ.slice(PREFIXE.length);
   }
-  return nomChamp(champ);
+  return CHAMPS[champ] ?? champ;
 }
 
 function valeur(champ, v) {
