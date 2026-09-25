@@ -1929,39 +1929,6 @@ td.editable:hover {
   margin: 0;
 }
 
-/* Une branche occupe toute la largeur de la grille des ensembles de premier niveau. */
-.branche {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-3);
-}
-
-.branche__tete {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: var(--espace-3);
-  align-items: start;
-}
-
-.branche__actions {
-  align-self: start;
-}
-
-.branche__enfants {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-3);
-  margin-left: var(--espace-5);
-  padding-left: var(--espace-4);
-  border-left: 2px solid var(--couleur-bordure);
-}
-
-.branche__titre {
-  margin: 0;
-  color: var(--couleur-texte-doux);
-}
-
 .table--arbre td {
   vertical-align: top;
 }
@@ -2007,4 +1974,77 @@ td.editable:hover {
 .table--arbre tbody tr.ligne-cliquable:hover td,
 .table--arbre tbody tr.ligne-cliquable:focus-visible td {
   background: var(--couleur-fond);
+}
+
+/* --- Schéma de l'arborescence (SVG) ------------------------------------------------------------ */
+
+.schema {
+  overflow: auto;
+  max-height: 75vh;
+}
+
+.schema__dessin {
+  display: block;
+}
+
+.schema__lien {
+  fill: none;
+  stroke: var(--couleur-bordure);
+  stroke-width: 2;
+}
+
+.schema__cadre {
+  fill: var(--couleur-surface);
+  stroke: var(--couleur-bordure);
+  stroke-width: 1;
+}
+
+.schema__noeud[role="link"] {
+  cursor: pointer;
+  outline: none;
+}
+
+.schema__noeud[role="link"]:hover .schema__cadre,
+.schema__noeud[role="link"]:focus-visible .schema__cadre {
+  stroke: var(--couleur-ardoise);
+  stroke-width: 2;
+}
+
+.schema__noeud--racine .schema__cadre {
+  fill: var(--couleur-ardoise-clair);
+  stroke: var(--couleur-ardoise);
+}
+
+.schema__noeud--alerte .schema__cadre {
+  stroke: var(--couleur-alerte);
+  stroke-width: 2;
+}
+
+.schema__nom {
+  fill: var(--couleur-texte);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.schema__code,
+.schema__montants {
+  fill: var(--couleur-texte-doux);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.schema__montants {
+  fill: var(--couleur-texte);
+}
+
+.schema__jauge-fond {
+  fill: var(--couleur-neutre-fond);
+}
+
+.schema__jauge {
+  fill: var(--couleur-conforme);
+}
+
+.schema__jauge--depasse {
+  fill: var(--couleur-alerte);
 }

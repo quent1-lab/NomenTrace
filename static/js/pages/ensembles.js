@@ -3,6 +3,7 @@
 import { api } from "../api.js";
 import { formatMontant, formatNombre, formatPourcent } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
+import { vueSchema } from "./ensembles_schema.js";
 import { el, rangsBlocs } from "../ui.js";
 import {
   alerteDepassement,
@@ -34,17 +35,19 @@ const TYPES_INCOHERENCE = {
   },
 };
 
-// Branches repliées, gardées le temps de la session.
-const branchesRepliees = new Set();
-
 // Chiffre d'une carte : cumulé pour un parent, avec la part propre en second.
 function chiffre(ensemble, cle) {
   if (!ensemble.nb_sous_ensembles) return formatNombre(ensemble[cle]);
   return [formatNombre(ensemble.cumul[cle]), el("span", { class: "carte__propre" }, `dont propre ${formatNombre(ensemble[cle])}`)];
 }
 
-function carte(ensemble, repartition, rangs, rafraichir) {
+function carte(ensemble, repartition, rangs, rafraichir, noms) {
   const parent = ensemble.nb_sous_ensembles > 0;
+  const mentions = [
+    ensemble.parent_code ? `Sous-ensemble de ${noms.get(ensemble.parent_code) ?? ensemble.parent_code}` : null,
+    parent ? `chiffres cumulés avec ${ensemble.nb_sous_ensembles} sous-ensemble(s)` : null,
+  ].filter(Boolean);
+  const mention = mentions.join(" · ");
   const chiffres = parent ? ensemble.cumul : ensemble;
   return el(
     "article",
@@ -57,7 +60,7 @@ function carte(ensemble, repartition, rangs, rafraichir) {
       },
     },
     el("header", { class: "carte__entete" }, el("h2", {}, ensemble.nom), el("span", { class: "etiquette" }, ensemble.code)),
-    parent ? el("p", { class: "texte-doux texte-petit carte__mention" }, `Chiffres cumulés avec ${ensemble.nb_sous_ensembles} sous-ensemble(s)`) : null,
+    mention ? el("p", { class: "texte-doux texte-petit carte__mention" }, mention.charAt(0).toUpperCase() + mention.slice(1)) : null,
     el(
       "dl",
       { class: "carte__chiffres" },
@@ -76,45 +79,6 @@ function carte(ensemble, repartition, rangs, rafraichir) {
     barreProgression("Appro : composants reçus", chiffres.nb_composants_recus, chiffres.nb_composants_a_acheter, "rien à acheter"),
     barreProgression("Montage : pièces montées", chiffres.nb_pieces_montees, chiffres.nb_pieces_total, "aucune pièce"),
     el("footer", { class: "carte__pied carte__pied--espace" }, el("span", { class: "texte-doux" }, "Statut de montage"), selectStatutMontage(ensemble, rafraichir)),
-  );
-}
-
-// Sous-ensembles d'un nœud : une grille de cartes, puis, pour chaque enfant qui en a
-// lui-même, un bloc en retrait.
-function sousEnsembles(parent, contexte) {
-  const enfants = contexte.ensembles.filter((e) => e.parent_code === parent.code);
-  return el(
-    "div",
-    { class: "branche__enfants" },
-    el("p", { class: "branche__titre texte-petit" }, `Sous-ensembles de ${parent.nom}`),
-    el("div", { class: "grille-cartes" }, enfants.map((e) => contexte.carte(e))),
-    enfants.filter((e) => e.nb_sous_ensembles > 0).map((e) => sousEnsembles(e, contexte)),
-  );
-}
-
-// Un ensemble de premier niveau qui a des sous-ensembles occupe toute la largeur de la
-// grille : sa carte, puis sa descendance en retrait, repliable.
-function branche(ensemble, contexte) {
-  if (!ensemble.nb_sous_ensembles) return contexte.carte(ensemble);
-  const contenu = sousEnsembles(ensemble, contexte);
-  const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret" });
-  const majBranche = () => {
-    const repliee = branchesRepliees.has(ensemble.code);
-    contenu.hidden = repliee;
-    bouton.textContent = repliee ? `▸ Afficher les ${ensemble.nb_sous_ensembles} sous-ensemble(s)` : "▾ Replier la branche";
-    bouton.setAttribute("aria-expanded", repliee ? "false" : "true");
-  };
-  bouton.addEventListener("click", () => {
-    if (branchesRepliees.has(ensemble.code)) branchesRepliees.delete(ensemble.code);
-    else branchesRepliees.add(ensemble.code);
-    majBranche();
-  });
-  majBranche();
-  return el(
-    "section",
-    { class: "branche" },
-    el("div", { class: "branche__tete" }, contexte.carte(ensemble), el("div", { class: "branche__actions" }, bouton)),
-    contenu,
   );
 }
 
@@ -196,7 +160,7 @@ function vueArbre(arbre) {
 }
 
 function barreVues(courante, conteneur) {
-  const vues = [["cartes", "Cartes"], ["arbre", "Arbre"]];
+  const vues = [["cartes", "Cartes"], ["arbre", "Arbre"], ["schema", "Schéma"]];
   return el(
     "nav",
     { class: "onglets", role: "tablist" },
@@ -272,7 +236,7 @@ function encadreCoherence(incoherences) {
 }
 
 export async function afficherEnsembles(conteneur, parametres) {
-  const vue = parametres?.get("vue") === "arbre" ? "arbre" : "cartes";
+  const vue = ["arbre", "schema"].includes(parametres?.get("vue")) ? parametres.get("vue") : "cartes";
   const rafraichir = () => afficherEnsembles(conteneur, new URLSearchParams({ vue }));
   const [arbre, repartition, repartitionCumul, blocs, incoherences] = await Promise.all([
     api.getArbreEnsembles(),
@@ -296,18 +260,18 @@ export async function afficherEnsembles(conteneur, parametres) {
     conteneur.replaceChildren(entete, etatVide(creer), encadreCoherence(incoherences));
     return;
   }
-  // Un parent affiche la répartition par bloc de toute sa branche.
-  const contexte = {
-    ensembles,
-    carte: (e) => {
-      const source = e.nb_sous_ensembles ? repartitionCumul : repartition;
-      return carte(e, source.filter((r) => r.ensemble_code === e.code), rangs, rafraichir);
-    },
+  // Toutes les cartes à plat, dans l'ordre de l'arbre ; un parent affiche la répartition
+  // par bloc de toute sa branche.
+  const noms = new Map(ensembles.map((e) => [e.code, e.nom]));
+  const carteDe = (e) => {
+    const source = e.nb_sous_ensembles ? repartitionCumul : repartition;
+    return carte(e, source.filter((r) => r.ensemble_code === e.code), rangs, rafraichir, noms);
   };
-  const corps =
-    vue === "arbre"
-      ? vueArbre(arbre)
-      : el("div", { class: "grille-cartes" }, ensembles.filter((e) => e.niveau === 1).map((e) => branche(e, contexte)));
+  const corps = {
+    cartes: () => el("div", { class: "grille-cartes" }, ensembles.map(carteDe)),
+    arbre: () => vueArbre(arbre),
+    schema: () => vueSchema(arbre),
+  }[vue]();
   conteneur.replaceChildren(
     entete,
     el("p", { class: "texte-doux" }, "Un ensemble est une partie physique du système suivi ; il peut contenir des sous-ensembles. Cliquer sur un ensemble pour voir ce qu'il contient et ce qu'il reste à monter."),
