@@ -58,7 +58,7 @@ La suppression physique est réservée à ce qui n'a laissé aucune trace (écra
 | Élément | Supprimable si | Part avec lui |
 |---|---|---|
 | Composant | aucune ligne de commande, aucun mouvement de stock, aucun document, aucun reclassement | ses affectations |
-| Commande | aucune ligne reçue, aucun mouvement de stock lié | ses lignes, ses documents et leurs fichiers |
+| Commande | aucune ligne reçue, aucun mouvement de stock lié | ses lignes et ses documents ; leurs fichiers vont à la corbeille (`echange/documents/_corbeille/`) |
 | Fournisseur | cité par aucun composant ni aucune commande, archivés compris | — |
 | Bloc | aucun composant, archivés compris | — |
 | Ensemble | aucune affectation, aucun mouvement de montage, aucun sous-ensemble | — |

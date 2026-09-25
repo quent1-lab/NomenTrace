@@ -142,13 +142,21 @@ confirmations. L'état courant est d'abord sauvegardé : on peut donc annuler un
 restauration. Une sauvegarde prise avec une version plus ancienne de Nomentrace reçoit les
 mises à jour de schéma manquantes.
 
-**Les sauvegardes ne contiennent que la base.** Pour une sauvegarde complète à garder
+**Les sauvegardes ne contiennent que la base**, historique compris. Les fichiers joints
+(devis, factures, fiches techniques…) restent dans `echange/documents/`, et aucun n'est
+jamais effacé : quand une commande est supprimée, ses fichiers partent dans
+`echange/documents/_corbeille/`. Après une restauration, l'outil remet en place les
+fichiers que la base restaurée cite et range dans la corbeille ceux qu'elle ne connaît
+pas ; il signale ceux qui restent introuvables. La corbeille se vide depuis Paramètres ›
+Export et sauvegardes.
+
+Pour une sauvegarde complète à garder
 hors de la machine, utiliser « Télécharger une archive complète » (Paramètres › Export et
 sauvegardes). Le fichier `nomentrace_archive_AAAAMMJJ_HHMM.zip` contient :
 
 - `nomentrace.db` : une copie cohérente de la base, prise par l'API de sauvegarde de
   SQLite pendant que l'outil tourne ;
-- `documents/` : tout le contenu de `echange/documents/`.
+- `documents/` : tout le contenu de `echange/documents/`, corbeille comprise.
 
 **Restaurer à partir d'une archive complète** :
 

@@ -108,6 +108,18 @@ function formatHorodatage(iso) {
   return `${formatDate(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
 }
 
+// Bilan des fichiers joints après une restauration.
+function texteDocuments(documents) {
+  if (!documents) return "";
+  const lignes = [];
+  if (documents.remis.length) lignes.push(`${documents.remis.length} document(s) remis en place depuis la corbeille.`);
+  if (documents.ranges_corbeille) lignes.push(`${documents.ranges_corbeille} fichier(s) inconnu(s) de cette sauvegarde rangé(s) dans la corbeille.`);
+  if (documents.manquants.length) {
+    lignes.push(`Fichier(s) introuvable(s), ni dans les documents ni dans la corbeille : ${documents.manquants.map((m) => m.nom).join(", ")}.`);
+  }
+  return lignes.length ? `\n\nDocuments joints : ${lignes.join(" ")}` : "";
+}
+
 async function restaurer(sauvegarde, rafraichir) {
   const quand = formatHorodatage(sauvegarde.date);
   if (!confirm(`Restaurer la sauvegarde du ${quand} ?\n\nToutes les modifications faites depuis seront remplacées.`)) return;
@@ -126,7 +138,7 @@ async function restaurer(sauvegarde, rafraichir) {
       resultat.version_sauvegarde < resultat.version_schema
         ? ` La sauvegarde datait du schéma ${resultat.version_sauvegarde} : elle a été mise à niveau (schéma ${resultat.version_schema}).`
         : "";
-    alert(`Base restaurée depuis la sauvegarde du ${quand}.${migrations}\n\nL'état précédent est conservé dans ${resultat.securite}. La page va se recharger.`);
+    alert(`Base restaurée depuis la sauvegarde du ${quand}.${migrations}${texteDocuments(resultat.documents)}\n\nL'état précédent est conservé dans ${resultat.securite}. La page va se recharger.`);
     window.location.reload();
   } catch (erreur) {
     afficherErreur(erreur);
@@ -173,6 +185,40 @@ function sectionArchive() {
   );
 }
 
+function sectionCorbeille(corbeille, rafraichir) {
+  const vider = async () => {
+    const texte =
+      `Vider la corbeille des documents (${corbeille.nb_fichiers} fichier(s), ${formatTaille(corbeille.taille)}) ?\n\n` +
+      "Les fichiers sont effacés définitivement : une sauvegarde plus ancienne qui les cite ne pourra plus les remettre en place.";
+    if (!confirm(texte)) return;
+    try {
+      await api.viderCorbeille();
+      masquerErreur();
+      await rafraichir();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
+  return el(
+    "section",
+    { class: "panneau" },
+    el(
+      "div",
+      { class: "titre-section" },
+      el("h2", {}, "Corbeille des documents"),
+      corbeille.nb_fichiers ? el("button", { type: "button", class: "bouton bouton--danger", onclick: vider }, "Vider la corbeille") : null,
+    ),
+    el(
+      "p",
+      { class: "texte-doux" },
+      "Un fichier joint n'est jamais effacé : quand sa commande est supprimée, il part dans echange/documents/_corbeille. " +
+        "Après une restauration, les fichiers que la base restaurée cite sont remis en place, ceux qu'elle ne connaît pas vont à la corbeille. " +
+        "L'archive complète contient aussi la corbeille.",
+    ),
+    el("p", {}, corbeille.nb_fichiers ? `${corbeille.nb_fichiers} fichier(s), ${formatTaille(corbeille.taille)}.` : "La corbeille est vide."),
+  );
+}
+
 function sectionExport(retour) {
   const bouton = el("button", { type: "button", class: "bouton" }, "Exporter maintenant");
   bouton.addEventListener("click", async () => {
@@ -213,7 +259,7 @@ function sectionExport(retour) {
 
 async function afficherOngletSauvegardes(cible) {
   const rafraichir = () => afficherOngletSauvegardes(cible);
-  const sauvegardes = await api.getSauvegardes();
+  const [sauvegardes, corbeille] = await Promise.all([api.getSauvegardes(), api.getCorbeille()]);
   const retourExport = el("div");
   const retourSauvegarde = el("div");
   const sauvegarder = el("button", { type: "button", class: "bouton" }, "Sauvegarder maintenant");
@@ -251,7 +297,8 @@ async function afficherOngletSauvegardes(cible) {
         "p",
         { class: "texte-doux" },
         "Une sauvegarde est prise à chaque démarrage et avant chaque restauration ; les 20 plus récentes sont gardées " +
-          "dans echange/sauvegardes. Elles ne contiennent que la base : pour y joindre les documents, télécharger une archive complète.",
+          "dans echange/sauvegardes. Elles ne contiennent que la base (historique compris) : pour y joindre les documents, télécharger une archive complète. " +
+          "À la restauration, les fichiers joints sont accordés à la base grâce à la corbeille.",
       ),
       retourSauvegarde,
       lignes.length
@@ -263,6 +310,7 @@ async function afficherOngletSauvegardes(cible) {
           )
         : el("p", { class: "texte-doux" }, "Aucune sauvegarde pour l'instant."),
     ),
+    sectionCorbeille(corbeille, rafraichir),
   );
 }
 

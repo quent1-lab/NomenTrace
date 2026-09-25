@@ -11,6 +11,7 @@ from pathlib import Path
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
+from backend.services import corbeille
 
 journal_log = logging.getLogger(__name__)
 
@@ -108,10 +109,13 @@ def _verifier(chemin: Path) -> int:
     return version
 
 
-def restore_sauvegarde(chemin_base: Path, dossier: Path, nom: str) -> dict:
+def restore_sauvegarde(
+    chemin_base: Path, dossier: Path, nom: str, dossier_documents: Path | None = None
+) -> dict:
     """Remplace la base par une sauvegarde, après avoir sauvegardé l'état courant.
 
     Une sauvegarde plus ancienne que le schéma actuel reçoit les migrations manquantes.
+    Les fichiers des documents sont ensuite accordés à la base restaurée (corbeille).
     """
     if not MOTIF_NOM.match(nom) or not (dossier / nom).is_file():
         raise Introuvable(f"Sauvegarde « {nom} » introuvable.")
@@ -127,6 +131,11 @@ def restore_sauvegarde(chemin_base: Path, dossier: Path, nom: str) -> dict:
         try:
             memoire.backup(destination)
             version = db.apply_migrations(destination)
+            documents = (
+                corbeille.verifier_documents(destination, dossier_documents)
+                if dossier_documents is not None
+                else None
+            )
         finally:
             destination.close()
     finally:
@@ -137,6 +146,7 @@ def restore_sauvegarde(chemin_base: Path, dossier: Path, nom: str) -> dict:
         "securite": securite.name if securite else None,
         "version_sauvegarde": version_source,
         "version_schema": version,
+        "documents": documents,
     }
 
 

@@ -14,7 +14,7 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
-from backend.services import journal, sauvegardes
+from backend.services import corbeille, journal, sauvegardes
 
 journal_log = logging.getLogger(__name__)
 
@@ -143,35 +143,21 @@ def _delete_composant(conn: sqlite3.Connection, identifiant: str) -> None:
     journal.write_journal(conn, "composant", identifiant, CHAMP_SUPPRESSION, resume, None)
 
 
-def _delete_commande(conn: sqlite3.Connection, numero: str) -> list[str]:
-    """Supprime une commande, ses lignes et ses documents ; renvoie les fichiers à effacer."""
+def _delete_commande(conn: sqlite3.Connection, numero: str) -> list[dict]:
+    """Supprime une commande, ses lignes et ses documents ; renvoie les fichiers à jeter."""
     ligne = db.fetch_one(conn, "SELECT * FROM commande WHERE numero = ?", (numero,))
     lignes = db.fetch_all(conn, "SELECT * FROM ligne_commande WHERE commande_numero = ?", (numero,))
     documents = db.fetch_all(
-        conn, "SELECT id, nom_origine, chemin FROM document WHERE commande_numero = ?", (numero,)
+        conn,
+        "SELECT id, nom_origine, chemin, empreinte FROM document WHERE commande_numero = ?",
+        (numero,),
     )
     conn.execute("DELETE FROM document WHERE commande_numero = ?", (numero,))
     conn.execute("DELETE FROM ligne_commande WHERE commande_numero = ?", (numero,))
     conn.execute("DELETE FROM commande WHERE numero = ?", (numero,))
     resume = _resume({**(ligne or {}), "lignes": lignes, "documents": documents})
     journal.write_journal(conn, "commande", numero, CHAMP_SUPPRESSION, resume, None)
-    return [d["chemin"] for d in documents]
-
-
-def _effacer_fichiers(dossier: Path, chemins: list[str]) -> None:
-    """Efface les fichiers des documents supprimés, une fois la transaction validée."""
-    racine = dossier.resolve()
-    for relatif in chemins:
-        fichier = (dossier / relatif).resolve()
-        if not fichier.is_relative_to(racine):
-            journal_log.warning("Chemin de document hors du dossier ignoré : %s", relatif)
-            continue
-        try:
-            fichier.unlink(missing_ok=True)
-            if fichier.parent != racine and not any(fichier.parent.iterdir()):
-                fichier.parent.rmdir()
-        except OSError as erreur:
-            journal_log.warning("Fichier %s non effacé : %s", fichier, erreur)
+    return documents
 
 
 # --- Traitements en lot ----------------------------------------------------------------------
@@ -256,7 +242,7 @@ def process_commandes(
         return recap
     if recap["supprimes"]:
         _sauvegarder(emplacements)
-    fichiers: list[str] = []
+    fichiers: list[dict] = []
     with db.transaction(conn, immediate=True):
         recap = _trier_commandes(conn, numeros, action)
         for numero in recap["supprimes"]:
@@ -265,7 +251,8 @@ def process_commandes(
             journal.update_with_journal(
                 conn, "commande", numero, {"archive": 1}, frozenset({"archive"})
             )
-    _effacer_fichiers(emplacements.dossier_documents, fichiers)
+    # Les fichiers vont à la corbeille : une sauvegarde restaurée les retrouvera.
+    corbeille.jeter(emplacements.dossier_documents, fichiers)
     return recap
 
 
