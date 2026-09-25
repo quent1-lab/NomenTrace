@@ -3,6 +3,8 @@
 Ce document décrit la base SQLite (`data/nomentrace.db`) : les tables, les vues de calcul
 et les définitions des indicateurs. Le schéma est construit par les migrations numérotées
 de `backend/migrations/` ; la table `schema_version` retient la dernière appliquée.
+L'usage des écrans est décrit dans [UTILISATION.md](UTILISATION.md), l'organisation du
+code dans [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Bloc fonctionnel et ensemble : deux découpages différents
 

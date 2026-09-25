@@ -176,7 +176,7 @@ function sectionArchive() {
       "p",
       { class: "texte-doux" },
       "Un fichier .zip qui contient une copie cohérente de la base (nomentrace.db) et tous les documents joints " +
-        "(dossier documents). C'est la sauvegarde à conserver hors de la machine ; le README explique comment " +
+        "(dossier documents). C'est la sauvegarde à conserver hors de la machine ; le guide docs/EXPLOITATION.md explique comment " +
         "restaurer à partir de cette archive.",
     ),
     el(
