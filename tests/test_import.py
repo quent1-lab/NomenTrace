@@ -451,7 +451,9 @@ def test_entites_inconnues_proposees_puis_creees(client_spoc: TestClient) -> Non
     resultat = _appliquer(client_spoc, depot, decisions)
     assert resultat["refus"] == []
     assert len(resultat["crees"]) == 2
-    assert any(f["nom"] == "Bossard" for f in client_spoc.get("/api/fournisseurs").json())
+    bossard = [f for f in client_spoc.get("/api/fournisseurs").json() if f["nom"] == "Bossard"]
+    # Trouvé par l'équipe : créé « à valider ».
+    assert [f["statut"] for f in bossard] == ["A valider"]
     ensemble = client_spoc.get("/api/ensembles/CHASSIS-ARRIERE").json()
     assert (ensemble["nom"], ensemble["nb_pieces_total"]) == ("Châssis arrière", 36)
     criticites = [v["code"] for v in client_spoc.get("/api/listes").json()["criticite"]]

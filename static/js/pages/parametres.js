@@ -248,7 +248,7 @@ export async function afficherParametres(conteneur, parametres) {
   conteneur.replaceChildren(el("h1", {}, "Paramètres"), barre, corps);
   const [, , afficher] = ONGLETS.find(([code]) => code === courant);
   try {
-    await afficher(corps);
+    await afficher(corps, parametres);
   } catch (erreur) {
     corps.replaceChildren(el("p", { class: "texte-doux" }, "Chargement impossible."));
     afficherErreur(erreur);

@@ -129,7 +129,8 @@ def _creer_entite(conn: sqlite3.Connection, entite: dict, lot: int) -> bool:
     if entite["type"] == "fournisseur":
         if db.fetch_one(conn, "SELECT 1 FROM fournisseur WHERE nom = ?", (entite["nom"],)):
             return False
-        db.insert_row(conn, "fournisseur", {"nom": entite["nom"]})
+        # Trouvé par l'équipe : à compléter et valider par une personne autorisée.
+        db.insert_row(conn, "fournisseur", {"nom": entite["nom"], "statut": "A valider"})
         journal.write_journal(
             conn, "fournisseur", entite["nom"], "creation", None, "créé", ORIGINE, lot
         )

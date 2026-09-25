@@ -15,6 +15,7 @@ StatutChoix = ValeurListe
 StatutAppro = ValeurListe
 Criticite = ValeurListe
 BasePrix = Literal["HT", "TTC"]
+StatutFournisseur = Literal["Valide", "A valider"]
 TypeCommande = Literal["Devis", "Commande"]
 StatutCommande = Literal[
     "A demander",
@@ -105,6 +106,7 @@ class FournisseurCreation(Modele):
     contact: str | None = None
     delai_moyen_j: int | None = Field(default=None, ge=0)
     commentaire: str | None = None
+    statut: StatutFournisseur = "Valide"
 
 
 class FournisseurModif(Modele):
@@ -118,6 +120,7 @@ class FournisseurModif(Modele):
     contact: str | None = None
     delai_moyen_j: int | None = Field(default=None, ge=0)
     commentaire: str | None = None
+    statut: StatutFournisseur | None = None
 
 
 class ChampsFournisseur(Modele):
@@ -131,6 +134,7 @@ class ChampsFournisseur(Modele):
     contact: str | None = None
     delai_moyen_j: int | None = Field(default=None, ge=0)
     commentaire: str | None = None
+    statut: StatutFournisseur | None = None
 
 
 class CompletionFournisseur(Modele):

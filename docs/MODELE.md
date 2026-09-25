@@ -36,7 +36,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
 | `bloc` | Blocs fonctionnels, avec `budget_cible_ht`. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage`. | `code` |
-| `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai. Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
+| `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
 | `composant` | Le cœur : quantités, prix relevé, statuts. | `id` (`PREFIXE-BLOC-NNN`) |
 | `affectation` | Composant × ensemble, avec la quantité. | `id` ; unique (`ensemble_code`, `composant_id`) |
 | `commande` | Devis et commandes, avec `port_ht` et `taux_tva`. | `numero` (`CMD-NNN`) |

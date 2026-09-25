@@ -206,7 +206,7 @@ function infos() {
   });
   const lien = c.lien_document ? el("a", { href: c.lien_document, target: "_blank", rel: "noopener noreferrer" }, "ouvrir") : "—";
   const paires = [
-    ["Fournisseur", lienFournisseur(c.fournisseur_nom)],
+    ["Fournisseur", lienFournisseur(c.fournisseur_nom, etat.fournisseurs.find((f) => f.nom === c.fournisseur_nom)?.statut)],
     ["Statut", statut],
     ["Demandée par", c.demande_par ?? "—"],
     ["Référence externe", c.reference_externe ?? "—"],

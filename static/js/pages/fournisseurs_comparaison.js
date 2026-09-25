@@ -63,6 +63,7 @@ function tableEcarts(entree) {
     );
   });
   const reactiver = entree.archive ? el("input", { type: "checkbox", checked: true }) : null;
+  const valider = entree.a_valider ? el("input", { type: "checkbox", checked: true }) : null;
   const table = el(
     "table",
     { class: "table table--dense table--ecarts" },
@@ -71,12 +72,14 @@ function tableEcarts(entree) {
   );
   const lire = () => {
     const champs = Object.fromEntries(cases.filter(([, , c]) => c.checked).map(([champ, liste]) => [champ, liste]));
+    if (valider?.checked) champs.statut = "Valide";
     if (!Object.keys(champs).length && !reactiver?.checked) return null;
     return { completion: { nom: entree.nom, champs } };
   };
   return {
     contenu: [
       reactiver ? el("label", { class: "filtre-case" }, reactiver, "Réactiver ce fournisseur (il est archivé)") : null,
+      valider ? el("label", { class: "filtre-case" }, valider, "Valider ce fournisseur : il figure dans la liste de référence") : null,
       lignes.length ? table : null,
     ],
     lire,
@@ -118,7 +121,7 @@ function sectionProbables(probables, choix) {
 }
 
 function sectionEcarts(presents, choix) {
-  const avecEcarts = presents.filter((e) => Object.keys(e.differences).length || e.archive);
+  const avecEcarts = presents.filter((e) => Object.keys(e.differences).length || e.archive || e.a_valider);
   if (!avecEcarts.length) return null;
   const blocs = avecEcarts.map((entree) => {
     const ecarts = tableEcarts(entree);
@@ -133,7 +136,7 @@ function sectionEcarts(presents, choix) {
 }
 
 function sectionInfos(presents, absents) {
-  const identiques = presents.filter((e) => !Object.keys(e.differences).length && !e.archive);
+  const identiques = presents.filter((e) => !Object.keys(e.differences).length && !e.archive && !e.a_valider);
   return section(
     "Pour information",
     null,

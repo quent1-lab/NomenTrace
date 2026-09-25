@@ -147,6 +147,7 @@ function alertes(p, composants) {
       alerte(p.nb_commandes_retard, "commande(s) en retard", lienRoute("/achats", { retard: 1 })),
       alerte(bloquantsNonCommandes, "composant(s) bloquant(s) non commandé(s)", lienRoute("/composants", { criticite: "Bloquant" })),
       alerte(p.nb_composants_ecart_affectation, "composant(s) avec un écart d'affectation", lienRoute("/composants", { ecart_affectation: 1 })),
+      alerte(p.nb_fournisseurs_a_valider, "fournisseur(s) à valider", lienRoute("/parametres", { onglet: "fournisseurs", statut: "a_valider" })),
       alerte(p.nb_composants_non_affectes, "composant(s) non affecté(s) à un ensemble", lienRoute("/composants", { non_affecte: 1 }), true),
     ),
   );

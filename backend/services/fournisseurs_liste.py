@@ -179,6 +179,7 @@ def _entree(existant: dict, lu: dict) -> dict:
         "nom": existant["nom"],
         "liste": lu,
         "archive": bool(existant["archive"]),
+        "a_valider": existant["statut"] == "A valider",
         "differences": _differences(existant, lu),
     }
 

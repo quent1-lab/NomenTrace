@@ -9,7 +9,7 @@ import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
-import { lienFournisseur } from "./fournisseurs_commun.js";
+import { champFournisseur, lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
 
 const DESCRIPTION_MODIF = {
   fonction: "texte",
@@ -55,7 +55,7 @@ function tableSimple(entetes, lignes, vide) {
   );
 }
 
-function vueChamps(c) {
+function vueChamps(c, statuts) {
   const lien = c.lien_produit ? el("a", { href: c.lien_produit, target: "_blank", rel: "noopener noreferrer" }, "ouvrir la page produit") : null;
   return [
     definitions([
@@ -65,7 +65,7 @@ function vueChamps(c) {
       ["Réf fabricant", c.ref_fabricant],
       ["Fabricant", c.fabricant],
       ["Mode d'appro", libelle(c.mode_appro)],
-      ["Fournisseur", c.fournisseur_nom ? lienFournisseur(c.fournisseur_nom) : null],
+      ["Fournisseur", c.fournisseur_nom ? lienFournisseur(c.fournisseur_nom, statuts.get(c.fournisseur_nom)) : null],
       ["Lien produit", lien],
     ]),
     definitions([
@@ -91,6 +91,7 @@ function vueChamps(c) {
 }
 
 function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
+  const choixFournisseur = champFournisseur(fournisseurs, c.fournisseur_nom);
   const base = champChoix("base_prix_releve", BASES_PRIX, c.base_prix_releve);
   const formulaire = el(
     "form",
@@ -100,7 +101,7 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
     ligneChamp("Réf fabricant", champTexte("ref_fabricant", c.ref_fabricant)),
     ligneChamp("Fabricant", champTexte("fabricant", c.fabricant)),
     ligneChamp("Mode d'appro", champChoix("mode_appro", valeursListe("mode_appro", { valeurCourante: c.mode_appro }), c.mode_appro), { requis: true }),
-    ligneChamp("Fournisseur", champChoix("fournisseur_nom", fournisseurs.map((f) => [f.nom, f.nom]), c.fournisseur_nom, { vide: "—" })),
+    ligneChamp("Fournisseur", choixFournisseur.element),
     ligneChamp("Lien produit", champTexte("lien_produit", c.lien_produit, { type: "url" })),
     ligneChamp("Qté besoin", champNombre("qte_besoin", c.qte_besoin), { requis: true }),
     ligneChamp("Qté rechange", champNombre("qte_rechange", c.qte_rechange)),
@@ -124,9 +125,10 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
     if (lu.erreur) return afficherErreur(lu.erreur);
     const manquants = Object.keys(OBLIGATOIRES).filter((n) => lu.valeurs[n] === null);
     if (manquants.length) return afficherErreur(`Champs obligatoires manquants : ${manquants.map((n) => OBLIGATOIRES[n]).join(", ")}.`);
-    const modifs = Object.fromEntries(Object.entries(lu.valeurs).filter(([cle, v]) => v !== c[cle]));
-    if (Object.keys(modifs).length === 0) return surAnnule();
     try {
+      lu.valeurs.fournisseur_nom = await choixFournisseur.resoudre();
+      const modifs = Object.fromEntries(Object.entries(lu.valeurs).filter(([cle, v]) => v !== c[cle]));
+      if (Object.keys(modifs).length === 0) return surAnnule();
       await api.patchComposant(c.id, modifs);
       masquerErreur();
       await surEnregistre();
@@ -288,7 +290,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
     await surChangement();
     await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture });
   };
-  const zoneChamps = el("div", {}, vueChamps(c));
+  const zoneChamps = el("div", {}, vueChamps(c, statutsFournisseurs(fournisseurs)));
   const boutonModifier = el("button", { type: "button", class: "bouton bouton--discret" }, "Modifier");
   boutonModifier.addEventListener("click", () => {
     boutonModifier.disabled = true;
@@ -297,7 +299,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         surEnregistre: rafraichir,
         surAnnule: () => {
           boutonModifier.disabled = false;
-          zoneChamps.replaceChildren(...vueChamps(c));
+          zoneChamps.replaceChildren(...vueChamps(c, statutsFournisseurs(fournisseurs)));
         },
       }),
     );

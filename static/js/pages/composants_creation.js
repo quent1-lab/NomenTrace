@@ -3,6 +3,7 @@
 
 import { api } from "../api.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
+import { champFournisseur } from "./fournisseurs_commun.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
@@ -49,7 +50,8 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
   const apercu = el("strong", { class: "code" }, "choisir un bloc");
 
   const bloc = champChoix("bloc_code", blocs.map((b) => [b.code, `${b.code} — ${b.nom}`]), blocInitial || null, { vide: "— choisir —", requis: true });
-  const fournisseur = champChoix("fournisseur_nom", fournisseurs.map((f) => [f.nom, f.nom]), null, { vide: "—" });
+  const choixFournisseur = champFournisseur(fournisseurs, null);
+  const fournisseur = choixFournisseur.select;
   const base = champChoix("base_prix_releve", BASES_PRIX, "HT");
 
   const majApercu = async () => {
@@ -88,7 +90,7 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       ligneChamp("Qté besoin", champNombre("qte_besoin", null), { requis: true }),
       ligneChamp("Qté rechange", champNombre("qte_rechange", 0)),
       ligneChamp("Qté déjà disponible", champNombre("qte_disponible", 0), { aide: "Déjà en stock ou prêtée : réduit la quantité à acheter." }),
-      ligneChamp("Fournisseur", fournisseur),
+      ligneChamp("Fournisseur", choixFournisseur.element),
       ligneChamp("Lien produit", champTexte("lien_produit", "", { type: "url" })),
       ligneChamp("PU relevé", champNombre("pu_releve", null, 2), { aide: "Laisser vide si le prix n'est pas encore connu." }),
       ligneChamp("Base du prix", base),
@@ -117,6 +119,8 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
     const bouton = formulaire.querySelector("button[type=submit]");
     bouton.disabled = true;
     try {
+      const nomFournisseur = await choixFournisseur.resoudre();
+      if (nomFournisseur) valeurs.fournisseur_nom = nomFournisseur;
       const cree = await api.createComposant(valeurs);
       masquerErreur();
       fermerPanneau({ silencieux: true });

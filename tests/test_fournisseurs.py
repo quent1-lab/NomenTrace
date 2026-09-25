@@ -170,3 +170,70 @@ def test_liste_illisible_ou_sans_colonne_nom(client: TestClient) -> None:
     )
     assert reponse.status_code == 400
     assert "Nom" in reponse.json()["erreur"]
+
+
+# --- Fournisseurs à valider ---------------------------------------------------------------
+
+
+def test_fournisseur_a_valider_puis_valide(client: TestClient) -> None:
+    assert client.post("/api/fournisseurs", json={"nom": "Farnell"}).json()["statut"] == "Valide"
+    cree = client.post("/api/fournisseurs", json={"nom": "Bossard", "statut": "A valider"})
+    assert cree.status_code == 201, cree.text
+    assert cree.json()["statut"] == "A valider"
+    assert client.get("/api/pilotage").json()["nb_fournisseurs_a_valider"] == 1
+    reponse = client.patch("/api/fournisseurs/Bossard", json={"statut": "Valide", "pays": "Suisse"})
+    assert reponse.json()["statut"] == "Valide"
+    assert client.get("/api/pilotage").json()["nb_fournisseurs_a_valider"] == 0
+    journal = client.get("/api/journal?table_cible=fournisseur&cle_cible=Bossard").json()
+    assert any(
+        ligne["champ"] == "statut" and ligne["nouvelle_valeur"] == "Valide" for ligne in journal
+    )
+    assert client.patch("/api/fournisseurs/Bossard", json={"statut": "Douteux"}).status_code == 422
+
+
+def test_composant_avec_fournisseur_a_valider(client_spoc: TestClient) -> None:
+    client_spoc.post("/api/fournisseurs", json={"nom": "Bossard", "statut": "A valider"})
+    reponse = client_spoc.post(
+        "/api/composants",
+        json={
+            "bloc_code": "ALI",
+            "fonction": "Fixation",
+            "designation": "Écrou M6",
+            "mode_appro": "Achat",
+            "qte_besoin": 4,
+            "fournisseur_nom": "Bossard",
+        },
+    )
+    assert reponse.status_code == 201, reponse.text
+    fiche = client_spoc.get("/api/fournisseurs/Bossard").json()
+    assert [c["id"] for c in fiche["composants"]] == [reponse.json()["id"]]
+
+
+def test_homonyme_refuse(client: TestClient) -> None:
+    client.post("/api/fournisseurs", json={"nom": "RS Components"})
+    reponse = client.post(
+        "/api/fournisseurs", json={"nom": "rs  components", "statut": "A valider"}
+    )
+    assert reponse.status_code == 409
+    assert "RS Components" in reponse.json()["erreur"]
+
+
+def test_reactivation_garde_la_validation(client: TestClient) -> None:
+    client.post("/api/fournisseurs", json={"nom": "Farnell"})
+    client.delete("/api/fournisseurs/Farnell")
+    reponse = client.post("/api/fournisseurs", json={"nom": "Farnell", "statut": "A valider"})
+    assert reponse.status_code == 201
+    assert reponse.json()["statut"] == "Valide"
+
+
+def test_liste_de_reference_propose_la_validation(client: TestClient) -> None:
+    client.post("/api/fournisseurs", json={"nom": "Igus", "statut": "A valider"})
+    resultat = _comparer(
+        client, _liste([("MECANIQUE", None, "IGUS", "www.igus.fr", None, 8120471)])
+    )
+    assert resultat["presents"][0]["a_valider"] is True
+    client.post(
+        "/api/fournisseurs/comparaison/appliquer",
+        json={"completions": [{"nom": "Igus", "champs": {"statut": "Valide"}}]},
+    )
+    assert client.get("/api/fournisseurs/Igus").json()["statut"] == "Valide"

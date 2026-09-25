@@ -8,7 +8,7 @@ import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs 
 import { naviguer } from "../router.js";
 import { ouvrirFormulaireEnsemble } from "./ensembles_commun.js";
 import { afficherComparaison } from "./fournisseurs_comparaison.js";
-import { archiverFournisseur, lienFournisseur, ouvrirFormulaireFournisseur, routeFournisseur } from "./fournisseurs_commun.js";
+import { A_VALIDER, archiverFournisseur, lienFournisseur, ouvrirFormulaireFournisseur, routeFournisseur } from "./fournisseurs_commun.js";
 
 function table(entetes, lignes, vide) {
   if (!lignes.length) return el("p", { class: "texte-doux" }, vide);
@@ -203,15 +203,15 @@ function champFichierListe(surComparaison) {
   return [fichier, bouton];
 }
 
-export async function afficherOngletFournisseurs(cible) {
-  const rafraichir = () => afficherOngletFournisseurs(cible);
+export async function afficherOngletFournisseurs(cible, parametres = null) {
+  const rafraichir = () => afficherOngletFournisseurs(cible, parametres);
   const fournisseurs = await api.getFournisseurs();
   const recherche = el("input", { class: "champ champ--recherche", type: "search", placeholder: "Filtrer : nom, catégorie, contact…", "aria-label": "Filtrer les fournisseurs" });
   const ligne = (f) =>
     el(
       "tr",
       { class: "ligne-cliquable", "data-texte": [f.nom, f.categorie, f.contact, f.numero_compte, f.type].join(" ").toLowerCase(), onclick: () => naviguer(routeFournisseur(f.nom)) },
-      el("td", {}, lienFournisseur(f.nom), " ", lienProduit(f.site_web)),
+      el("td", {}, lienFournisseur(f.nom, f.statut), " ", lienProduit(f.site_web)),
       el("td", {}, f.categorie ?? ""),
       el("td", { class: "texte-petit" }, premiereLigne(f.contact)),
       el("td", {}, f.numero_compte ?? ""),
@@ -231,12 +231,17 @@ export async function afficherOngletFournisseurs(cible) {
     fournisseurs.map(ligne),
     "Aucun fournisseur pour l'instant.",
   );
-  recherche.addEventListener("input", () => {
+  const nbAValider = fournisseurs.filter((f) => f.statut === A_VALIDER).length;
+  const seulementAValider = el("input", { type: "checkbox", checked: parametres?.get("statut") === "a_valider" && nbAValider > 0 });
+  const filtrer = () => {
     const texte = recherche.value.trim().toLowerCase();
-    tableau.querySelectorAll("tbody tr").forEach((tr) => {
-      tr.hidden = Boolean(texte) && !tr.dataset.texte.includes(texte);
+    tableau.querySelectorAll("tbody tr").forEach((tr, i) => {
+      const statutExclu = seulementAValider.checked && fournisseurs[i].statut !== A_VALIDER;
+      tr.hidden = statutExclu || (Boolean(texte) && !tr.dataset.texte.includes(texte));
     });
-  });
+  };
+  recherche.addEventListener("input", filtrer);
+  seulementAValider.addEventListener("change", filtrer);
   const comparer = (resultat, nomFichier) => afficherComparaison(cible, resultat, nomFichier, rafraichir);
   cible.replaceChildren(
     el(
@@ -248,7 +253,15 @@ export async function afficherOngletFournisseurs(cible) {
         el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),
       ),
     ),
-    fournisseurs.length ? el("div", { class: "barre-filtres" }, recherche) : null,
+    fournisseurs.length
+      ? el(
+          "div",
+          { class: "barre-filtres" },
+          recherche,
+          nbAValider ? el("label", { class: "filtre-case" }, seulementAValider, `Seulement les ${nbAValider} à valider`) : null,
+        )
+      : null,
     tableau,
   );
+  filtrer();
 }

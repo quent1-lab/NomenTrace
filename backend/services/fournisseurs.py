@@ -6,6 +6,7 @@ from typing import Any
 from backend import db
 from backend.erreurs import Conflit, Introuvable
 from backend.services import journal
+from backend.services.import_colonnes import normaliser_entete
 
 CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
     {
@@ -19,6 +20,7 @@ CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
         "contact",
         "delai_moyen_j",
         "commentaire",
+        "statut",
     }
 )
 
@@ -62,15 +64,30 @@ def get_fiche(conn: sqlite3.Connection, nom: str) -> dict:
     return fournisseur
 
 
+def _homonyme(conn: sqlite3.Connection, nom: str) -> str | None:
+    """Fournisseur actif dont le nom ne diffère que par la casse, les espaces ou la ponctuation."""
+    cle = normaliser_entete(nom)
+    for (autre,) in conn.execute("SELECT nom FROM fournisseur WHERE archive = 0").fetchall():
+        if normaliser_entete(autre) == cle:
+            return autre
+    return None
+
+
 def create_fournisseur(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
-    """Crée un fournisseur ; refuse un nom déjà pris, réactive un fournisseur archivé."""
+    """Crée un fournisseur ; refuse un nom déjà pris, réactive un fournisseur archivé.
+
+    Un fournisseur déjà validé et réactivé le reste, même demandé « à valider ».
+    """
     nom = valeurs["nom"]
     with db.transaction(conn):
-        existant = db.fetch_one(conn, "SELECT archive FROM fournisseur WHERE nom = ?", (nom,))
-        if existant is not None and not existant["archive"]:
-            raise Conflit(f"Le fournisseur « {nom} » existe déjà.")
+        homonyme = _homonyme(conn, nom)
+        if homonyme is not None:
+            raise Conflit(f"Le fournisseur « {homonyme} » existe déjà.")
+        existant = db.fetch_one(conn, "SELECT statut FROM fournisseur WHERE nom = ?", (nom,))
         if existant is not None:
             renseignes = {cle: v for cle, v in valeurs.items() if v is not None and cle != "nom"}
+            if existant["statut"] == "Valide":
+                renseignes.pop("statut", None)
             journal.update_with_journal(
                 conn,
                 "fournisseur",

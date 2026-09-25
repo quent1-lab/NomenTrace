@@ -3,8 +3,8 @@
 import { api } from "../api.js";
 import { formatDate, formatMontant, formatNombre, libelle } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
-import { afficherErreur, el, lienProduit } from "../ui.js";
-import { LIBELLES_FOURNISSEUR, archiverFournisseur, ouvrirFormulaireFournisseur, routeFournisseur, vueContact } from "./fournisseurs_commun.js";
+import { afficherErreur, el, lienProduit, masquerErreur } from "../ui.js";
+import { A_VALIDER, LIBELLES_FOURNISSEUR, archiverFournisseur, badgeAValider, ouvrirFormulaireFournisseur, routeFournisseur, vueContact } from "./fournisseurs_commun.js";
 
 function boutonCopier(texte) {
   const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret", title: "Copier le numéro de compte" }, "Copier");
@@ -103,6 +103,27 @@ function sectionCommandes(f) {
   );
 }
 
+function bandeauValidation(f, recharger) {
+  const valider = el("button", { type: "button", class: "bouton" }, "Valider ce fournisseur");
+  valider.addEventListener("click", async () => {
+    const manque = [["catégorie", f.categorie], ["contact", f.contact], ["site web", f.site_web]].filter(([, v]) => !v).map(([t]) => t);
+    if (manque.length && !confirm(`La fiche n'a pas encore de ${manque.join(", ")}. Valider quand même ?`)) return;
+    try {
+      await api.patchFournisseur(f.nom, { statut: "Valide" });
+      masquerErreur();
+      await recharger();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  return el(
+    "div",
+    { class: "message message-attention bandeau-validation" },
+    el("span", {}, "Ce fournisseur a été ajouté par l'équipe et n'est pas encore validé. Compléter sa fiche (« Modifier »), puis le valider."),
+    valider,
+  );
+}
+
 export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
   const [f, fournisseurs] = await Promise.all([api.getFournisseur(nom), api.getFournisseurs()]);
   const recharger = (modifie) => {
@@ -116,7 +137,7 @@ export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
     el(
       "div",
       { class: "titre-page" },
-      el("h1", {}, `${f.nom} `, f.categorie ? el("span", { class: "etiquette" }, f.categorie) : null, " ", f.archive ? el("span", { class: "etiquette etiquette--alerte" }, "archivé") : null),
+      el("h1", {}, `${f.nom} `, f.categorie ? el("span", { class: "etiquette" }, f.categorie) : null, " ", f.statut === A_VALIDER ? badgeAValider() : null, " ", f.archive ? el("span", { class: "etiquette etiquette--alerte" }, "archivé") : null),
       el(
         "div",
         { class: "actions" },
@@ -124,6 +145,7 @@ export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
         f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
       ),
     ),
+    f.statut === A_VALIDER ? bandeauValidation(f, recharger) : null,
     coordonnees(f),
     sectionComposants(f),
     sectionCommandes(f),

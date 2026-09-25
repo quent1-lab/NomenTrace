@@ -241,7 +241,7 @@ function tableEntites(lignes) {
       return el("tr", {},
         el("td", {}, coche),
         el("td", {}, type),
-        el("td", { class: "fort" }, e.nom ?? e.libelle),
+        el("td", { class: "fort" }, e.nom ?? e.libelle, e.type === "fournisseur" ? el("span", { class: "texte-doux texte-petit" }, " — créé « à valider »") : null),
         el("td", { class: "code texte-doux" }, e.code ?? ""),
         el("td", {}, origine(ligne)),
       );

@@ -28,6 +28,7 @@ const DESCRIPTION = {
   pays: "texte",
   delai_moyen_j: "entier",
   commentaire: "texte",
+  statut: "choix",
 };
 
 // Adresse de la fiche d'un fournisseur (le nom peut contenir « / »).
@@ -35,12 +36,57 @@ export function routeFournisseur(nom) {
   return `/fournisseurs/${encodeURIComponent(nom)}`;
 }
 
-// Nom cliquable qui ouvre la fiche ; le clic ne déclenche pas l'action de la ligne.
-export function lienFournisseur(nom) {
+export const A_VALIDER = "A valider";
+
+export function badgeAValider() {
+  return el("span", { class: "etiquette etiquette--attention", title: "Fournisseur trouvé par l'équipe, pas encore validé" }, "à valider");
+}
+
+// Nom cliquable qui ouvre la fiche ; le clic ne déclenche pas l'action de la ligne. Le statut,
+// s'il est connu, ajoute l'étiquette « à valider ».
+export function lienFournisseur(nom, statut = null) {
   if (!nom) return "—";
   const lien = el("a", { class: "lien-fournisseur", href: `#${routeFournisseur(nom)}`, title: `Fiche du fournisseur ${nom}` }, nom);
   lien.addEventListener("click", (e) => e.stopPropagation());
-  return lien;
+  return statut === A_VALIDER ? el("span", { class: "fournisseur-a-valider" }, lien, " ", badgeAValider()) : lien;
+}
+
+// Statut de chaque fournisseur, pour afficher l'étiquette là où seul le nom est connu.
+export function statutsFournisseurs(fournisseurs) {
+  return new Map(fournisseurs.map((f) => [f.nom, f.statut]));
+}
+
+function cleNom(nom) {
+  return nom.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+const NOUVEAU = "__nouveau__";
+
+// Choix du fournisseur d'un composant : liste existante, ou un nouveau nom saisi par
+// l'équipe, créé « à valider » au moment d'enregistrer (resoudre()).
+export function champFournisseur(fournisseurs, valeur) {
+  const options = fournisseurs.map((f) => [f.nom, f.statut === A_VALIDER ? `${f.nom} (à valider)` : f.nom]);
+  const select = champChoix("fournisseur_nom", options, valeur, { vide: "—" });
+  select.append(el("option", { value: NOUVEAU }, "+ Nouveau fournisseur (à valider)…"));
+  const saisie = el("input", { class: "champ", type: "text", hidden: true, placeholder: "Nom du nouveau fournisseur", "aria-label": "Nom du nouveau fournisseur" });
+  const aide = el("span", { class: "ligne-champ__aide", hidden: true }, "Il sera créé « à valider » : une personne autorisée complétera sa fiche et le validera.");
+  select.addEventListener("change", () => {
+    const nouveau = select.value === NOUVEAU;
+    saisie.hidden = !nouveau;
+    aide.hidden = !nouveau;
+    if (nouveau) saisie.focus();
+  });
+  async function resoudre() {
+    if (select.value !== NOUVEAU) return select.value || null;
+    const nom = saisie.value.trim().replace(/\s+/g, " ");
+    if (!nom) throw new Error("Saisir le nom du nouveau fournisseur, ou en choisir un dans la liste.");
+    const existant = fournisseurs.find((f) => cleNom(f.nom) === cleNom(nom));
+    if (existant) return existant.nom;
+    const cree = await api.createFournisseur({ nom, statut: A_VALIDER });
+    fournisseurs.push(cree);
+    return cree.nom;
+  }
+  return { element: el("span", { class: "champ-fournisseur" }, select, saisie, aide), select, resoudre };
 }
 
 // Contact sur plusieurs lignes ; les adresses électroniques deviennent des liens mailto.
@@ -91,6 +137,9 @@ export function ouvrirFormulaireFournisseur(fournisseur, { fournisseurs = [], su
     ligneChamp(LIBELLES_FOURNISSEUR.pays, champTexte("pays", f.pays ?? "")),
     ligneChamp(LIBELLES_FOURNISSEUR.delai_moyen_j, champNombre("delai_moyen_j", f.delai_moyen_j ?? null)),
     ligneChamp(LIBELLES_FOURNISSEUR.commentaire, champZone("commentaire", f.commentaire ?? "")),
+    ligneChamp("Statut", champChoix("statut", [["Valide", "Validé"], [A_VALIDER, "À valider"]], f.statut ?? "Valide"), {
+      aide: "« À valider » : trouvé par l'équipe, pas encore vérifié par une personne autorisée.",
+    }),
     el(
       "div",
       { class: "actions-formulaire" },
