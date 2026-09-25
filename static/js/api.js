@@ -49,6 +49,23 @@ async function requeteFormulaire(chemin, donnees) {
   return resultat;
 }
 
+// Téléchargement d'un fichier construit par le serveur : renvoie son contenu et son nom.
+async function requeteFichier(chemin) {
+  let reponse;
+  try {
+    reponse = await fetch(chemin);
+  } catch {
+    throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
+  }
+  if (!reponse.ok) {
+    const donnees = await reponse.json().catch(() => null);
+    throw new ErreurApi(donnees?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
+  }
+  const disposition = reponse.headers.get("Content-Disposition") ?? "";
+  const nom = disposition.match(/filename="?([^";]+)"?/)?.[1] ?? "nomentrace";
+  return { contenu: await reponse.blob(), nom };
+}
+
 // Adresses de téléchargement des modèles à remplir (liens, pas des appels fetch).
 export function lienModele(type, code) {
   return `/api/${type === "bloc" ? "blocs" : "ensembles"}/${encodeURIComponent(code)}/modele`;
@@ -74,6 +91,8 @@ export const api = {
   getParametres: () => requete("GET", "/api/parametres"),
   patchParametres: (modifs) => requete("PATCH", "/api/parametres", modifs),
   exporter: () => requete("POST", "/api/export"),
+  telechargerExcelGlobal: () => requeteFichier("/api/export/classeur"),
+  telechargerArchive: () => requeteFichier("/api/sauvegardes/archive"),
   getSauvegardes: () => requete("GET", "/api/sauvegardes"),
   createSauvegarde: () => requete("POST", "/api/sauvegardes"),
   restaurerSauvegarde: (nom) => requete("POST", `/api/sauvegardes/${encodeURIComponent(nom)}/restaurer`),
@@ -105,6 +124,8 @@ export const api = {
   getIncoherences: () => requete("GET", "/api/ensembles/incoherences"),
 
   getComposants: (filtres) => requete("GET", avecParametres("/api/composants", filtres)),
+  exporterComposants: (filtres, colonnes) =>
+    requeteFichier(avecParametres("/api/composants/export", { ...filtres, colonnes: colonnes.join(",") })),
   getComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}`),
   createComposant: (valeurs) => requete("POST", "/api/composants", valeurs),
   patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),

@@ -47,6 +47,7 @@
 
   --rayon: 4px;
   --largeur-menu: 190px;
+  --largeur-menu-icones: 52px;
   --police: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --taille-texte: 14px;
   --taille-petit: 12px;
@@ -95,6 +96,23 @@ h2 {
   display: flex;
   align-items: baseline;
   gap: var(--espace-3);
+}
+
+.entete__menu {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  padding: var(--espace-1);
+  border: 0;
+  border-radius: var(--rayon);
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.entete__menu:hover,
+.entete__menu:focus-visible {
+  background: var(--couleur-ardoise);
 }
 
 .entete__titre {
@@ -155,7 +173,21 @@ h2 {
   border-right: 1px solid var(--couleur-bordure);
 }
 
+.icone {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .menu__lien {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
   padding: var(--espace-2) var(--espace-4);
   color: var(--couleur-texte);
   text-decoration: none;
@@ -173,6 +205,9 @@ h2 {
 }
 
 .menu__source {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
   margin: var(--espace-4) var(--espace-4) 0;
   padding-top: var(--espace-3);
   border-top: 1px solid var(--couleur-bordure);
@@ -181,9 +216,41 @@ h2 {
   text-decoration: none;
 }
 
+.menu__source .icone {
+  width: 14px;
+  height: 14px;
+}
+
 .menu__source:hover {
   color: var(--couleur-ardoise);
   text-decoration: underline;
+}
+
+/* Menu réduit à ses icônes, ou masqué (bouton de l'en-tête, préférence mémorisée). */
+[data-menu="icones"] .cadre {
+  grid-template-columns: var(--largeur-menu-icones) 1fr;
+}
+
+[data-menu="icones"] .menu__texte {
+  display: none;
+}
+
+[data-menu="icones"] .menu__lien {
+  justify-content: center;
+  padding: var(--espace-2) 0;
+}
+
+[data-menu="icones"] .menu__source {
+  justify-content: center;
+  margin: var(--espace-4) var(--espace-2) 0;
+}
+
+[data-menu="masque"] .cadre {
+  grid-template-columns: 1fr;
+}
+
+[data-menu="masque"] .menu {
+  display: none;
 }
 
 .contenu {

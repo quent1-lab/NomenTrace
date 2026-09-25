@@ -2,6 +2,7 @@
 
 import { api, surEcriture } from "./api.js";
 import { detruireGraphiques } from "./graphiques.js";
+import { installerMenu } from "./menu.js";
 import { fermerPanneau } from "./panneau.js";
 import { afficherAchats } from "./pages/achats.js";
 import { afficherBlocs } from "./pages/blocs.js";
@@ -117,6 +118,7 @@ setInterval(rafraichirEntete, 15000);
 window.addEventListener("nomentrace:projet", rafraichirEntete);
 
 async function demarrer() {
+  installerMenu();
   try {
     await chargerListes();
   } catch (erreur) {

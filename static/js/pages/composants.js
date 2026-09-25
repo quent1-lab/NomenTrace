@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { formatEcart, formatMontant, formatNombre, libelle } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
-import { classeBloc, el, lienProduit, rangsBlocs } from "../ui.js";
+import { afficherErreur, classeBloc, el, enregistrerFichier, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import { ouvrirFiche } from "./composants_fiche.js";
@@ -37,33 +37,35 @@ function cellulePuReleve(c) {
   return [formatMontant(c.pu_releve), " ", el("span", { class: "texte-doux" }, c.base_prix_releve)];
 }
 
+// `cle` nomme la colonne pour l'export Excel, qui reprend les colonnes dans cet ordre.
 const COLONNES = [
-  { titre: "ID", tri: "id", classe: "code colonne-fixe", rendu: (c) => c.id },
-  { titre: "Bloc", tri: "bloc_code", rendu: (c) => el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(c.bloc_code) ?? 0)}` }, c.bloc_code) },
-  { titre: "Fonction", tri: "fonction", classe: "tronque", rendu: (c) => c.fonction, infobulle: (c) => c.fonction },
-  { titre: "Désignation", tri: "designation", classe: "tronque tronque--large", rendu: (c) => c.designation, infobulle: (c) => c.designation },
-  { titre: "", classe: "colonne-lien", rendu: (c) => lienProduit(c.lien_produit), aide: "Page produit" },
-  { titre: "Réf fabricant", tri: "ref_fabricant", classe: "tronque", rendu: (c) => c.ref_fabricant ?? "", infobulle: (c) => c.ref_fabricant },
-  { titre: "Mode appro", tri: "mode_appro", rendu: (c) => libelle(c.mode_appro) },
+  { cle: "id", titre: "ID", tri: "id", classe: "code colonne-fixe", rendu: (c) => c.id },
+  { cle: "bloc_code", titre: "Bloc", tri: "bloc_code", rendu: (c) => el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(c.bloc_code) ?? 0)}` }, c.bloc_code) },
+  { cle: "fonction", titre: "Fonction", tri: "fonction", classe: "tronque", rendu: (c) => c.fonction, infobulle: (c) => c.fonction },
+  { cle: "designation", titre: "Désignation", tri: "designation", classe: "tronque tronque--large", rendu: (c) => c.designation, infobulle: (c) => c.designation },
+  { cle: "lien_produit", titre: "", classe: "colonne-lien", rendu: (c) => lienProduit(c.lien_produit), aide: "Page produit" },
+  { cle: "ref_fabricant", titre: "Réf fabricant", tri: "ref_fabricant", classe: "tronque", rendu: (c) => c.ref_fabricant ?? "", infobulle: (c) => c.ref_fabricant },
+  { cle: "mode_appro", titre: "Mode appro", tri: "mode_appro", rendu: (c) => libelle(c.mode_appro) },
   {
+    cle: "fournisseur_nom",
     titre: "Fournisseur",
     tri: "fournisseur_nom",
     classe: "tronque",
     rendu: (c) => lienFournisseur(c.fournisseur_nom, etat.statutsFournisseurs.get(c.fournisseur_nom)),
     edition: { champ: "fournisseur_nom", type: "choix", vide: true, options: () => etat.fournisseurs.map((f) => [f.nom, f.nom]) },
   },
-  { titre: "Besoin", classe: "nombre", rendu: (c) => formatNombre(c.qte_besoin), edition: { champ: "qte_besoin", type: "entier" } },
-  { titre: "Rech.", classe: "nombre", rendu: (c) => formatNombre(c.qte_rechange), edition: { champ: "qte_rechange", type: "entier" }, aide: "Quantité de rechange" },
-  { titre: "Dispo.", classe: "nombre", rendu: (c) => formatNombre(c.qte_disponible), edition: { champ: "qte_disponible", type: "entier" }, aide: "Quantité déjà disponible sans achat (stock existant, prêt…)" },
-  { titre: "À acheter", tri: "qte_a_acheter", classe: "nombre", rendu: (c) => formatNombre(c.qte_a_acheter) },
-  { titre: "Qté affectée", tri: "qte_affectee", classe: "nombre", rendu: celluleAffectee },
-  { titre: "PU relevé", classe: "nombre", rendu: cellulePuReleve, edition: { champ: "pu_releve", type: "prix" } },
-  { titre: "PU HT", tri: "pu_ht", classe: "nombre", rendu: (c) => formatMontant(c.pu_ht) },
-  { titre: "Total HT", tri: "total_ht", classe: "nombre fort", rendu: (c) => formatMontant(c.total_ht) },
-  { titre: "Statut choix", tri: "statut_choix", rendu: (c) => libelle(c.statut_choix) || "—", edition: { champ: "statut_choix", type: "choix", vide: true, options: (courante) => valeursListe("statut_choix", { valeurCourante: courante }) } },
-  { titre: "Statut appro", tri: "statut_appro", rendu: (c) => libelle(c.statut_appro), edition: { champ: "statut_appro", type: "choix", vide: false, options: (courante) => valeursListe("statut_appro", { valeurCourante: courante }) } },
-  { titre: "Criticité", tri: "criticite", rendu: (c) => libelle(c.criticite) || "—", edition: { champ: "criticite", type: "choix", vide: true, options: (courante) => valeursListe("criticite", { valeurCourante: courante }) } },
-  { titre: "Avancement", tri: "avancement", rendu: (c) => el("span", { class: `avancement avancement--${c.avancement.replace(/\s/g, "-").toLowerCase()}` }, libelle(c.avancement)) },
+  { cle: "qte_besoin", titre: "Besoin", classe: "nombre", rendu: (c) => formatNombre(c.qte_besoin), edition: { champ: "qte_besoin", type: "entier" } },
+  { cle: "qte_rechange", titre: "Rech.", classe: "nombre", rendu: (c) => formatNombre(c.qte_rechange), edition: { champ: "qte_rechange", type: "entier" }, aide: "Quantité de rechange" },
+  { cle: "qte_disponible", titre: "Dispo.", classe: "nombre", rendu: (c) => formatNombre(c.qte_disponible), edition: { champ: "qte_disponible", type: "entier" }, aide: "Quantité déjà disponible sans achat (stock existant, prêt…)" },
+  { cle: "qte_a_acheter", titre: "À acheter", tri: "qte_a_acheter", classe: "nombre", rendu: (c) => formatNombre(c.qte_a_acheter) },
+  { cle: "qte_affectee", titre: "Qté affectée", tri: "qte_affectee", classe: "nombre", rendu: celluleAffectee },
+  { cle: "pu_releve", titre: "PU relevé", classe: "nombre", rendu: cellulePuReleve, edition: { champ: "pu_releve", type: "prix" } },
+  { cle: "pu_ht", titre: "PU HT", tri: "pu_ht", classe: "nombre", rendu: (c) => formatMontant(c.pu_ht) },
+  { cle: "total_ht", titre: "Total HT", tri: "total_ht", classe: "nombre fort", rendu: (c) => formatMontant(c.total_ht) },
+  { cle: "statut_choix", titre: "Statut choix", tri: "statut_choix", rendu: (c) => libelle(c.statut_choix) || "—", edition: { champ: "statut_choix", type: "choix", vide: true, options: (courante) => valeursListe("statut_choix", { valeurCourante: courante }) } },
+  { cle: "statut_appro", titre: "Statut appro", tri: "statut_appro", rendu: (c) => libelle(c.statut_appro), edition: { champ: "statut_appro", type: "choix", vide: false, options: (courante) => valeursListe("statut_appro", { valeurCourante: courante }) } },
+  { cle: "criticite", titre: "Criticité", tri: "criticite", rendu: (c) => libelle(c.criticite) || "—", edition: { champ: "criticite", type: "choix", vide: true, options: (courante) => valeursListe("criticite", { valeurCourante: courante }) } },
+  { cle: "avancement", titre: "Avancement", tri: "avancement", rendu: (c) => el("span", { class: `avancement avancement--${c.avancement.replace(/\s/g, "-").toLowerCase()}` }, libelle(c.avancement)) },
 ];
 
 // --- URL et filtres -------------------------------------------------------------------------
@@ -298,6 +300,20 @@ function ouvrirFicheComposant(id) {
   });
 }
 
+// Classeur de la liste affichée : mêmes filtres, même tri, mêmes colonnes.
+async function exporterListe(evenement) {
+  const bouton = evenement.currentTarget;
+  bouton.disabled = true;
+  try {
+    enregistrerFichier(await api.exporterComposants(parametresApi(), COLONNES.map((col) => col.cle)));
+    masquerErreur();
+  } catch (erreur) {
+    afficherErreur(erreur);
+  } finally {
+    bouton.disabled = false;
+  }
+}
+
 function ouvrirCreationComposant() {
   ouvrirCreation({
     blocs: etat.blocs,
@@ -334,7 +350,12 @@ export async function afficherComposants(conteneur, parametres) {
       "div",
       { class: "titre-page" },
       el("h1", {}, "Composants"),
-      el("button", { type: "button", class: "bouton", onclick: ouvrirCreationComposant }, "+ Ajouter un composant"),
+      el(
+        "div",
+        { class: "actions" },
+        el("button", { type: "button", class: "bouton bouton--discret", title: "Classeur Excel de la liste affichée", onclick: exporterListe }, "Exporter"),
+        el("button", { type: "button", class: "bouton", onclick: ouvrirCreationComposant }, "+ Ajouter un composant"),
+      ),
     ),
     etat.indicateurs,
     etat.zoneFiltres,

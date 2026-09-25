@@ -47,6 +47,16 @@ export function afficherAvertissements(messages) {
   bandeauAvertissement.hidden = false;
 }
 
+// Propose au navigateur d'enregistrer un fichier reçu du serveur ({ contenu, nom }).
+export function enregistrerFichier({ contenu, nom }) {
+  const adresse = URL.createObjectURL(contenu);
+  const lien = el("a", { href: adresse, download: nom });
+  document.body.append(lien);
+  lien.click();
+  lien.remove();
+  setTimeout(() => URL.revokeObjectURL(adresse), 60000);
+}
+
 // Largeur d'une barre de progression, bornée entre 0 et 100 %.
 export function largeur(element, pourcent) {
   const borne = Math.max(0, Math.min(100, Number(pourcent) || 0));

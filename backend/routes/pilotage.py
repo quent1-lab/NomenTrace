@@ -3,15 +3,16 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 
 from backend.arrondi import round_output
 from backend.deps import get_conn
 from backend.models import ParametresModif
-from backend.services import journal, parametres, pilotage
+from backend.services import export_excel, journal, parametres, pilotage
 
 router = APIRouter(prefix="/api", tags=["pilotage"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
+TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 @router.get("/pilotage")
@@ -43,3 +44,15 @@ def read_journal(
 def create_export(request: Request) -> dict:
     reussi = request.app.state.export.export_now()
     return {"statut": "ok" if reussi else "en_attente"}
+
+
+@router.get("/export/classeur")
+def read_export_classeur(request: Request) -> Response:
+    """Classeur d'export complet, régénéré à la demande ; rien n'est écrit dans echange/."""
+    contenu = export_excel.build_export_bytes(request.app.state.chemin_base)
+    nom = export_excel.nom_telechargement()
+    return Response(
+        contenu,
+        media_type=TYPE_XLSX,
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'},
+    )

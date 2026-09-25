@@ -1,11 +1,13 @@
 """Export Excel automatique de la base : écriture atomique, anti-rafale, fichier verrouillé."""
 
+import io
 import logging
 import os
 import sqlite3
 import tempfile
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -84,6 +86,18 @@ def build_workbook(chemin_base: Path) -> Workbook:
         return classeur
     finally:
         conn.close()
+
+
+def build_export_bytes(chemin_base: Path) -> bytes:
+    """Classeur complet régénéré à la demande, en mémoire, pour un téléchargement."""
+    tampon = io.BytesIO()
+    build_workbook(chemin_base).save(tampon)
+    return tampon.getvalue()
+
+
+def nom_telechargement(maintenant: datetime | None = None) -> str:
+    """nomentrace_export_AAAAMMJJ_HHMM.xlsx"""
+    return f"nomentrace_export_{(maintenant or datetime.now()):%Y%m%d_%H%M}.xlsx"
 
 
 def write_export(chemin_base: Path, dossier: Path) -> Path:

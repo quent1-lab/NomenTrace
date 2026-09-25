@@ -1,8 +1,11 @@
 """Sauvegardes de la base par l'API de sauvegarde de sqlite3, et restauration."""
 
 import logging
+import os
 import re
 import sqlite3
+import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -135,3 +138,55 @@ def restore_sauvegarde(chemin_base: Path, dossier: Path, nom: str) -> dict:
         "version_sauvegarde": version_source,
         "version_schema": version,
     }
+
+
+NOM_BASE_ARCHIVE: str = "nomentrace.db"
+DOSSIER_DOCUMENTS_ARCHIVE: str = "documents"
+FICHIERS_IGNORES: frozenset[str] = frozenset({".gitkeep"})
+
+
+def nom_archive(maintenant: datetime | None = None) -> str:
+    """nomentrace_archive_AAAAMMJJ_HHMM.zip"""
+    return f"nomentrace_archive_{(maintenant or datetime.now()):%Y%m%d_%H%M}.zip"
+
+
+def _ajouter_documents(archive: zipfile.ZipFile, dossier_documents: Path) -> int:
+    """Ajoute tout le dossier des documents sous documents/ ; renvoie le nombre de fichiers."""
+    nombre = 0
+    if not dossier_documents.is_dir():
+        return nombre
+    for chemin in sorted(dossier_documents.rglob("*")):
+        if chemin.is_file() and chemin.name not in FICHIERS_IGNORES:
+            relatif = chemin.relative_to(dossier_documents).as_posix()
+            archive.write(chemin, f"{DOSSIER_DOCUMENTS_ARCHIVE}/{relatif}")
+            nombre += 1
+    return nombre
+
+
+def build_archive(chemin_base: Path, dossier_documents: Path) -> Path:
+    """Archive complète dans un fichier temporaire : copie cohérente de la base et documents.
+
+    La base est copiée par l'API de sauvegarde de sqlite3, jamais en lisant le fichier
+    ouvert. L'appelant supprime l'archive une fois envoyée.
+    """
+    descripteur, zip_temporaire = tempfile.mkstemp(prefix="nomentrace_archive_", suffix=".zip")
+    os.close(descripteur)
+    descripteur, base_temporaire = tempfile.mkstemp(prefix="nomentrace_archive_", suffix=".db")
+    os.close(descripteur)
+    try:
+        destination = sqlite3.connect(base_temporaire)
+        try:
+            _copier(chemin_base, destination)
+        finally:
+            destination.close()
+        with zipfile.ZipFile(zip_temporaire, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(base_temporaire, NOM_BASE_ARCHIVE)
+            nombre = _ajouter_documents(archive, dossier_documents)
+    except OSError, sqlite3.Error:
+        journal_log.exception("Archive complète impossible")
+        Path(zip_temporaire).unlink(missing_ok=True)
+        raise
+    finally:
+        Path(base_temporaire).unlink(missing_ok=True)
+    journal_log.info("Archive complète construite : base et %d document(s)", nombre)
+    return Path(zip_temporaire)

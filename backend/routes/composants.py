@@ -3,21 +3,38 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from backend.arrondi import round_output
 from backend.deps import get_conn
 from backend.models import ComposantCreation, ComposantModif
-from backend.services import composants
+from backend.services import composants, export_composants
 from backend.services.composants import FiltresComposants
 
 router = APIRouter(prefix="/api/composants", tags=["composants"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
+TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 @router.get("")
 def read_composants(conn: Conn, filtres: Annotated[FiltresComposants, Depends()]) -> list[dict]:
     return round_output(composants.list_composants(conn, filtres))
+
+
+# Déclarée avant /{identifiant}, sinon « export » serait lu comme un identifiant.
+@router.get("/export")
+def export_composants_filtres(
+    conn: Conn, filtres: Annotated[FiltresComposants, Depends()], colonnes: str | None = None
+) -> Response:
+    contenu = export_composants.build_export_composants(
+        conn, filtres, export_composants.parse_colonnes(colonnes)
+    )
+    nom = export_composants.nom_fichier()
+    return Response(
+        contenu,
+        media_type=TYPE_XLSX,
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'},
+    )
 
 
 @router.get("/{identifiant}")

@@ -1,8 +1,10 @@
-"""Routes des sauvegardes : liste, sauvegarde immédiate, restauration."""
+"""Routes des sauvegardes : liste, sauvegarde immédiate, restauration, archive complète."""
 
 from pathlib import Path
 
 from fastapi import APIRouter, Request
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from backend.services import sauvegardes
 
@@ -16,6 +18,20 @@ def _dossier(request: Request) -> Path:
 @router.get("")
 def read_sauvegardes(request: Request) -> list[dict]:
     return sauvegardes.describe_sauvegardes(_dossier(request))
+
+
+@router.get("/archive")
+def read_archive(request: Request) -> FileResponse:
+    """Base et documents dans un zip temporaire, supprimé une fois envoyé."""
+    chemin = sauvegardes.build_archive(
+        request.app.state.chemin_base, request.app.state.dossier_documents
+    )
+    return FileResponse(
+        chemin,
+        media_type="application/zip",
+        filename=sauvegardes.nom_archive(),
+        background=BackgroundTask(chemin.unlink, missing_ok=True),
+    )
 
 
 @router.post("", status_code=201)

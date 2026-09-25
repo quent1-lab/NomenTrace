@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { formatDate, formatNombre } from "../format.js";
 import { champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { remplacerRoute } from "../router.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
 import { afficherListes } from "./parametres_listes.js";
 
@@ -132,6 +132,45 @@ async function restaurer(sauvegarde, rafraichir) {
   }
 }
 
+// Bouton qui fait construire un fichier par le serveur puis le propose au téléchargement.
+function boutonTelechargement(texte, telecharger, { enCours, principal = false } = {}) {
+  const bouton = el("button", { type: "button", class: principal ? "bouton" : "bouton bouton--discret" }, texte);
+  bouton.addEventListener("click", async () => {
+    bouton.disabled = true;
+    bouton.textContent = enCours ?? texte;
+    try {
+      enregistrerFichier(await telecharger());
+      masquerErreur();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    } finally {
+      bouton.disabled = false;
+      bouton.textContent = texte;
+    }
+  });
+  return bouton;
+}
+
+function sectionArchive() {
+  return el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Archive complète"),
+    el(
+      "p",
+      { class: "texte-doux" },
+      "Un fichier .zip qui contient une copie cohérente de la base (nomentrace.db) et tous les documents joints " +
+        "(dossier documents). C'est la sauvegarde à conserver hors de la machine ; le README explique comment " +
+        "restaurer à partir de cette archive.",
+    ),
+    el(
+      "div",
+      { class: "actions" },
+      boutonTelechargement("Télécharger une archive complète", api.telechargerArchive, { enCours: "Préparation de l'archive…", principal: true }),
+    ),
+  );
+}
+
 function sectionExport(retour) {
   const bouton = el("button", { type: "button", class: "bouton" }, "Exporter maintenant");
   bouton.addEventListener("click", async () => {
@@ -160,7 +199,12 @@ function sectionExport(retour) {
       "Le classeur d'export est réécrit automatiquement quelques secondes après chaque modification. " +
         "C'est une copie de lecture : les changements faits dedans ne reviennent pas dans l'outil.",
     ),
-    el("div", { class: "actions" }, bouton),
+    el(
+      "div",
+      { class: "actions" },
+      bouton,
+      boutonTelechargement("Télécharger l'Excel global", api.telechargerExcelGlobal, { enCours: "Préparation du classeur…" }),
+    ),
     retour,
   );
 }
@@ -196,6 +240,7 @@ async function afficherOngletSauvegardes(cible) {
   );
   cible.replaceChildren(
     sectionExport(retourExport),
+    sectionArchive(),
     el(
       "section",
       { class: "panneau" },
@@ -204,7 +249,7 @@ async function afficherOngletSauvegardes(cible) {
         "p",
         { class: "texte-doux" },
         "Une sauvegarde est prise à chaque démarrage et avant chaque restauration ; les 20 plus récentes sont gardées " +
-          "dans echange/sauvegardes. Elles ne contiennent que la base : les documents joints (echange/documents) se copient à part.",
+          "dans echange/sauvegardes. Elles ne contiennent que la base : pour y joindre les documents, télécharger une archive complète.",
       ),
       retourSauvegarde,
       lignes.length

@@ -22,7 +22,8 @@ assembly. The interface and documentation are in French.*
   avancement des achats, alertes (composants à chiffrer, commandes en retard, bloquants
   non commandés, fournisseurs à valider).
 - **Composants** : tableau filtrable et triable, modifiable sur place, fiche détaillée avec
-  l'historique de chaque changement et les documents joints.
+  l'historique de chaque changement et les documents joints. Le bouton « Exporter » en
+  tire un classeur Excel de la liste affichée, avec ses filtres et son tri.
 - **Deux découpages** : le *bloc fonctionnel* (à quoi sert le composant, un seul, figé dans
   l'identifiant) et l'*ensemble* physique (où il est monté, plusieurs possibles, avec une
   quantité). Voir [docs/MODELE.md](docs/MODELE.md).
@@ -34,7 +35,8 @@ assembly. The interface and documentation are in French.*
   l'équipe le remplit, on le redépose, et chaque différence est présentée pour être
   acceptée ou refusée (nouveaux composants, doublons probables, modifications).
 - **Export Excel** de toute la base, réécrit automatiquement après chaque modification.
-- **Sauvegardes** automatiques et restauration depuis l'interface.
+- **Sauvegardes** automatiques et restauration depuis l'interface ; archive complète
+  (base et documents) à télécharger.
 
 ## Prérequis
 
@@ -110,6 +112,11 @@ C'est une **copie de lecture** : ce qu'on y modifie ne revient jamais dans l'out
 écrasé au prochain export. Pour faire remonter des données de l'équipe, utiliser les
 modèles de l'écran Imports.
 
+Le bouton « Télécharger l'Excel global » du même écran régénère ce classeur et l'envoie
+au navigateur, sans passer par `echange/exports/`. Sur l'écran Composants, « Exporter »
+produit un classeur de la seule liste affichée : mêmes filtres, même tri, mêmes colonnes,
+avec la ligne de total.
+
 **« Export Excel en attente »** dans l'en-tête : le fichier est ouvert dans Excel, qui le
 verrouille. L'outil réessaie toutes les 30 secondes ; fermer le classeur suffit, rien
 n'est perdu.
@@ -125,10 +132,26 @@ confirmations. L'état courant est d'abord sauvegardé : on peut donc annuler un
 restauration. Une sauvegarde prise avec une version plus ancienne de Nomentrace reçoit les
 mises à jour de schéma manquantes.
 
-**Les sauvegardes ne contiennent que la base.** Pour une sauvegarde complète hors de la
-machine, arrêter Nomentrace puis copier `data/nomentrace.db` et le dossier
-`echange/documents/`. Restaurer à la main : arrêter, remettre ces deux éléments en place,
-relancer.
+**Les sauvegardes ne contiennent que la base.** Pour une sauvegarde complète à garder
+hors de la machine, utiliser « Télécharger une archive complète » (Paramètres › Export et
+sauvegardes). Le fichier `nomentrace_archive_AAAAMMJJ_HHMM.zip` contient :
+
+- `nomentrace.db` : une copie cohérente de la base, prise par l'API de sauvegarde de
+  SQLite pendant que l'outil tourne ;
+- `documents/` : tout le contenu de `echange/documents/`.
+
+**Restaurer à partir d'une archive complète** :
+
+1. Arrêter Nomentrace (fermer la fenêtre de `lancer.bat`).
+2. Mettre de côté la base actuelle en renommant `data/nomentrace.db` (par exemple en
+   `nomentrace_avant.db`). Supprimer `data/nomentrace.db-wal` et `data/nomentrace.db-shm`
+   s'ils existent : ils appartiennent à l'ancienne base.
+3. Extraire l'archive, puis copier `nomentrace.db` dans `data/`.
+4. Remplacer le contenu de `echange/documents/` par celui du dossier `documents/` de
+   l'archive.
+5. Relancer Nomentrace. Une sauvegarde est prise au démarrage ; si l'archive vient d'une
+   version plus ancienne de l'outil, les mises à jour de schéma manquantes s'appliquent
+   d'elles-mêmes.
 
 ## Mettre à jour
 
