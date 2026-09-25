@@ -2041,12 +2041,51 @@ td.editable:hover {
   fill: var(--couleur-neutre-fond);
 }
 
-.schema__jauge {
+/* Niveaux de couleur du schéma : fill pour le SVG, background pour les pastilles. */
+.schema__niveau--conforme {
   fill: var(--couleur-conforme);
+  background: var(--couleur-conforme);
 }
 
-.schema__jauge--depasse {
+.schema__niveau--surveiller {
+  fill: var(--couleur-surveiller);
+  background: var(--couleur-surveiller);
+}
+
+.schema__niveau--alerte {
   fill: var(--couleur-alerte);
+  background: var(--couleur-alerte);
+}
+
+.schema__niveau--info {
+  fill: var(--couleur-ardoise);
+  background: var(--couleur-ardoise);
+}
+
+.schema__niveau--neutre {
+  fill: var(--couleur-neutre);
+  background: var(--couleur-neutre);
+}
+
+.schema__legende {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+  color: var(--couleur-texte-doux);
+}
+
+.schema__legende-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+}
+
+.schema__pastille {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
 }
 
 .icone--cadenas {
@@ -2063,4 +2102,160 @@ td.editable:hover {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* --- Frise d'un composant --------------------------------------------------------------------- */
+
+.frise__filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-2);
+}
+
+.frise {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.frise__evenement {
+  display: grid;
+  grid-template-columns: 116px 1fr auto;
+  gap: var(--espace-2);
+  padding: var(--espace-1) 0 var(--espace-1) var(--espace-3);
+  border-left: 3px solid var(--couleur-neutre);
+  font-size: var(--taille-petit);
+}
+
+.frise__evenement + .frise__evenement {
+  border-top: 1px solid var(--couleur-neutre-fond);
+}
+
+.frise__evenement--achat {
+  border-left-color: var(--couleur-ardoise);
+}
+
+.frise__evenement--stock {
+  border-left-color: var(--couleur-conforme);
+}
+
+.frise__evenement--montage {
+  border-left-color: var(--couleur-surveiller);
+}
+
+.frise__evenement--document {
+  border-left-color: var(--couleur-texte-doux);
+}
+
+.frise__date {
+  color: var(--couleur-texte-doux);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.frise__texte {
+  overflow-wrap: anywhere;
+}
+
+.frise__source {
+  margin-right: var(--espace-1);
+  padding: 0 var(--espace-1);
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise-clair);
+  color: var(--couleur-ardoise-fonce);
+  text-decoration: none;
+}
+
+/* --- Recherche globale (en-tête) -------------------------------------------------------------- */
+
+.recherche-globale {
+  position: relative;
+  flex: 0 1 420px;
+  margin: 0 var(--espace-4);
+}
+
+.recherche-globale__champ {
+  width: 100%;
+  padding: var(--espace-1) var(--espace-3);
+  border: 1px solid var(--couleur-ardoise);
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise);
+  color: #ffffff;
+  font: inherit;
+}
+
+.recherche-globale__champ::placeholder {
+  color: #c8d2de;
+}
+
+.recherche-globale__champ:focus {
+  outline: none;
+  border-color: #ffffff;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+}
+
+.recherche-globale__resultats {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--espace-2) 0;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-surface);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  color: var(--couleur-texte);
+}
+
+.recherche-globale__type {
+  margin: var(--espace-2) var(--espace-3) var(--espace-1);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.recherche-globale__lien {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: baseline;
+  padding: var(--espace-1) var(--espace-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.recherche-globale__lien > span:not(.code) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recherche-globale__lien:hover,
+.recherche-globale__lien--actif {
+  background: var(--couleur-ardoise-clair);
+}
+
+.recherche-globale__vide {
+  margin: var(--espace-2) var(--espace-3);
+}
+
+/* --- Duplication et demandes de devis --------------------------------------------------------- */
+
+.duplication__codes .champ {
+  width: 100%;
+}
+
+.devis__sans-fournisseur {
+  margin-top: var(--espace-4);
+}
+
+.formulaire__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
 }

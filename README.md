@@ -22,7 +22,8 @@ assembly. The interface and documentation are in French.*
   avancement des achats, alertes (composants à chiffrer, commandes en retard, bloquants
   non commandés, fournisseurs à valider).
 - **Composants** : tableau filtrable et triable, modifiable sur place, fiche détaillée avec
-  l'historique de chaque changement et les documents joints. Le bouton « Exporter » en
+  les documents joints et une frise de tout ce qui est arrivé au composant (modifications,
+  devis et commandes, réceptions, stock, montage, documents). Le bouton « Exporter » en
   tire un classeur Excel de la liste affichée, avec ses filtres et son tri.
 - **Caractéristiques** paramétrables (tension, matériau…), créées dans Paramètres ›
   Attributs : affichables en colonnes, filtrables, triables, présentes dans les exports et
@@ -30,10 +31,16 @@ assembly. The interface and documentation are in French.*
 - **Deux découpages** : le *bloc fonctionnel* (à quoi sert le composant, un seul, figé dans
   l'identifiant) et l'*ensemble* physique (où il est monté, plusieurs possibles, avec une
   quantité). Les ensembles s'imbriquent en arbre sous le projet, avec des indicateurs
-  cumulés et un budget d'ensemble réparti à parts égales, verrouillable.
+  cumulés et un budget d'ensemble réparti à parts égales, verrouillable. Un ensemble se
+  duplique avec ses affectations et, au choix, ses sous-ensembles.
   Voir [docs/MODELE.md](docs/MODELE.md).
 - **Achats** : devis et commandes, réceptions partielles, stock, montage dans les
-  ensembles, devis et factures joints.
+  ensembles, devis et factures joints. Les demandes de devis se préparent en un clic :
+  ce qu'il reste à commander, regroupé par fournisseur.
+- **Recherche globale** dans l'en-tête (Ctrl+F ou « / ») : composants, commandes,
+  fournisseurs, ensembles et blocs.
+- **Historique** du projet (Paramètres › Historique) : toutes les modifications, filtrables
+  et exportables.
 - **Fournisseurs** : fiche avec contact et numéro de compte, comparaison avec une liste de
   fournisseurs de référence, fournisseurs proposés par l'équipe à valider.
 - **Travail en équipe par Excel** : l'outil génère un modèle par bloc ou par ensemble ;

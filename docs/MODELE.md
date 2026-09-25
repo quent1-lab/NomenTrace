@@ -243,6 +243,14 @@ est conservé mais ignoré.
 qu'une répartition récursive s'y exprime mal. Il est recalculé à chaque
 lecture, sans arrondi et sans rien stocker, par `backend/services/ensembles_arbre.py`.
 
+## Historique
+
+La frise de la fiche d'un composant est assemblée en Python (`backend/services/historique.py`)
+à partir du journal (le composant, ses caractéristiques, ses affectations, ses lignes de
+commande, les commandes et leurs documents) et des mouvements de stock ; chaque événement
+porte une catégorie : modification, achat, stock, montage, document. L'onglet Paramètres ›
+Historique lit le journal entier, filtré et paginé, exportable en Excel.
+
 ## Conventions
 
 - Montants en euros, REAL ; budgets et prix de référence en HT, le TTC est toujours

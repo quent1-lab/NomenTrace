@@ -1,6 +1,7 @@
 // Fiche d'un composant dans le panneau latéral : tous les champs, ses affectations aux
 // ensembles (modifiables), ses lignes de commande, ses mouvements et son historique.
 
+import { frise } from "../historique.js";
 import { api } from "../api.js";
 import { champAttribut, chargerAttributs, formatAttribut, tousLesAttributs } from "../attributs.js";
 import { sectionDocuments } from "../documents.js";
@@ -376,15 +377,8 @@ function sectionMouvements(mouvements) {
   );
 }
 
-function sectionHistorique(journal) {
-  return section(
-    "Historique",
-    tableSimple(
-      [["Date"], ["Champ"], ["Ancienne"], ["Nouvelle"], ["Origine"]],
-      journal.map((j) => el("tr", {}, el("td", { class: "code" }, `${formatDate(j.horodatage)} ${j.horodatage.slice(11, 16)}`), el("td", {}, j.table_cible === "affectation" ? `affectation ${j.cle_cible.split(":")[0]}` : j.champ), el("td", {}, j.ancienne_valeur ?? "—"), el("td", {}, j.nouvelle_valeur ?? "—"), el("td", { class: "texte-doux", title: j.nom_fichier ?? "" }, j.nom_fichier ? `import : ${j.nom_fichier}` : j.origine))),
-      "Aucune modification enregistrée.",
-    ),
-  );
+function sectionHistorique(evenements, composant) {
+  return section("Historique", frise(evenements, composant));
 }
 
 // Fiche d'un composant archivé, en lecture seule : son historique reste consultable,
@@ -422,7 +416,7 @@ function ouvrirFicheArchivee(fiche, documents, surFermeture) {
       sectionCommandes(fiche.lignes_commande),
       sectionDocuments({ documents, avecSource: true, depot: false, surChangement: () => {} }),
       sectionMouvements(fiche.mouvements),
-      sectionHistorique(fiche.journal),
+      sectionHistorique(fiche.historique, c.id),
     ],
     surFermeture,
   );
@@ -504,7 +498,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         surChangement: rafraichir,
       }),
       sectionMouvements(fiche.mouvements),
-      sectionHistorique(fiche.journal),
+      sectionHistorique(fiche.historique, c.id),
     ],
     surFermeture,
   );

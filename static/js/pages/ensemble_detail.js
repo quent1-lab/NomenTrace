@@ -11,6 +11,7 @@ import { ouvrirCreation } from "./composants_creation.js";
 import {
   alerteDepassement,
   barreProgression,
+  ouvrirDuplication,
   barreRepartition,
   ouvrirFormulaireEnsemble,
   selectStatutMontage,
@@ -246,6 +247,7 @@ function rendre() {
         el("button", { type: "button", class: "bouton", onclick: ouvrirSelecteur }, "+ Affecter un composant"),
         el("button", { type: "button", class: "bouton bouton--discret", onclick: creerSousEnsemble }, "+ Sous-ensemble"),
         el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: recharger }) }, "Modifier"),
+        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirDuplication(e, (copie) => naviguer(`/ensembles/${copie.code}`)) }, "Dupliquer"),
         el("button", { type: "button", class: "bouton bouton--danger", onclick: archiver }, "Archiver"),
       ),
     ),

@@ -4,6 +4,7 @@ import { api, surEcriture } from "./api.js";
 import { detruireGraphiques } from "./graphiques.js";
 import { installerMenu } from "./menu.js";
 import { fermerPanneau } from "./panneau.js";
+import { installerRecherche } from "./recherche.js";
 import { afficherAchats } from "./pages/achats.js";
 import { afficherAttributs } from "./pages/attributs.js";
 import { afficherBlocs } from "./pages/blocs.js";
@@ -123,6 +124,7 @@ window.addEventListener("nomentrace:projet", rafraichirEntete);
 
 async function demarrer() {
   installerMenu();
+  installerRecherche(document.getElementById("recherche-globale"));
   try {
     await chargerListes();
   } catch (erreur) {

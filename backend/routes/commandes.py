@@ -10,12 +10,13 @@ from backend.deps import get_conn
 from backend.models import (
     CommandeCreation,
     CommandeModif,
+    DemandesDevis,
     LigneCreation,
     LigneModif,
     MouvementCreation,
     Reception,
 )
-from backend.services import commandes, mouvements, receptions
+from backend.services import commandes, demandes_devis, mouvements, receptions
 
 router = APIRouter(prefix="/api", tags=["achats et stock"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -26,6 +27,16 @@ def read_commandes(
     conn: Conn, statut: str | None = None, fournisseur: str | None = None
 ) -> list[dict]:
     return round_output(commandes.list_commandes(conn, statut, fournisseur))
+
+
+@router.get("/demandes-devis")
+def read_candidats_devis(conn: Conn) -> dict:
+    return round_output(demandes_devis.list_candidats(conn))
+
+
+@router.post("/demandes-devis", status_code=201)
+def create_demandes_devis(corps: DemandesDevis, conn: Conn) -> list[dict]:
+    return round_output(demandes_devis.create_demandes(conn, corps.composants))
 
 
 @router.post("/commandes", status_code=201)

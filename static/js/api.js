@@ -89,6 +89,10 @@ function avecParametres(chemin, parametres = {}) {
 
 export const api = {
   getSante: () => requete("GET", "/api/sante"),
+  rechercher: (q) => requete("GET", avecParametres("/api/recherche", { q })),
+  getHistorique: (filtres) => requete("GET", avecParametres("/api/historique", filtres)),
+  getTablesHistorique: () => requete("GET", "/api/historique/tables"),
+  telechargerHistorique: (filtres) => requeteFichier(avecParametres("/api/historique/export", filtres)),
   getPilotage: () => requete("GET", "/api/pilotage"),
   getParametres: () => requete("GET", "/api/parametres"),
   patchParametres: (modifs) => requete("PATCH", "/api/parametres", modifs),
@@ -136,6 +140,9 @@ export const api = {
   archiveEnsemble: (code) => requete("DELETE", `/api/ensembles/${encodeURIComponent(code)}`),
   getComposantsEnsemble: (code) => requete("GET", `/api/ensembles/${encodeURIComponent(code)}/composants`),
   getArbreEnsembles: () => requete("GET", "/api/ensembles/arbre"),
+  getPropositionCopie: (code, nouveau) =>
+    requete("GET", avecParametres(`/api/ensembles/${encodeURIComponent(code)}/copie`, { nouveau })),
+  copierEnsemble: (code, corps) => requete("POST", `/api/ensembles/${encodeURIComponent(code)}/copie`, corps),
   getRepartition: (cumul = false) => requete("GET", avecParametres("/api/ensembles/repartition", { cumul: cumul ? "true" : "" })),
   getIncoherences: () => requete("GET", "/api/ensembles/incoherences"),
 
@@ -159,6 +166,8 @@ export const api = {
   viderJournal: () => requete("POST", "/api/nettoyage/journal/purge", { confirmer: true }),
 
   getCommandes: () => requete("GET", "/api/commandes"),
+  getCandidatsDevis: () => requete("GET", "/api/demandes-devis"),
+  creerDemandesDevis: (composants) => requete("POST", "/api/demandes-devis", { composants }),
   getCommande: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}`),
   createCommande: (valeurs) => requete("POST", "/api/commandes", valeurs),
   patchCommande: (numero, modifs) => requete("PATCH", `/api/commandes/${encodeURIComponent(numero)}`, modifs),

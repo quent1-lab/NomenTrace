@@ -84,7 +84,7 @@ def test_saisie_valeurs_et_journal(client_attributs: TestClient) -> None:
     assert fiche["attributs"] == {"tension": 3.3, "materiau": "Inox"}
     assert any(
         j["table_cible"] == "composant_attribut" and j["champ"] == "tension"
-        for j in fiche["journal"]
+        for j in fiche["historique"]
     )
     assert client_attributs.get(f"/api/composants/{C2}").json()["attributs"]["etanche"] == "1"
     # null efface la valeur
@@ -268,7 +268,7 @@ def test_import_compare_et_applique_les_attributs(client_attributs: TestClient) 
     assert cree["attributs"] == {"tension": 5, "etanche": "1"}
     assert any(
         j["origine"] == "import"
-        for j in cree["journal"]
+        for j in cree["historique"]
         if j["table_cible"] == "composant_attribut"
     )
 

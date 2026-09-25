@@ -314,7 +314,7 @@ def test_journal_retrouve_le_fichier(client_essai: TestClient) -> None:
     )
     depot = _deposer(client_essai, [("obs_de_quentin.xlsx", contenu)])
     _appliquer(client_essai, depot, _decisions_par_defaut(depot))
-    journal = client_essai.get("/api/composants/ESSAI-OBS-002").json()["journal"]
+    journal = client_essai.get("/api/composants/ESSAI-OBS-002").json()["historique"]
     entree = next(j for j in journal if j["champ"] == "pu_releve")
     assert (entree["origine"], entree["nom_fichier"], entree["nouvelle_valeur"]) == (
         "import",

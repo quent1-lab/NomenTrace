@@ -7,8 +7,14 @@ from fastapi import APIRouter, Depends
 
 from backend.arrondi import round_output
 from backend.deps import get_conn
-from backend.models import AffectationCreation, AffectationModif, EnsembleCreation, EnsembleModif
-from backend.services import ensembles, ensembles_arbre
+from backend.models import (
+    AffectationCreation,
+    AffectationModif,
+    EnsembleCreation,
+    EnsembleDuplication,
+    EnsembleModif,
+)
+from backend.services import ensembles, ensembles_arbre, ensembles_copie
 
 router = APIRouter(prefix="/api", tags=["ensembles"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -54,6 +60,20 @@ def update_ensemble(code: str, corps: EnsembleModif, conn: Conn) -> dict:
 def archive_ensemble(code: str, conn: Conn) -> dict:
     ensembles.archive_ensemble(conn, code)
     return {"statut": "archivé"}
+
+
+@router.get("/ensembles/{code}/copie")
+def read_proposition_copie(code: str, nouveau: str, conn: Conn) -> list[dict]:
+    """Sous-ensembles qu'une copie emporterait, avec le code proposé pour chacun."""
+    return ensembles_copie.get_proposition(conn, code, nouveau)
+
+
+@router.post("/ensembles/{code}/copie", status_code=201)
+def create_copie(code: str, corps: EnsembleDuplication, conn: Conn) -> dict:
+    demande = corps.model_dump()
+    if "parent_code" not in corps.model_fields_set:
+        del demande["parent_code"]
+    return round_output(ensembles_copie.dupliquer_ensemble(conn, code, demande))
 
 
 @router.get("/ensembles/{code}/composants")

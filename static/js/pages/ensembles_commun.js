@@ -214,3 +214,102 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
   ouvrirPanneau(creation ? "Nouvel ensemble" : `Modifier l'ensemble ${ensemble.code}`, formulaire);
   (creation ? code : formulaire.elements.namedItem("nom")).focus();
 }
+
+// --- Duplication -----------------------------------------------------------------------------
+
+function champCodeEnsemble(valeur = "") {
+  const champ = champTexte("code", valeur, { maxlength: "20", autocomplete: "off" });
+  champ.addEventListener("input", () => {
+    champ.value = champ.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  });
+  return champ;
+}
+
+/** Panneau de duplication d'un ensemble, avec ou sans ses affectations et sous-ensembles. */
+export async function ouvrirDuplication(ensemble, surCree) {
+  const ensembles = await api.getEnsembles();
+  const code = champCodeEnsemble();
+  const nom = champTexte("nom", `${ensemble.nom} (copie)`);
+  const parent = choixParent(ensembles, null, ensemble.parent_code);
+  const affectations = el("input", { type: "checkbox", checked: true });
+  const sousEnsembles = el("input", { type: "checkbox" });
+  const zoneCodes = el("div", { class: "duplication__codes", hidden: true });
+  const codes = new Map(); // ancien code → champ du nouveau code
+  const modifies = new Set();
+
+  // Codes proposés pour les sous-ensembles, recalculés quand le code principal change ;
+  // un code retouché à la main n'est plus remplacé.
+  let minuterie = null;
+  const majCodes = async () => {
+    if (!sousEnsembles.checked) return;
+    const proposition = await api.getPropositionCopie(ensemble.code, code.value || ensemble.code);
+    if (!codes.size) {
+      zoneCodes.replaceChildren(
+        el("p", { class: "texte-doux texte-petit" }, "Nouveau code de chaque sous-ensemble copié :"),
+        el(
+          "table",
+          { class: "table table--dense" },
+          el("tbody", {}, proposition.map((p) => {
+            const champ = champCodeEnsemble(p.code_propose);
+            champ.addEventListener("input", () => modifies.add(p.code));
+            codes.set(p.code, champ);
+            return el("tr", {}, el("td", { class: "code" }, p.code), el("td", {}, p.nom), el("td", {}, champ));
+          })),
+        ),
+      );
+      return;
+    }
+    for (const p of proposition) if (!modifies.has(p.code)) codes.get(p.code).value = p.code_propose;
+  };
+  code.addEventListener("input", () => {
+    clearTimeout(minuterie);
+    minuterie = setTimeout(() => majCodes().catch(afficherErreur), 300);
+  });
+  sousEnsembles.addEventListener("change", () => {
+    zoneCodes.hidden = !sousEnsembles.checked;
+    majCodes().catch(afficherErreur);
+  });
+
+  const formulaire = el(
+    "form",
+    { class: "formulaire", novalidate: true },
+    el("p", { class: "texte-doux" }, `Copie de ${ensemble.nom} (${ensemble.code}). Le statut de montage repart de « Non commencé » et le budget verrouillé n'est pas repris.`),
+    ligneChamp("Nouveau code", code, { requis: true, aide: "Majuscules, chiffres et tirets. Il ne pourra plus être modifié." }),
+    ligneChamp("Nom", nom, { requis: true }),
+    ligneChamp("Ensemble parent", parent),
+    el(
+      "div",
+      { class: "formulaire__options" },
+      el("label", { class: "filtre-case" }, affectations, "Copier les composants affectés, avec leurs quantités"),
+      ensemble.nb_sous_ensembles ? el("label", { class: "filtre-case" }, sousEnsembles, `Copier aussi les ${ensemble.nb_sous_ensembles} sous-ensemble(s)`) : null,
+    ),
+    zoneCodes,
+    el("div", { class: "actions-formulaire" },
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),
+      el("button", { type: "submit", class: "bouton" }, "Dupliquer"),
+    ),
+  );
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!code.value) return afficherErreur("Le nouveau code est obligatoire.");
+    if (!nom.value.trim()) return afficherErreur("Le nom est obligatoire.");
+    const corps = {
+      code: code.value,
+      nom: nom.value.trim(),
+      parent_code: parent.value || null,
+      avec_affectations: affectations.checked,
+      avec_sous_ensembles: sousEnsembles.checked,
+      codes: Object.fromEntries([...codes].map(([ancien, champ]) => [ancien, champ.value])),
+    };
+    try {
+      const copie = await api.copierEnsemble(ensemble.code, corps);
+      masquerErreur();
+      fermerPanneau({ silencieux: true });
+      await surCree(copie);
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  ouvrirPanneau(`Dupliquer l'ensemble ${ensemble.code}`, formulaire);
+  code.focus();
+}

@@ -8,6 +8,7 @@ import { lienRoute, remplacerRoute } from "../router.js";
 import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
 import { afficherOngletAttributs } from "./parametres_attributs.js";
+import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherListes } from "./parametres_listes.js";
 
 const ONGLETS = [
@@ -18,6 +19,7 @@ const ONGLETS = [
   ["listes", "Listes de valeurs", afficherListes],
   ["attributs", "Attributs", afficherOngletAttributs],
   ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes],
+  ["historique", "Historique", afficherOngletHistorique],
 ];
 
 // L'en-tête (nom du projet) se relit aussitôt après une modification du projet.

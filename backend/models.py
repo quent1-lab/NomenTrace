@@ -139,6 +139,24 @@ class EnsembleModif(Modele):
     budget_verrouille: bool | None = None
 
 
+class DemandesDevis(Modele):
+    """Composants pour lesquels préparer une demande de devis (une par fournisseur)."""
+
+    composants: list[str] = Field(min_length=1)
+
+
+class EnsembleDuplication(Modele):
+    """Copie d'un ensemble ; parent_code absent = même parent que l'ensemble copié."""
+
+    code: str = Field(pattern=r"^[A-Z0-9][A-Z0-9-]*$", max_length=20)
+    nom: str = Field(min_length=1)
+    parent_code: str | None = None
+    avec_affectations: bool = True
+    avec_sous_ensembles: bool = False
+    # Nouveau code de chaque sous-ensemble copié ; un code absent reçoit le code proposé.
+    codes: dict[str, str] = Field(default_factory=dict)
+
+
 class AffectationCreation(Modele):
     composant_id: str = Field(min_length=1)
     qte: int = Field(gt=0)

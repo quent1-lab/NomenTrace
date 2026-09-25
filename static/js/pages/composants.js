@@ -14,7 +14,7 @@ import { ouvrirFiche } from "./composants_fiche.js";
 import { lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
 
 const FILTRES_TEXTE = ["q", "bloc", "ensemble", "mode_appro", "statut_appro", "statut_choix", "criticite", "fournisseur"];
-const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation"];
+const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation", "ensemble_seul"];
 
 let etat = null;
 
@@ -126,6 +126,8 @@ function majUrl() {
 function changerFiltre(cle, valeur) {
   etat.filtres[cle] = valeur;
   majUrl();
+  // La case « avec ses sous-ensembles » n'existe que pour un ensemble qui en a.
+  if (cle === "ensemble") etat.zoneFiltres.replaceWith((etat.zoneFiltres = barreFiltres()));
   rechargerListe();
 }
 
@@ -142,6 +144,24 @@ function caseFiltre(cle, texte) {
     { class: "filtre-case" },
     el("input", { type: "checkbox", checked: etat.filtres[cle], onchange: (e) => changerFiltre(cle, e.target.checked) }),
     texte,
+  );
+}
+
+// Un ensemble qui a des sous-ensembles les inclut, sauf si l'on décoche la case.
+function caseSousEnsembles() {
+  const choisi = etat.ensembles.find((e) => e.code === etat.filtres.ensemble);
+  if (!choisi?.nb_sous_ensembles) return null;
+  return el(
+    "label",
+    { class: "filtre-case" },
+    el("input", {
+      type: "checkbox",
+      checked: !etat.filtres.ensemble_seul,
+      onchange: (e) => {
+        changerFiltre("ensemble_seul", !e.target.checked);
+      },
+    }),
+    "avec ses sous-ensembles",
   );
 }
 
@@ -164,7 +184,8 @@ function barreFiltres() {
     { class: "filtres" },
     recherche,
     selectFiltre("bloc", "Tous les blocs", etat.blocs.map((b) => [b.code, `${b.code} — ${b.nom}`])),
-    selectFiltre("ensemble", "Tous les ensembles", etat.ensembles.map((e) => [e.code, `${e.code} — ${e.nom}`])),
+    selectFiltre("ensemble", "Tous les ensembles", etat.ensembles.map((e) => [e.code, `${" ".repeat(e.niveau - 1)}${e.code} — ${e.nom}`])),
+    caseSousEnsembles(),
     selectFiltre("mode_appro", "Tous les modes d'appro", tousLibelles("mode_appro")),
     selectFiltre("statut_appro", "Tous les statuts d'appro", tousLibelles("statut_appro")),
     selectFiltre("statut_choix", "Tous les statuts de choix", tousLibelles("statut_choix")),

@@ -311,8 +311,8 @@ def test_reclassement(client_essai: TestClient) -> None:
     assert fiche_ancien["composant"]["remplace_par"] == "ESSAI-TR-003"
     assert fiche_ancien["affectations"] == []
     assert [ligne["commande_numero"] for ligne in fiche_ancien["lignes_commande"]] == [numero]
-    assert any(j["champ"] == "remplace_par" for j in fiche_ancien["journal"])
-    assert any("remplace" in (j["nouvelle_valeur"] or "") for j in fiche_nouveau["journal"])
+    assert any(j["champ"] == "remplace_par" for j in fiche_ancien["historique"])
+    assert any("remplace" in (j["nouvelle_valeur"] or "") for j in fiche_nouveau["historique"])
     # Les deux composants sont liés par le reclassement : aucun n'est supprimable.
     recap = _lot(client_essai, "composants", [COMPOSANT_LIBRE, "ESSAI-TR-003"], "supprimer")
     assert len(recap.json()["refuses"]) == 2

@@ -3,9 +3,10 @@
 import { api } from "../api.js";
 import { formatDate, formatMontant, libelle } from "../format.js";
 import { naviguer, remplacerRoute } from "../router.js";
-import { el } from "../ui.js";
+import { afficherErreur, el } from "../ui.js";
 import { STATUTS_COMMANDE } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
+import { ouvrirDemandesDevis } from "./achats_devis.js";
 
 let etat = null;
 
@@ -78,7 +79,17 @@ export async function afficherAchats(conteneur, parametres) {
   const creer = () => ouvrirFormulaireCommande({ fournisseurs, surEnregistre: (c) => naviguer(`/achats/${c.numero}`) });
   const entetes = ["N°", "Type", "Statut", "Fournisseur", "Lignes", "Total HT", "Total TTC", "Commandée le", "Livraison annoncée"];
   conteneur.replaceChildren(
-    el("div", { class: "titre-page" }, el("h1", {}, "Achats"), el("button", { type: "button", class: "bouton", onclick: creer }, "+ Nouvelle commande")),
+    el(
+      "div",
+      { class: "titre-page" },
+      el("h1", {}, "Achats"),
+      el(
+        "div",
+        { class: "actions" },
+        el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirDemandesDevis().catch(afficherErreur) }, "Préparer les demandes de devis"),
+        el("button", { type: "button", class: "bouton", onclick: creer }, "+ Nouvelle commande"),
+      ),
+    ),
     filtres(),
     commandes.length
       ? el(

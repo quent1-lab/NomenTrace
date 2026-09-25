@@ -26,6 +26,7 @@ from backend.routes import (
     listes,
     nettoyage,
     pilotage,
+    recherche,
     sante,
 )
 from backend.routes import (
@@ -183,6 +184,7 @@ def create_app(
         imports,
         nettoyage,
         routes_sauvegardes,
+        recherche,
     )
     for module in modules:
         app.include_router(module.router)

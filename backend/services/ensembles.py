@@ -42,7 +42,7 @@ def list_incoherences(conn: sqlite3.Connection) -> list[dict]:
     )
 
 
-def _verifier_ensemble(conn: sqlite3.Connection, code: str) -> dict:
+def verifier_ensemble(conn: sqlite3.Connection, code: str) -> dict:
     """Ligne d'un ensemble non archivé, pour les contrôles ; Introuvable sinon."""
     ligne = db.fetch_one(conn, "SELECT * FROM ensemble WHERE code = ? AND archive = 0", (code,))
     if ligne is None:
@@ -50,7 +50,7 @@ def _verifier_ensemble(conn: sqlite3.Connection, code: str) -> dict:
     return ligne
 
 
-def _verifier_parent(conn: sqlite3.Connection, code: str, parent_code: str | None) -> None:
+def verifier_parent(conn: sqlite3.Connection, code: str, parent_code: str | None) -> None:
     """Refuse un parent inconnu, archivé, ou qui ferait de l'ensemble son propre descendant."""
     if parent_code is None:
         return
@@ -86,7 +86,7 @@ def create_ensemble(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     with db.transaction(conn):
         if db.fetch_one(conn, "SELECT 1 FROM ensemble WHERE code = ?", (code,)):
             raise Conflit(f"Le code d'ensemble « {code} » est déjà utilisé.")
-        _verifier_parent(conn, code, valeurs.get("parent_code"))
+        verifier_parent(conn, code, valeurs.get("parent_code"))
         _verifier_budget(valeurs)
         db.insert_row(conn, "ensemble", valeurs)
         journal.write_journal(conn, "ensemble", code, "creation", None, "créé")
@@ -96,11 +96,11 @@ def create_ensemble(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
 def patch_ensemble(conn: sqlite3.Connection, code: str, modifications: dict[str, Any]) -> dict:
     """Modifie un ensemble ; son code n'est jamais modifiable."""
     with db.transaction(conn):
-        actuel = _verifier_ensemble(conn, code)
+        actuel = verifier_ensemble(conn, code)
         if modifications.get("budget_verrouille", False) is None:
             del modifications["budget_verrouille"]
         if "parent_code" in modifications:
-            _verifier_parent(conn, code, modifications["parent_code"])
+            verifier_parent(conn, code, modifications["parent_code"])
         _verifier_budget({**actuel, **modifications})
         # Le verrou se pose après le montant et se lève avant son effacement : la base
         # refuse à tout instant un budget verrouillé sans montant.
@@ -112,7 +112,7 @@ def patch_ensemble(conn: sqlite3.Connection, code: str, modifications: dict[str,
 def archive_ensemble(conn: sqlite3.Connection, code: str) -> None:
     """Archive un ensemble, refusé tant qu'il porte des affectations ou des sous-ensembles."""
     with db.transaction(conn):
-        _verifier_ensemble(conn, code)
+        verifier_ensemble(conn, code)
         nb = conn.execute(
             "SELECT COUNT(*) FROM affectation WHERE ensemble_code = ?", (code,)
         ).fetchone()[0]
@@ -134,7 +134,7 @@ def archive_ensemble(conn: sqlite3.Connection, code: str) -> None:
 
 def list_composants_ensemble(conn: sqlite3.Connection, code: str) -> list[dict]:
     """Renvoie les composants affectés à un ensemble."""
-    _verifier_ensemble(conn, code)
+    verifier_ensemble(conn, code)
     return db.fetch_all(
         conn,
         "SELECT ec.*, c.lien_produit FROM v_ensemble_composant ec"
@@ -152,7 +152,7 @@ def create_affectation(conn: sqlite3.Connection, code: str, valeurs: dict[str, A
     """Affecte un composant à un ensemble ; une seule affectation par couple."""
     composant_id = valeurs["composant_id"]
     with db.transaction(conn):
-        _verifier_ensemble(conn, code)
+        verifier_ensemble(conn, code)
         composants.get_composant(conn, composant_id)
         if db.fetch_one(
             conn,

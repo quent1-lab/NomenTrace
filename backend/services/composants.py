@@ -11,6 +11,7 @@ from backend.services import (
     attributs,
     attributs_requetes,
     fournisseurs,
+    historique,
     journal,
     listes,
     parametres,
@@ -68,6 +69,8 @@ class FiltresComposants:
 
     bloc: str | None = None
     ensemble: str | None = None
+    # Par défaut, un ensemble inclut ses sous-ensembles ; vrai = ses affectations seules.
+    ensemble_seul: bool = False
     mode_appro: str | None = None
     statut_appro: str | None = None
     statut_choix: str | None = None
@@ -100,8 +103,14 @@ def _where(conn: sqlite3.Connection, filtres: FiltresComposants) -> tuple[str, l
         if valeur is not None:
             clauses.append(f"{colonne} = ?")
             params.append(valeur)
-    if filtres.ensemble is not None:
+    if filtres.ensemble is not None and filtres.ensemble_seul:
         clauses.append("id IN (SELECT composant_id FROM affectation WHERE ensemble_code = ?)")
+        params.append(filtres.ensemble)
+    elif filtres.ensemble is not None:
+        clauses.append(
+            "id IN (SELECT a.composant_id FROM affectation a"
+            " JOIN v_ensemble_descendant d ON d.code = a.ensemble_code WHERE d.ancetre_code = ?)"
+        )
         params.append(filtres.ensemble)
     if filtres.a_chiffrer:
         clauses.append("a_chiffrer = 1")
@@ -204,15 +213,7 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
         "mouvements": db.fetch_all(
             conn, "SELECT * FROM mouvement_stock WHERE composant_id = ? ORDER BY date, id", cle
         ),
-        "journal": db.fetch_all(
-            conn,
-            "SELECT j.*, l.nom_fichier FROM journal j LEFT JOIN import_lot l ON l.id = j.lot_id"
-            " WHERE (j.table_cible = 'composant' AND j.cle_cible = ?)"
-            " OR (j.table_cible = 'affectation' AND j.cle_cible LIKE '%:' || ?)"
-            " OR (j.table_cible = 'composant_attribut' AND j.cle_cible LIKE ? || ':%')"
-            " ORDER BY j.id DESC",
-            (identifiant, identifiant, identifiant),
-        ),
+        "historique": historique.list_evenements_composant(conn, identifiant),
     }
 
 

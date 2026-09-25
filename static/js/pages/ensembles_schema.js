@@ -2,7 +2,7 @@
 // depuis le nœud du projet. Chaque nœud montre son coût cumulé face à son budget ; un clic
 // ouvre le détail de l'ensemble.
 
-import { formatMontant } from "../format.js";
+import { formatMontant, formatPourcent, libelle } from "../format.js";
 import { naviguer } from "../router.js";
 import { el } from "../ui.js";
 import { TRACE_CADENAS } from "./ensembles_commun.js";
@@ -61,17 +61,56 @@ function lien(parent, enfant) {
   return svg("path", { class: "schema__lien", d: `M${x1},${y1} C${milieu},${y1} ${milieu},${y2} ${x2},${y2}` });
 }
 
-// Jauge coût / budget : pleine à 100 %, rouge au-delà.
-function jauge(noeud) {
+// Modes de couleur : ce que la jauge et la bande de gauche de chaque nœud racontent.
+const MODES = {
+  budget: {
+    titre: "Écart au budget",
+    legende: [["conforme", "dans le budget"], ["alerte", "au-delà du budget"], ["neutre", "sans budget"]],
+    etat: (n) => (n.budget ? { part: n.cout / n.budget, niveau: n.cout > n.budget ? "alerte" : "conforme" } : { part: 0, niveau: "neutre" }),
+    texte: (n) => `${formatMontant(n.cout)} / ${n.budget === null ? "budget non défini" : formatMontant(n.budget)}`,
+  },
+  appro: {
+    titre: "Avancement d'appro",
+    legende: [["conforme", "tout reçu"], ["surveiller", "en partie reçu"], ["alerte", "rien reçu"], ["neutre", "rien à acheter"]],
+    etat: (n) => {
+      if (!n.aAcheter) return { part: 0, niveau: "neutre" };
+      const part = n.recus / n.aAcheter;
+      return { part, niveau: part >= 1 ? "conforme" : part > 0 ? "surveiller" : "alerte" };
+    },
+    texte: (n) => (n.aAcheter ? `${n.recus} / ${n.aAcheter} composant(s) reçu(s)` : "rien à acheter"),
+  },
+  montage: {
+    titre: "Avancement de montage",
+    legende: [["conforme", "tout monté"], ["surveiller", "en partie monté"], ["alerte", "rien monté"], ["neutre", "aucune pièce"]],
+    etat: (n) => {
+      if (n.montagePct === null) return { part: 0, niveau: "neutre" };
+      const part = n.montagePct / 100;
+      return { part, niveau: part >= 1 ? "conforme" : part > 0 ? "surveiller" : "alerte" };
+    },
+    texte: (n) => (n.montagePct === null ? "aucune pièce affectée" : `${formatPourcent(n.montagePct, 0)} des pièces montées`),
+  },
+  statut: {
+    titre: "Statut de montage",
+    legende: [["neutre", libelle("Non commence")], ["surveiller", libelle("En cours")], ["info", libelle("Monte")], ["conforme", libelle("Valide")]],
+    etat: (n) => ({ part: null, niveau: { "En cours": "surveiller", Monte: "info", Valide: "conforme" }[n.statut] ?? "neutre" }),
+    texte: (n) => (n.statut ? libelle(n.statut) : ""),
+  },
+};
+
+let modeCourant = "budget";
+
+// Jauge (pleine à 100 %) et bande de gauche, colorées selon le mode choisi.
+function jauge(noeud, mode) {
+  const { part, niveau } = MODES[mode].etat(noeud);
   const largeurUtile = LARGEUR - 24;
-  const fond = svg("rect", { class: "schema__jauge-fond", x: 12, y: HAUTEUR - 14, width: largeurUtile, height: 5, rx: 2 });
-  if (!noeud.budget) return [fond];
-  const part = Math.min(noeud.cout / noeud.budget, 1);
-  const classe = noeud.cout > noeud.budget ? "schema__jauge schema__jauge--depasse" : "schema__jauge";
-  return [fond, svg("rect", { class: classe, x: 12, y: HAUTEUR - 14, width: Math.max(part * largeurUtile, 0), height: 5, rx: 2 })];
+  const elements = [svg("rect", { class: `schema__bande schema__niveau--${niveau}`, x: 0, y: 0, width: 5, height: HAUTEUR, rx: 2 })];
+  if (part === null || noeud.racine) return elements;
+  elements.push(svg("rect", { class: "schema__jauge-fond", x: 12, y: HAUTEUR - 14, width: largeurUtile, height: 5, rx: 2 }));
+  elements.push(svg("rect", { class: `schema__jauge schema__niveau--${niveau}`, x: 12, y: HAUTEUR - 14, width: Math.max(Math.min(part, 1) * largeurUtile, 0), height: 5, rx: 2 }));
+  return elements;
 }
 
-function dessinerNoeud(noeud) {
+function dessinerNoeud(noeud, mode) {
   const classes = ["schema__noeud"];
   if (noeud.racine) classes.push("schema__noeud--racine");
   if (noeud.depassement) classes.push("schema__noeud--alerte");
@@ -104,8 +143,8 @@ function dessinerNoeud(noeud) {
     noeud.verrouille
       ? svg("g", { class: "schema__cadenas", transform: `translate(${LARGEUR - 26},8) scale(0.75)` }, TRACE_CADENAS.map((d) => svg("path", { d })))
       : null,
-    svg("text", { class: "schema__montants", x: 12, y: 55 }, `${formatMontant(noeud.cout)} / ${budget}`),
-    jauge(noeud),
+    svg("text", { class: "schema__montants", x: 12, y: 55 }, noeud.racine ? MODES.budget.texte(noeud) : MODES[mode].texte(noeud)),
+    jauge(noeud, noeud.racine ? "budget" : mode),
   );
 }
 
@@ -126,6 +165,10 @@ export function vueSchema(arbre) {
     budget: e.budget_ht,
     verrouille: Boolean(e.budget_verrouille),
     depassement: e.depassement_verrouille_ht,
+    recus: e.cumul.nb_composants_recus,
+    aAcheter: e.cumul.nb_composants_a_acheter,
+    montagePct: e.cumul.avancement_montage_pct,
+    statut: e.statut_montage,
   }));
   // L'API renvoie les ensembles dans l'ordre de l'arbre : les frères restent triés.
   const enfantsDe = new Map([[null, []]]);
@@ -144,20 +187,42 @@ export function vueSchema(arbre) {
   for (const parent of [racine, ...noeuds]) {
     for (const enfant of enfantsDe.get(parent.code) ?? []) liens.push(lien(parent, enfant));
   }
-  const dessin = svg(
-    "svg",
-    { class: "schema__dessin", width: largeur, height: hauteur, viewBox: `0 0 ${largeur} ${hauteur}`, role: "img", "aria-label": "Schéma de l'arborescence des ensembles" },
-    liens,
-    [racine, ...noeuds].map(dessinerNoeud),
+  const dessiner = () =>
+    svg(
+      "svg",
+      { class: "schema__dessin", width: largeur, height: hauteur, viewBox: `0 0 ${largeur} ${hauteur}`, role: "img", "aria-label": "Schéma de l'arborescence des ensembles" },
+      liens,
+      [racine, ...noeuds].map((n) => dessinerNoeud(n, modeCourant)),
+    );
+  const zone = el("div", { class: "schema" }, dessiner());
+  const legende = el("div", { class: "schema__legende texte-petit" });
+  const majLegende = () =>
+    legende.replaceChildren(
+      ...MODES[modeCourant].legende.map(([niveau, texte]) => el("span", { class: "schema__legende-item" }, el("span", { class: `schema__pastille schema__niveau--${niveau}` }), texte)),
+    );
+  const choix = el(
+    "select",
+    {
+      class: "filtre",
+      "aria-label": "Couleur des nœuds",
+      onchange: (e) => {
+        modeCourant = e.target.value;
+        zone.replaceChildren(dessiner());
+        majLegende();
+      },
+    },
+    Object.entries(MODES).map(([code, m]) => el("option", { value: code, selected: code === modeCourant }, m.titre)),
   );
+  majLegende();
   return el(
     "section",
     { class: "panneau" },
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Chaque nœud montre son coût HT cumulé (lui et ses sous-ensembles) face à son budget ; la jauge passe au rouge en cas de dépassement, le cadre quand les sous-ensembles verrouillés et les composants propres dépassent le budget du parent. Survoler un nœud pour le détail, cliquer pour ouvrir l'ensemble.",
+      "Chiffres cumulés : chaque nœud compte ses sous-ensembles. Le cadre rouge signale un parent dont les sous-ensembles verrouillés et les composants propres dépassent le budget. Survoler un nœud pour le détail, cliquer pour ouvrir l'ensemble.",
     ),
-    el("div", { class: "schema" }, dessin),
+    el("div", { class: "filtres" }, el("label", { class: "filtre-case" }, "Couleur : ", choix), legende),
+    zone,
   );
 }

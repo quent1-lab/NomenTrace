@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, Request, Response
 from backend.arrondi import round_output
 from backend.deps import get_conn
 from backend.models import ParametresModif
-from backend.services import export_excel, journal, parametres, pilotage
+from backend.services import export_excel, historique, journal, parametres, pilotage
+from backend.services.historique import FiltresJournal
 
 router = APIRouter(prefix="/api", tags=["pilotage"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -38,6 +39,31 @@ def read_journal(
     limite: int = 500,
 ) -> list[dict]:
     return journal.list_journal(conn, table_cible, cle_cible, min(max(limite, 1), 5000))
+
+
+@router.get("/historique")
+def read_historique(
+    conn: Conn,
+    filtres: Annotated[FiltresJournal, Depends()],
+    page: int = 1,
+    taille: int = 100,
+) -> dict:
+    return historique.list_journal(conn, filtres, page, taille)
+
+
+@router.get("/historique/tables")
+def read_tables_historique(conn: Conn) -> list[str]:
+    return historique.list_tables(conn)
+
+
+@router.get("/historique/export")
+def read_export_historique(conn: Conn, filtres: Annotated[FiltresJournal, Depends()]) -> Response:
+    contenu = historique.build_export_journal(conn, filtres)
+    return Response(
+        contenu,
+        media_type=TYPE_XLSX,
+        headers={"Content-Disposition": f'attachment; filename="{historique.nom_export()}"'},
+    )
 
 
 @router.post("/export")
