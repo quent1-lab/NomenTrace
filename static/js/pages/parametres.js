@@ -7,6 +7,7 @@ import { champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulai
 import { lienRoute, remplacerRoute } from "../router.js";
 import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
+import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherListes } from "./parametres_listes.js";
 
 const ONGLETS = [
@@ -15,6 +16,7 @@ const ONGLETS = [
   ["ensembles", "Ensembles", afficherOngletEnsembles],
   ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs],
   ["listes", "Listes de valeurs", afficherListes],
+  ["attributs", "Attributs", afficherOngletAttributs],
   ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes],
 ];
 

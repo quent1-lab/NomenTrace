@@ -2,6 +2,7 @@
 // modifications ; un seul bouton applique la sélection, en une transaction côté serveur.
 
 import { api } from "../api.js";
+import { PREFIXE, attribut, chargerAttributs, formatAttribut, titreAttribut } from "../attributs.js";
 import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { lienRoute, naviguer } from "../router.js";
 import { afficherAvertissements, afficherErreur, el, masquerErreur } from "../ui.js";
@@ -31,8 +32,21 @@ const CHAMPS = {
 
 let etat = null;
 
+// Libellé d'un champ : ceux du composant, ou « Tension (V) » pour un attribut.
+function nomChamp(champ) {
+  if (champ.startsWith(PREFIXE)) {
+    const a = attribut(champ.slice(PREFIXE.length));
+    return a ? titreAttribut(a) : champ.slice(PREFIXE.length);
+  }
+  return nomChamp(champ);
+}
+
 function valeur(champ, v) {
   if (v === null || v === undefined || v === "") return el("span", { class: "texte-doux" }, "vide");
+  if (champ.startsWith(PREFIXE)) {
+    const a = attribut(champ.slice(PREFIXE.length));
+    return a ? formatAttribut(a, v) : String(v);
+  }
   if (champ === "pu_releve") return formatMontant(v);
   if (champ === "taux_tva") return formatPourcent(v * 100, 1);
   if (typeof v === "number") return formatNombre(v);
@@ -80,7 +94,7 @@ function carteModifie(ligne) {
   const d = ligne.donnees;
   const decision = etat.decisions[ligne.id];
   const cases = Object.entries(d.differences).map(([champ, diff]) => {
-    const coche = el("input", { type: "checkbox", checked: decision.champs.includes(champ), disabled: !etat.modifiable, "aria-label": `Accepter ${CHAMPS[champ] ?? champ}` });
+    const coche = el("input", { type: "checkbox", checked: decision.champs.includes(champ), disabled: !etat.modifiable, "aria-label": `Accepter ${nomChamp(champ)}` });
     coche.addEventListener("change", () => {
       decision.champs = coche.checked ? [...new Set([...decision.champs, champ])] : decision.champs.filter((c) => c !== champ);
     });
@@ -107,7 +121,7 @@ function carteModifie(ligne) {
       el("thead", {}, el("tr", {}, ["", "Champ", "Valeur actuelle", "Valeur proposée"].map((t) => el("th", {}, t)))),
       el("tbody", {}, cases.map(({ champ, diff, coche }) => el("tr", {},
         el("td", {}, coche),
-        el("td", {}, CHAMPS[champ] ?? champ),
+        el("td", {}, nomChamp(champ)),
         el("td", { class: "valeur-actuelle" }, valeur(champ, diff.actuel)),
         el("td", { class: "valeur-proposee" }, valeur(champ, diff.propose)),
       ))),
@@ -116,11 +130,12 @@ function carteModifie(ligne) {
 }
 
 function resumeValeurs(valeurs, affectation) {
-  const champs = ["bloc_code", "fonction", "designation", "ref_fabricant", "mode_appro", "qte_besoin", "pu_releve"];
+  const caracteristiques = Object.keys(valeurs).filter((c) => c.startsWith(PREFIXE) && valeurs[c] !== null);
+  const champs = ["bloc_code", "fonction", "designation", "ref_fabricant", "mode_appro", "qte_besoin", "pu_releve", ...caracteristiques];
   return el(
     "dl",
     { class: "fiche__champs fiche__champs--compact" },
-    champs.flatMap((c) => [el("dt", {}, CHAMPS[c]), el("dd", {}, valeur(c, valeurs[c]))]),
+    champs.flatMap((c) => [el("dt", {}, nomChamp(c)), el("dd", {}, valeur(c, valeurs[c]))]),
     affectation ? [el("dt", {}, "Ensemble"), el("dd", {}, `${affectation.ensemble} × ${affectation.qte}`)] : [],
   );
 }
@@ -355,6 +370,7 @@ async function charger() {
 export async function afficherRevueImport(conteneur, _parametres, numero) {
   etat = { conteneur, numero: Number(numero) };
   try {
+    await chargerAttributs();
     await charger();
   } catch (erreur) {
     if (erreur.statut !== 404) throw erreur;

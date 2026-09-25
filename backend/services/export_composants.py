@@ -13,7 +13,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from backend import db
 from backend.arrondi import round_value
 from backend.erreurs import ErreurMetier
-from backend.services import composants
+from backend.services import attributs, composants
 from backend.services.composants import FiltresComposants
 
 FORMAT_ENTIER: str = "#,##0"
@@ -61,14 +61,24 @@ LIBELLES_AVANCEMENT: dict[str, str] = {
 }
 
 
-def parse_colonnes(texte: str | None) -> list[str]:
-    """Colonnes demandées, séparées par des virgules, validées contre la liste blanche."""
+def parse_colonnes(conn: sqlite3.Connection, texte: str | None) -> list[str]:
+    """Colonnes demandées, séparées par des virgules, validées contre la liste blanche.
+
+    « attr:code » désigne un attribut, vérifié contre la table attribut. Sans colonne
+    demandée : toutes les colonnes de l'écran, puis une par attribut actif.
+    """
     demandees = [c.strip() for c in (texte or "").split(",") if c.strip()]
     if not demandees:
-        return list(COLONNES)
-    inconnues = [c for c in demandees if c not in COLONNES]
+        actifs = attributs.list_attributs(conn, actifs_seulement=True)
+        return [*COLONNES, *(attributs.champ(a["code"]) for a in actifs)]
+    inconnues = [
+        c for c in demandees if c not in COLONNES and not c.startswith(attributs.PREFIXE_CHAMP)
+    ]
     if inconnues:
         raise ErreurMetier(f"Colonne(s) inconnue(s) : {', '.join(inconnues)}.")
+    for colonne in demandees:
+        if colonne.startswith(attributs.PREFIXE_CHAMP):
+            attributs.check_attribut(conn, colonne.removeprefix(attributs.PREFIXE_CHAMP))
     if len(set(demandees)) != len(demandees):
         raise ErreurMetier("Une colonne est demandée deux fois.")
     return demandees
@@ -79,12 +89,36 @@ def _libelles_listes(conn: sqlite3.Connection) -> dict[tuple[str, str], str]:
     return {(ligne["liste"], ligne["code"]): ligne["libelle"] for ligne in lignes}
 
 
-def _cellule(cle: str, composant: dict, libelles: dict[tuple[str, str], str]) -> object:
+@dataclass
+class Contexte:
+    """Libellés des listes et définitions des attributs, lus une fois par export."""
+
+    libelles: dict[tuple[str, str], str]
+    attributs: dict[str, dict]
+    libelles_attributs: dict[tuple[str, str], str]
+
+
+def _attribut(cle: str, ctx: Contexte) -> dict | None:
+    if not cle.startswith(attributs.PREFIXE_CHAMP):
+        return None
+    return ctx.attributs[cle.removeprefix(attributs.PREFIXE_CHAMP)]
+
+
+def titre(cle: str, ctx: Contexte) -> str:
+    attribut = _attribut(cle, ctx)
+    return attributs.entete(attribut) if attribut else COLONNES[cle].titre
+
+
+def _cellule(cle: str, composant: dict, ctx: Contexte) -> object:
     """Valeur de la cellule : libellé pour les listes, nombre arrondi pour les montants."""
+    attribut = _attribut(cle, ctx)
+    if attribut:
+        valeur = composant["attributs"].get(attribut["code"])
+        return attributs.affichage(attribut, valeur, ctx.libelles_attributs)
     valeur = composant[cle]
     nature = COLONNES[cle].nature
     if nature == "liste" and valeur is not None:
-        return libelles.get((cle, valeur), valeur)
+        return ctx.libelles.get((cle, valeur), valeur)
     if nature == "avancement":
         return LIBELLES_AVANCEMENT.get(valeur, valeur)
     if nature == "pu_releve" and valeur is None:
@@ -94,6 +128,8 @@ def _cellule(cle: str, composant: dict, libelles: dict[tuple[str, str], str]) ->
 
 def _format(cle: str, composant: dict) -> str | None:
     """Format numérique de la cellule ; le PU relevé porte sa base (HT ou TTC)."""
+    if cle not in COLONNES:
+        return None
     nature = COLONNES[cle].nature
     if nature == "entier":
         return FORMAT_ENTIER
@@ -127,15 +163,19 @@ def build_export_composants(
 ) -> bytes:
     """Classeur de la liste filtrée et triée, colonnes dans l'ordre demandé, en mémoire."""
     lignes = composants.list_composants(conn, filtres)
-    libelles = _libelles_listes(conn)
+    ctx = Contexte(
+        _libelles_listes(conn),
+        {a["code"]: a for a in attributs.list_attributs(conn)},
+        attributs.libelles_valeurs(conn),
+    )
     classeur = Workbook()
     feuille = classeur.active
     feuille.title = "Composants"
-    feuille.append([COLONNES[c].titre for c in colonnes])
+    feuille.append([titre(c, ctx) for c in colonnes])
     for cellule in feuille[1]:
         cellule.font = Font(bold=True)
     for composant in lignes:
-        feuille.append([_cellule(c, composant, libelles) for c in colonnes])
+        feuille.append([_cellule(c, composant, ctx) for c in colonnes])
         for rang, cle in enumerate(colonnes, start=1):
             numero = _format(cle, composant)
             if numero:

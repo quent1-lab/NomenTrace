@@ -1,13 +1,20 @@
 """Composants : liste filtrée, fiche, création avec identifiant généré, modification, archivage."""
 
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
-from backend.services import fournisseurs, journal, listes, parametres
+from backend.services import (
+    attributs,
+    attributs_requetes,
+    fournisseurs,
+    journal,
+    listes,
+    parametres,
+)
 
 CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
     {
@@ -72,9 +79,12 @@ class FiltresComposants:
     q: str | None = None
     tri: str = "id"
     ordre: str = "asc"
+    # Filtres d'attribut « code:operation[:valeur] », renseignés par la route (paramètre
+    # répété ?attr=…) : hors du constructeur pour que FastAPI ne les lise pas comme un corps.
+    attr: list[str] = field(default_factory=list, init=False)
 
 
-def _where(filtres: FiltresComposants) -> tuple[str, list[Any]]:
+def _where(conn: sqlite3.Connection, filtres: FiltresComposants) -> tuple[str, list[Any]]:
     """Construit la clause WHERE à partir de fragments fixes et de paramètres liés."""
     clauses: list[str] = []
     params: list[Any] = []
@@ -105,21 +115,38 @@ def _where(filtres: FiltresComposants) -> tuple[str, list[Any]]:
             " OR fabricant LIKE ?)"
         )
         params.extend([f"%{filtres.q}%"] * 5)
+    clauses_attr, params_attr = attributs_requetes.build_filtres(conn, filtres.attr)
+    clauses.extend(clauses_attr)
+    params.extend(params_attr)
     return (" WHERE " + " AND ".join(clauses)) if clauses else "", params
 
 
 def list_composants(conn: sqlite3.Connection, filtres: FiltresComposants) -> list[dict]:
-    """Renvoie les composants de v_composant correspondant à tous les filtres."""
-    if filtres.tri not in COLONNES_TRI:
-        raise ErreurMetier(f"Tri impossible sur « {filtres.tri} ».")
+    """Renvoie les composants de v_composant correspondant à tous les filtres.
+
+    Chaque composant porte ses valeurs d'attributs ({code: valeur}) sous « attributs ».
+    Le tri « attr:code » trie sur un attribut, après vérification du code.
+    """
     if filtres.ordre not in ("asc", "desc"):
         raise ErreurMetier("L'ordre de tri doit valoir « asc » ou « desc ».")
-    where, params = _where(filtres)
+    source, params_source, tri = "v_composant", [], filtres.tri
+    if filtres.tri.startswith(attributs.PREFIXE_CHAMP):
+        code = filtres.tri.removeprefix(attributs.PREFIXE_CHAMP)
+        source, params_source = attributs_requetes.build_tri(conn, code)
+        tri = "_tri"
+    elif filtres.tri not in COLONNES_TRI:
+        raise ErreurMetier(f"Tri impossible sur « {filtres.tri} ».")
+    where, params = _where(conn, filtres)
     sql = (
-        f"SELECT * FROM v_composant{where}"  # noqa: S608
-        f" ORDER BY {filtres.tri} IS NULL, {filtres.tri} {filtres.ordre.upper()}, id"
+        f"SELECT * FROM {source}{where}"  # noqa: S608
+        f" ORDER BY {tri} IS NULL, {tri} {filtres.ordre.upper()}, id"
     )
-    return db.fetch_all(conn, sql, tuple(params))
+    lignes = db.fetch_all(conn, sql, (*params_source, *params))
+    valeurs = attributs.valeurs_par_composant(conn)
+    for ligne in lignes:
+        ligne.pop("_tri", None)
+        ligne["attributs"] = valeurs.get(ligne["id"], {})
+    return lignes
 
 
 def get_composant(conn: sqlite3.Connection, identifiant: str) -> dict:
@@ -165,6 +192,7 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
                 conn, "SELECT id FROM composant WHERE remplace_par = ? ORDER BY id", cle
             )
         ],
+        "attributs": attributs.get_valeurs(conn, identifiant),
         "affectations": db.fetch_all(conn, affectations_sql, cle),
         "lignes_commande": db.fetch_all(
             conn,
@@ -180,8 +208,10 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
             conn,
             "SELECT j.*, l.nom_fichier FROM journal j LEFT JOIN import_lot l ON l.id = j.lot_id"
             " WHERE (j.table_cible = 'composant' AND j.cle_cible = ?)"
-            " OR (j.table_cible = 'affectation' AND j.cle_cible LIKE '%:' || ?) ORDER BY j.id DESC",
-            (identifiant, identifiant),
+            " OR (j.table_cible = 'affectation' AND j.cle_cible LIKE '%:' || ?)"
+            " OR (j.table_cible = 'composant_attribut' AND j.cle_cible LIKE ? || ':%')"
+            " ORDER BY j.id DESC",
+            (identifiant, identifiant, identifiant),
         ),
     }
 
@@ -270,6 +300,18 @@ def patch_composant(
                 (datetime.now().isoformat(timespec="seconds"), identifiant),
             )
     return get_composant(conn, identifiant)
+
+
+def patch_attributs(conn: sqlite3.Connection, identifiant: str, valeurs: dict[str, Any]) -> dict:
+    """Enregistre les caractéristiques d'un composant non archivé ; None efface une valeur."""
+    with db.transaction(conn):
+        get_composant(conn, identifiant)
+        if attributs.set_valeurs(conn, identifiant, valeurs):
+            conn.execute(
+                "UPDATE composant SET modifie_le = ? WHERE id = ?",
+                (datetime.now().isoformat(timespec="seconds"), identifiant),
+            )
+    return attributs.get_valeurs(conn, identifiant)
 
 
 def archive_composant(conn: sqlite3.Connection, identifiant: str) -> None:

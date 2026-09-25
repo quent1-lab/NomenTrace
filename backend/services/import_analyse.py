@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend import db
-from backend.services import composants, import_doublons, import_lecture
+from backend.services import attributs, composants, import_doublons, import_lecture
 from backend.services.documents import nom_sur
 from backend.services.import_colonnes import CHAMPS_COMPOSANT, COLONNES
 
@@ -61,13 +61,34 @@ class Fichier:
     colonnes: set[str]
     ctx: import_lecture.Contexte
     ensemble: str | None
+    entetes: dict[str, str] = field(default_factory=dict)  # champ -> en-tête du fichier
+
+    @property
+    def champs_attributs(self) -> list[str]:
+        """Colonnes d'attributs présentes dans le fichier."""
+        return sorted(c for c in self.colonnes if c.startswith(attributs.PREFIXE_CHAMP))
+
+    @property
+    def champs_composant(self) -> tuple[str, ...]:
+        """Champs comparés et modifiables : ceux du composant, puis les attributs du fichier."""
+        return (*CHAMPS_COMPOSANT, *self.champs_attributs)
+
+
+def avec_attributs(conn: sqlite3.Connection, lignes: list[dict]) -> list[dict]:
+    """Ajoute à chaque composant ses valeurs d'attributs, en champs « attr:code »."""
+    valeurs = attributs.valeurs_par_composant(conn)
+    for ligne in lignes:
+        for code, valeur in valeurs.get(ligne["id"], {}).items():
+            ligne[attributs.champ(code)] = valeur
+    return lignes
 
 
 def _charger_etat(conn: sqlite3.Connection) -> EtatDepot:
     actifs = db.fetch_all(conn, "SELECT * FROM v_composant")
+    tous = avec_attributs(conn, db.fetch_all(conn, "SELECT * FROM composant"))
     return EtatDepot(
         existants=[import_doublons.empreinte(c["id"], c) for c in actifs],
-        par_id={c["id"]: c for c in db.fetch_all(conn, "SELECT * FROM composant")},
+        par_id={c["id"]: c for c in tous},
         affectations={
             (a["ensemble_code"], a["composant_id"]): a
             for a in db.fetch_all(
@@ -83,6 +104,8 @@ def identiques(champ: str, actuel: Any, propose: Any) -> bool:
     if champ == "pu_releve":
         return abs(float(actuel) - float(propose)) < TOLERANCE_MONTANT
     if champ == "taux_tva":
+        return abs(float(actuel) - float(propose)) < TOLERANCE_TAUX
+    if isinstance(actuel, float) or isinstance(propose, float):
         return abs(float(actuel) - float(propose)) < TOLERANCE_TAUX
     if isinstance(actuel, str) or isinstance(propose, str):
         return str(actuel).strip() == str(propose).strip()
@@ -112,8 +135,11 @@ def _inserer(
     )
 
 
-def _brut(lue: import_lecture.LigneLue) -> dict[str, str]:
-    return {ENTETES.get(champ, champ): valeur for champ, valeur in lue.brut.items()}
+def _brut(lue: import_lecture.LigneLue, fichier: Fichier) -> dict[str, str]:
+    return {
+        ENTETES.get(champ) or fichier.entetes.get(champ, champ): valeur
+        for champ, valeur in lue.brut.items()
+    }
 
 
 def _cle_entite(entite: dict) -> tuple:
@@ -162,7 +188,7 @@ def _entites(
 
 def _differences(lue: import_lecture.LigneLue, fichier: Fichier, composant: dict) -> dict:
     differences = {}
-    for champ in CHAMPS_COMPOSANT:
+    for champ in fichier.champs_composant:
         if champ not in fichier.colonnes:
             continue
         propose = lue.valeurs.get(champ)
@@ -171,14 +197,14 @@ def _differences(lue: import_lecture.LigneLue, fichier: Fichier, composant: dict
         if propose is None and champ in NON_VIDABLES:
             lue.erreurs.append(f"champ obligatoire vidé : {ENTETES[champ]}")
             continue
-        if not identiques(champ, composant[champ], propose):
-            differences[champ] = {"actuel": composant[champ], "propose": propose}
+        if not identiques(champ, composant.get(champ), propose):
+            differences[champ] = {"actuel": composant.get(champ), "propose": propose}
     return differences
 
 
-def _seulement_affectation(lue: import_lecture.LigneLue) -> bool:
+def _seulement_affectation(lue: import_lecture.LigneLue, fichier: Fichier) -> bool:
     """Ligne d'un modèle d'ensemble réduite à l'ID et à la quantité de l'ensemble."""
-    return all(lue.valeurs.get(c) is None for c in CHAMPS_COMPOSANT)
+    return all(lue.valeurs.get(c) is None for c in fichier.champs_composant)
 
 
 def _affectations(
@@ -218,9 +244,9 @@ def _analyse_avec_id(
 ) -> None:
     identifiant = lue.valeurs["id"]
     composant = etat.par_id.get(identifiant)
-    base = {"brut": _brut(lue), "avertissements": lue.avertissements}
+    base = {"brut": _brut(lue, fichier), "avertissements": lue.avertissements}
     if composant is None:
-        if _seulement_affectation(lue):
+        if _seulement_affectation(lue, fichier):
             raisons = ["identifiant absent de la base", *lue.erreurs]
             donnees = {**base, "raisons": raisons}
             _inserer(conn, fichier, lue.numero, "INCONNU", identifiant, donnees)
@@ -234,7 +260,9 @@ def _analyse_avec_id(
         _analyse_sans_id(conn, etat, fichier, lue)
         return
     ensemble_ligne = lue.valeurs.get("ensemble_code")
-    seule = (fichier.ensemble is not None or ensemble_ligne) and _seulement_affectation(lue)
+    seule = (fichier.ensemble is not None or ensemble_ligne) and _seulement_affectation(
+        lue, fichier
+    )
     differences = {} if seule else _differences(lue, fichier, composant)
     if lue.erreurs:
         _inserer(
@@ -306,12 +334,12 @@ def _analyse_sans_id(
     conn: sqlite3.Connection, etat: EtatDepot, fichier: Fichier, lue: import_lecture.LigneLue
 ) -> None:
     import_lecture.complete_nouveau(lue, fichier.ctx)
-    base = {"brut": _brut(lue), "avertissements": lue.avertissements}
+    base = {"brut": _brut(lue, fichier), "avertissements": lue.avertissements}
     if lue.erreurs:
         _inserer(conn, fichier, lue.numero, "INVALIDE", None, {**base, "raisons": lue.erreurs})
         return
     _entites(conn, etat, fichier, lue)
-    valeurs = {c: lue.valeurs.get(c) for c in ("bloc_code", *CHAMPS_COMPOSANT)}
+    valeurs = {c: lue.valeurs.get(c) for c in ("bloc_code", *fichier.champs_composant)}
     empreinte = import_doublons.empreinte(None, valeurs)
     candidats = _candidats(etat, empreinte)
     fusion = next((c for c in candidats if c["fusion"]), None)
@@ -375,7 +403,7 @@ def _analyse_fichier(
 ) -> int:
     """Crée le lot du fichier et une proposition par ligne utile ; renvoie l'id du lot."""
     try:
-        classeur = import_lecture.read_classeur(contenu)
+        classeur = import_lecture.read_classeur(contenu, import_lecture.alias_attributs(conn))
         bloc, ensemble, avertissements = _meta(conn, classeur)
     except import_lecture.FichierIllisible as erreur:
         classeur, bloc, ensemble, avertissements = None, None, None, [str(erreur)]
@@ -393,7 +421,14 @@ def _analyse_fichier(
     if depot is None:
         conn.execute("UPDATE import_lot SET depot = id WHERE id = ?", (lot_id,))
     ctx = import_lecture.load_contexte(conn, bloc)
-    fichier = Fichier(lot_id, nom, classeur.colonnes if classeur else set(), ctx, ensemble)
+    fichier = Fichier(
+        lot_id,
+        nom,
+        classeur.colonnes if classeur else set(),
+        ctx,
+        ensemble,
+        classeur.entetes if classeur else {},
+    )
     if classeur is None:
         _inserer(conn, fichier, 0, "INVALIDE", None, {"brut": {}, "raisons": avertissements})
         return lot_id

@@ -80,6 +80,38 @@ class PurgeJournal(Modele):
     confirmer: Literal[True]
 
 
+TypeAttribut = Literal["texte", "nombre", "liste", "booleen"]
+
+
+class AttributCreation(Modele):
+    libelle: str = Field(min_length=1, max_length=60)
+    type: TypeAttribut
+    unite: str | None = Field(default=None, max_length=20)
+
+
+class AttributModif(Modele):
+    libelle: str | None = Field(default=None, min_length=1, max_length=60)
+    unite: str | None = Field(default=None, max_length=20)
+    ordre: int | None = None
+    actif: Literal[0, 1] | None = None
+
+
+class AttributValeurCreation(Modele):
+    libelle: str = Field(min_length=1, max_length=60)
+
+
+class AttributValeurModif(Modele):
+    libelle: str | None = Field(default=None, min_length=1, max_length=60)
+    ordre: int | None = None
+    actif: Literal[0, 1] | None = None
+
+
+class ValeursAttributs(Modele):
+    """Caractéristiques d'un composant : {code: valeur} ; null efface la valeur."""
+
+    valeurs: dict[str, str | float | bool | None]
+
+
 class Reclassement(Modele):
     bloc_code: str = Field(pattern=r"^[A-Z]{2,4}$")
 

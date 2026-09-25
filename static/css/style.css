@@ -1811,3 +1811,65 @@ td.editable:hover {
   padding: var(--espace-3);
   background: var(--couleur-fond);
 }
+
+/* --- Attributs ------------------------------------------------------------------------- */
+
+.champ--court {
+  width: 110px;
+}
+
+.filtres-attributs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-3);
+}
+
+.pastille-filtre {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  padding: 1px var(--espace-1) 1px var(--espace-2);
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise-clair);
+  font-size: var(--taille-petit);
+}
+
+.choix-colonnes {
+  margin-bottom: var(--espace-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-surface);
+}
+
+.choix-colonnes[hidden] {
+  display: none;
+}
+
+.filtre--court {
+  width: 90px;
+}
+
+.cellule-part {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-width: 180px;
+}
+
+.cellule-part .barre {
+  flex: 1;
+}
+
+.table--repartition {
+  max-width: 900px;
+}
+
+.titre-section h3 {
+  margin: 0;
+}

@@ -16,7 +16,7 @@ from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 
 from backend import db
-from backend.services import listes, parametres
+from backend.services import attributs, listes, parametres
 from backend.services.import_colonnes import (
     ALIAS_ENTETES,
     COLONNE_ENSEMBLE,
@@ -57,6 +57,7 @@ class Contexte:
     ensembles: dict[str, str]
     taux_defaut: float
     bloc_defaut: str | None = None
+    attributs: dict[str, dict] = field(default_factory=dict)
 
 
 @dataclass
@@ -84,8 +85,21 @@ def texte_cellule(valeur: Any) -> str | None:
     return texte or None
 
 
-def read_classeur(contenu: bytes) -> Classeur:
-    """Lit la feuille des composants et, si présente, la feuille d'identification."""
+def alias_attributs(conn: sqlite3.Connection) -> dict[str, str]:
+    """En-têtes reconnus pour les attributs actifs : « Tension (V) », « Tension », « tension »."""
+    alias = {}
+    for attribut in attributs.list_attributs(conn, actifs_seulement=True):
+        for texte in (attributs.entete(attribut), attribut["libelle"], attribut["code"]):
+            alias.setdefault(normaliser_entete(texte), attributs.champ(attribut["code"]))
+    return alias
+
+
+def read_classeur(contenu: bytes, alias_attributs: dict[str, str] | None = None) -> Classeur:
+    """Lit la feuille des composants et, si présente, la feuille d'identification.
+
+    `alias_attributs` ajoute les en-têtes des attributs paramétrables aux en-têtes connus.
+    """
+    alias = {**(alias_attributs or {}), **ALIAS_ENTETES}
     try:
         classeur = load_workbook(io.BytesIO(contenu), data_only=True)
     except (BadZipFile, InvalidFileException, KeyError, ValueError, OSError) as erreur:
@@ -102,7 +116,7 @@ def read_classeur(contenu: bytes) -> Classeur:
     entetes_brutes = next(lignes, ())
     positions, entetes = {}, {}
     for index, entete in enumerate(entetes_brutes):
-        champ = ALIAS_ENTETES.get(normaliser_entete(entete)) if entete else None
+        champ = alias.get(normaliser_entete(entete)) if entete else None
         if champ and champ not in positions:
             positions[champ] = index
             entetes[champ] = str(entete)
@@ -142,7 +156,8 @@ def load_contexte(conn: sqlite3.Connection, bloc_defaut: str | None) -> Contexte
         ensembles[_cle(ensemble["code"])] = ensemble["code"]
         ensembles[_cle(ensemble["nom"])] = ensemble["code"]
     taux = parametres.get_taux_tva_defaut(conn)
-    return Contexte(blocs, fournisseurs, listes, ensembles, taux, bloc_defaut)
+    definitions = {a["code"]: a for a in attributs.list_attributs(conn, actifs_seulement=True)}
+    return Contexte(blocs, fournisseurs, listes, ensembles, taux, bloc_defaut, definitions)
 
 
 def _nombre(texte: str) -> float | None:
@@ -186,12 +201,36 @@ def _reference(champ: str, texte: str, ctx: Contexte) -> tuple[Any, str | None, 
     )
 
 
+def _attribut(champ: str, valeur: Any, texte: str, ctx: Contexte) -> tuple[Any, str | None]:
+    """Valeur d'un attribut dans sa forme stockée : nombre, code de liste, '1' ou '0', texte."""
+    attribut = ctx.attributs[champ.removeprefix(attributs.PREFIXE_CHAMP)]
+    nom = attribut["libelle"]
+    if attribut["type"] == "nombre":
+        nombre = attributs.lire_nombre(valeur if isinstance(valeur, int | float) else texte)
+        return (
+            (nombre, None)
+            if nombre is not None
+            else (None, f"{nom} : « {texte} » n'est pas un nombre")
+        )
+    if attribut["type"] == "booleen":
+        booleen = attributs.lire_booleen(texte)
+        return (booleen, None) if booleen else (None, f"{nom} : « {texte} » ne vaut ni oui ni non")
+    if attribut["type"] == "liste":
+        for possible in attribut["valeurs"]:
+            if _cle(texte) in (_cle(possible["code"]), _cle(possible["libelle"])):
+                return possible["code"], None
+        return None, f"{nom} : « {texte} » n'est pas une valeur de la liste"
+    return texte, None
+
+
 def _convertir(champ: str, valeur: Any, ctx: Contexte) -> tuple[Any, str | None, dict | None]:
     """Valeur typée d'une cellule, erreur en français, entité à créer éventuelle."""
     texte = texte_cellule(valeur)
-    nature, libelle = NATURES[champ], LIBELLES[champ]
     if texte is None:
         return None, None, None
+    if champ.startswith(attributs.PREFIXE_CHAMP):
+        return (*_attribut(champ, valeur, texte, ctx), None)
+    nature, libelle = NATURES[champ], LIBELLES[champ]
     if nature in ("texte", "id"):
         return texte, None, None
     if nature in ("bloc", "fournisseur", "liste", "ensemble"):

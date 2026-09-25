@@ -9,7 +9,9 @@ export function lireRoute() {
 export function lienRoute(chemin, parametres = {}) {
   const requete = new URLSearchParams();
   for (const [cle, valeur] of Object.entries(parametres)) {
-    if (valeur !== undefined && valeur !== null && valeur !== "") requete.set(cle, valeur);
+    // Une liste devient un paramètre répété (filtres d'attribut : ?attr=a&attr=b).
+    if (Array.isArray(valeur)) valeur.forEach((v) => requete.append(cle, v));
+    else if (valeur !== undefined && valeur !== null && valeur !== "") requete.set(cle, valeur);
   }
   const texte = requete.toString();
   return `#${chemin}${texte ? "?" + texte : ""}`;

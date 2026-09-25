@@ -13,8 +13,8 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier
-from backend.services import composants, import_depots, journal, sauvegardes
-from backend.services.import_analyse import identiques
+from backend.services import attributs, composants, import_depots, journal, sauvegardes
+from backend.services.import_analyse import avec_attributs, identiques
 
 ORIGINE = journal.ORIGINE_IMPORT
 
@@ -41,13 +41,32 @@ def _composant_actif(conn: sqlite3.Connection, identifiant: str) -> dict:
     composant = db.fetch_one(conn, "SELECT * FROM composant WHERE id = ?", (identifiant,))
     if composant is None:
         raise LigneRefusee(f"{identifiant} n'existe plus.")
-    return composant
+    return avec_attributs(conn, [composant])[0]
+
+
+def _separer(valeurs: dict) -> tuple[dict, dict]:
+    """Champs du composant d'un côté, attributs ({code: valeur}) de l'autre."""
+    prefixe = attributs.PREFIXE_CHAMP
+    champs = {c: v for c, v in valeurs.items() if not c.startswith(prefixe)}
+    caracteristiques = {
+        c.removeprefix(prefixe): v for c, v in valeurs.items() if c.startswith(prefixe)
+    }
+    return champs, caracteristiques
+
+
+def _attribuer(conn: sqlite3.Connection, identifiant: str, valeurs: dict, lot: int) -> None:
+    try:
+        attributs.set_valeurs(conn, identifiant, valeurs, ORIGINE, lot)
+    except ErreurMetier as erreur:
+        raise LigneRefusee(erreur.message) from erreur
 
 
 def _modifier(conn: sqlite3.Connection, identifiant: str, modifs: dict, lot: int) -> None:
+    champs, caracteristiques = _separer(modifs)
     journal.update_with_journal(
-        conn, "composant", identifiant, modifs, composants.CHAMPS_MODIFIABLES, ORIGINE, lot_id=lot
+        conn, "composant", identifiant, champs, composants.CHAMPS_MODIFIABLES, ORIGINE, lot_id=lot
     )
+    _attribuer(conn, identifiant, caracteristiques, lot)
     conn.execute(
         "UPDATE composant SET modifie_le = ? WHERE id = ?",
         (datetime.now().isoformat(timespec="seconds"), identifiant),
@@ -83,11 +102,14 @@ def _affecter(
 
 def _creer(app: Application, ligne: dict) -> str:
     donnees = ligne["donnees"]
-    valeurs = {k: v for k, v in donnees["valeurs"].items() if v is not None}
+    valeurs, caracteristiques = _separer(
+        {k: v for k, v in donnees["valeurs"].items() if v is not None}
+    )
     try:
         identifiant = composants.insert_composant(app.conn, valeurs, ORIGINE, ligne["lot_id"])
     except ErreurMetier as erreur:
         raise LigneRefusee(erreur.message) from erreur
+    _attribuer(app.conn, identifiant, caracteristiques, ligne["lot_id"])
     if donnees.get("affectation"):
         _affecter(
             app.conn,
@@ -176,7 +198,7 @@ def _appliquer_modifie(app: Application, ligne: dict, decision: dict) -> bool:
     composant = _composant_actif(app.conn, ligne["composant_id"])
     for champ in champs:
         if not identiques(
-            champ, composant[champ], ligne["donnees"]["differences"][champ]["actuel"]
+            champ, composant.get(champ), ligne["donnees"]["differences"][champ]["actuel"]
         ):
             raise LigneRefusee(
                 f"{ligne['composant_id']} : « {champ} » a été modifié depuis l'analyse."

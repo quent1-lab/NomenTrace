@@ -5,6 +5,7 @@ import { detruireGraphiques } from "./graphiques.js";
 import { installerMenu } from "./menu.js";
 import { fermerPanneau } from "./panneau.js";
 import { afficherAchats } from "./pages/achats.js";
+import { afficherAttributs } from "./pages/attributs.js";
 import { afficherBlocs } from "./pages/blocs.js";
 import { afficherDetailCommande } from "./pages/commande_detail.js";
 import { afficherComposants } from "./pages/composants.js";
@@ -28,6 +29,7 @@ const ROUTES = {
   "/ensembles": afficherEnsembles,
   "/achats": afficherAchats,
   "/stock": afficherStock,
+  "/attributs": afficherAttributs,
   "/parametres": afficherParametres,
   "/imports": afficherImports,
   "/nettoyage": afficherNettoyage,

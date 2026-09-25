@@ -79,7 +79,9 @@ export function lienFichierDocument(id) {
 function avecParametres(chemin, parametres = {}) {
   const requeteUrl = new URLSearchParams();
   for (const [cle, valeur] of Object.entries(parametres)) {
-    if (valeur !== undefined && valeur !== null && valeur !== "") requeteUrl.set(cle, valeur);
+    // Une liste devient un paramètre répété : ?attr=a&attr=b
+    if (Array.isArray(valeur)) valeur.forEach((v) => requeteUrl.append(cle, v));
+    else if (valeur !== undefined && valeur !== null && valeur !== "") requeteUrl.set(cle, valeur);
   }
   const texte = requeteUrl.toString();
   return texte ? `${chemin}?${texte}` : chemin;
@@ -101,6 +103,15 @@ export const api = {
   patchValeurListe: (liste, code, modifs) =>
     requete("PATCH", `/api/listes/${liste}/${encodeURIComponent(code)}`, modifs),
   deleteValeurListe: (liste, code) => requete("DELETE", `/api/listes/${liste}/${encodeURIComponent(code)}`),
+
+  getAttributs: () => requete("GET", "/api/attributs"),
+  createAttribut: (valeurs) => requete("POST", "/api/attributs", valeurs),
+  patchAttribut: (code, modifs) => requete("PATCH", `/api/attributs/${encodeURIComponent(code)}`, modifs),
+  createValeurAttribut: (code, libelle) => requete("POST", `/api/attributs/${encodeURIComponent(code)}/valeurs`, { libelle }),
+  patchValeurAttribut: (code, valeur, modifs) =>
+    requete("PATCH", `/api/attributs/${encodeURIComponent(code)}/valeurs/${encodeURIComponent(valeur)}`, modifs),
+  getRepartitionAttribut: (code, filtres) =>
+    requete("GET", avecParametres(`/api/attributs/${encodeURIComponent(code)}/repartition`, filtres)),
 
   getBlocs: ({ archives = false } = {}) => requete("GET", avecParametres("/api/blocs", { archives: archives ? "true" : "" })),
   createBloc: (valeurs) => requete("POST", "/api/blocs", valeurs),
@@ -130,6 +141,7 @@ export const api = {
   createComposant: (valeurs) => requete("POST", "/api/composants", valeurs),
   patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),
   archiveComposant: (id) => requete("DELETE", `/api/composants/${encodeURIComponent(id)}`),
+  putAttributsComposant: (id, valeurs) => requete("PUT", `/api/composants/${encodeURIComponent(id)}/attributs`, { valeurs }),
   reclasserComposant: (id, blocCode) =>
     requete("POST", `/api/composants/${encodeURIComponent(id)}/reclasser`, { bloc_code: blocCode }),
 

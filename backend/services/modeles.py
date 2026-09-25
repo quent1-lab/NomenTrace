@@ -21,7 +21,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from backend import db
 from backend.erreurs import Introuvable
-from backend.services import parametres
+from backend.services import attributs, parametres
 from backend.services.import_colonnes import (
     COLONNE_ENSEMBLE,
     COLONNE_QTE_ENSEMBLE,
@@ -52,7 +52,19 @@ def _libelles(conn: sqlite3.Connection) -> dict[str, dict[str, str]]:
     return libelles
 
 
-def _valeur_cellule(colonne: Colonne, composant: dict, libelles: dict) -> Any:
+def _colonnes_attributs(definitions: list[dict]) -> list[Colonne]:
+    """Une colonne par attribut actif, après les colonnes fixes."""
+    return [
+        Colonne(attributs.entete(a), attributs.champ(a["code"]), "attribut", 14)
+        for a in definitions
+    ]
+
+
+def _valeur_cellule(colonne: Colonne, composant: dict, libelles: dict, ctx: dict) -> Any:
+    if colonne.nature == "attribut":
+        code = colonne.champ.removeprefix(attributs.PREFIXE_CHAMP)
+        valeur = composant.get("attributs", {}).get(code)
+        return attributs.affichage(ctx["definitions"][code], valeur, ctx["libelles"])
     valeur = composant.get(colonne.champ)
     if colonne.nature == "liste" and valeur is not None:
         return libelles.get(colonne.champ, {}).get(valeur, valeur)
@@ -65,7 +77,21 @@ def _ecrire(feuille: Worksheet, ligne: int, colonne: int, valeur: Any) -> None:
         cellule.data_type = "s"  # un texte commençant par « = » ne devient pas une formule
 
 
-def _feuille_listes(classeur: Workbook, conn: sqlite3.Connection, libelles: dict) -> dict[str, str]:
+def _sources_attributs(definitions: list[dict]) -> dict[str, list[str]]:
+    """Listes déroulantes des attributs : valeurs actives d'une liste, Oui / Non."""
+    sources = {}
+    for attribut in definitions:
+        if attribut["type"] == "liste":
+            valeurs = [v["libelle"] for v in attribut["valeurs"] if v["actif"]]
+            sources[attributs.champ(attribut["code"])] = valeurs
+        elif attribut["type"] == "booleen":
+            sources[attributs.champ(attribut["code"])] = ["Oui", "Non"]
+    return sources
+
+
+def _feuille_listes(
+    classeur: Workbook, conn: sqlite3.Connection, libelles: dict, definitions: list[dict]
+) -> dict[str, str]:
     """Feuille cachée portant les valeurs des listes déroulantes ; renvoie les plages."""
     feuille = classeur.create_sheet(NOM_FEUILLE_LISTES)
     sources = {
@@ -86,6 +112,7 @@ def _feuille_listes(classeur: Workbook, conn: sqlite3.Connection, libelles: dict
             )
         ],
         **{liste: list(valeurs.values()) for liste, valeurs in libelles.items()},
+        **_sources_attributs(definitions),
     }
     plages = {}
     for index, (champ, valeurs) in enumerate(sources.items(), start=1):
@@ -172,6 +199,8 @@ def _consignes(classeur: Workbook, titre: str, ensemble: bool) -> None:
         "Réf fabricant : la renseigner dès qu'elle est connue, elle sert à repérer les doublons.",
         "PU relevé : le prix tel qu'affiché, en indiquant dans Base prix s'il est HT ou TTC.",
         "Les colonnes à valeurs fermées proposent une liste déroulante.",
+        "Colonnes de caractéristiques (après Note technique) : un nombre, un choix de la liste "
+        "ou Oui / Non selon la colonne ; une cellule vidée efface la valeur.",
         "Rien n'est enregistré directement : chaque proposition est relue avant d'être appliquée.",
     ]
     if not ensemble:
@@ -209,7 +238,8 @@ def _construire(
     conn: sqlite3.Connection, lignes: list[dict], type_modele: str, code: str, titre: str
 ) -> Workbook:
     ensemble = type_modele == "ensemble"
-    colonnes = list(COLONNES)
+    definitions = attributs.list_attributs(conn, actifs_seulement=True)
+    colonnes = [*COLONNES, *_colonnes_attributs(definitions)]
     if ensemble:
         colonnes.insert(4, COLONNE_QTE_ENSEMBLE)
     else:
@@ -218,10 +248,16 @@ def _construire(
     feuille = classeur.active
     feuille.title = NOM_FEUILLE
     libelles = _libelles(conn)
+    ctx = {
+        "definitions": {a["code"]: a for a in definitions},
+        "libelles": attributs.libelles_valeurs(conn),
+    }
+    valeurs = attributs.valeurs_par_composant(conn)
     _entetes(feuille, colonnes)
     for rang, composant in enumerate(lignes, start=2):
+        composant["attributs"] = valeurs.get(composant["id"], {})
         for index, colonne in enumerate(colonnes, start=1):
-            _ecrire(feuille, rang, index, _valeur_cellule(colonne, composant, libelles))
+            _ecrire(feuille, rang, index, _valeur_cellule(colonne, composant, libelles, ctx))
     derniere = len(lignes) + 1 + LIGNES_VIDES
     _verrouiller_id(feuille, len(colonnes), derniere)
     for index, colonne in enumerate(colonnes, start=1):
@@ -232,7 +268,8 @@ def _construire(
         if colonne.nature == "taux":
             for (cellule,) in feuille[f"{lettre}2:{lettre}{derniere}"]:
                 cellule.number_format = "0%"
-    _validations(feuille, colonnes, _feuille_listes(classeur, conn, libelles), derniere)
+    plages = _feuille_listes(classeur, conn, libelles, definitions)
+    _validations(feuille, colonnes, plages, derniere)
     _consignes(classeur, titre, ensemble)
     _meta(classeur, conn, type_modele, code)
     return classeur

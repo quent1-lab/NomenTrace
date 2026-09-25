@@ -2,6 +2,7 @@
 // création et fiche dans un panneau latéral. Filtres, tri et fiche ouverte sont dans l'URL.
 
 import { api } from "../api.js";
+import { OPERATIONS, PREFIXE, attribut, attributsActifs, chargerAttributs, ecrireFiltre, formatAttribut, libelleFiltre, lireFiltre, optionsListe, titreAttribut } from "../attributs.js";
 import { editerCellule } from "../edition.js";
 import { formatEcart, formatMontant, formatNombre, libelle } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
@@ -68,12 +69,33 @@ const COLONNES = [
   { cle: "avancement", titre: "Avancement", tri: "avancement", rendu: (c) => el("span", { class: `avancement avancement--${c.avancement.replace(/\s/g, "-").toLowerCase()}` }, libelle(c.avancement)) },
 ];
 
+// Colonnes affichées : les colonnes fixes, puis les attributs choisis (paramètre cols).
+function colonnesAttributs() {
+  return etat.filtres.cols
+    .map((code) => attribut(code))
+    .filter((a) => a && a.actif)
+    .map((a) => ({
+      cle: `${PREFIXE}${a.code}`,
+      titre: titreAttribut(a),
+      tri: `${PREFIXE}${a.code}`,
+      classe: a.type === "nombre" ? "nombre" : "",
+      rendu: (c) => formatAttribut(a, c.attributs?.[a.code]),
+      aide: "Caractéristique : se modifie dans la fiche",
+    }));
+}
+
+function colonnes() {
+  return [...COLONNES, ...colonnesAttributs()];
+}
+
 // --- URL et filtres -------------------------------------------------------------------------
 
 function lireFiltres(parametres) {
   const filtres = { tri: parametres.get("tri") || "id", ordre: parametres.get("ordre") || "asc" };
   for (const cle of FILTRES_TEXTE) filtres[cle] = parametres.get(cle) || "";
   for (const cle of FILTRES_CASES) filtres[cle] = ["1", "true"].includes(parametres.get(cle));
+  filtres.attr = parametres.getAll("attr");
+  filtres.cols = (parametres.get("cols") || "").split(",").filter(Boolean);
   return filtres;
 }
 
@@ -83,6 +105,8 @@ function parametresUrl() {
   for (const cle of FILTRES_CASES) if (etat.filtres[cle]) p[cle] = 1;
   if (etat.filtres.tri !== "id") p.tri = etat.filtres.tri;
   if (etat.filtres.ordre !== "asc") p.ordre = etat.filtres.ordre;
+  if (etat.filtres.attr.length) p.attr = etat.filtres.attr;
+  if (etat.filtres.cols.length) p.cols = etat.filtres.cols.join(",");
   if (etat.ficheOuverte) p.fiche = etat.ficheOuverte;
   return p;
 }
@@ -91,6 +115,7 @@ function parametresApi() {
   const p = { tri: etat.filtres.tri, ordre: etat.filtres.ordre };
   for (const cle of FILTRES_TEXTE) if (etat.filtres[cle]) p[cle] = etat.filtres[cle];
   for (const cle of FILTRES_CASES) if (etat.filtres[cle]) p[cle] = "true";
+  if (etat.filtres.attr.length) p.attr = etat.filtres.attr;
   return p;
 }
 
@@ -153,12 +178,113 @@ function barreFiltres() {
 }
 
 function effacerFiltres() {
-  const { tri, ordre } = etat.filtres;
+  const { tri, ordre, cols } = etat.filtres;
   etat.filtres = lireFiltres(new URLSearchParams());
-  Object.assign(etat.filtres, { tri, ordre });
+  Object.assign(etat.filtres, { tri, ordre, cols });
   majUrl();
   etat.zoneFiltres.replaceWith((etat.zoneFiltres = barreFiltres()));
+  etat.zoneAttributs.replaceWith((etat.zoneAttributs = barreAttributs()));
   rechargerListe();
+}
+
+// --- Caractéristiques : filtres et colonnes d'attributs -----------------------------------------
+
+function changerFiltresAttributs(filtres) {
+  etat.filtres.attr = filtres;
+  majUrl();
+  etat.zoneAttributs.replaceWith((etat.zoneAttributs = barreAttributs()));
+  rechargerListe();
+}
+
+function changerColonnes(cols) {
+  etat.filtres.cols = cols;
+  if (etat.filtres.tri.startsWith(PREFIXE) && !cols.includes(etat.filtres.tri.slice(PREFIXE.length))) {
+    etat.filtres.tri = "id";
+    etat.filtres.ordre = "asc";
+  }
+  majUrl();
+  etat.table.replaceChildren(entete(), etat.corps, etat.pied);
+  rechargerListe();
+}
+
+// Saisie de la valeur selon le type et l'opération choisis.
+function champsValeur(a, operation) {
+  if (operation === "vide" || operation === "renseigne") return [];
+  if (operation === "entre") {
+    return [
+      el("input", { class: "filtre filtre--court", type: "text", name: "min", placeholder: "min", "aria-label": "Minimum" }),
+      el("input", { class: "filtre filtre--court", type: "text", name: "max", placeholder: "max", "aria-label": "Maximum" }),
+    ];
+  }
+  if (a.type === "liste" || a.type === "booleen") {
+    const options = a.type === "booleen" ? [["1", "Oui"], ["0", "Non"]] : optionsListe(a, null, { inclureInactives: true });
+    return [el("select", { class: "filtre", name: "valeur", "aria-label": "Valeur" }, options.map(([code, texte]) => el("option", { value: code }, texte)))];
+  }
+  return [el("input", { class: "filtre", type: "text", name: "valeur", placeholder: a.unite ? `valeur (${a.unite})` : "valeur", "aria-label": "Valeur" })];
+}
+
+function formulaireFiltreAttribut(actifs) {
+  const choixAttribut = el("select", { class: "filtre", "aria-label": "Caractéristique" }, actifs.map((a) => el("option", { value: a.code }, a.libelle)));
+  const choixOperation = el("select", { class: "filtre", "aria-label": "Condition" });
+  const zoneValeur = el("span", { class: "actions" });
+  const majOperations = () => {
+    const a = attribut(choixAttribut.value);
+    const operations = Object.entries(OPERATIONS).filter(([op]) => op !== "entre" || a.type === "nombre");
+    choixOperation.replaceChildren(...operations.map(([op, texte]) => el("option", { value: op }, texte)));
+    majValeur();
+  };
+  const majValeur = () => zoneValeur.replaceChildren(...champsValeur(attribut(choixAttribut.value), choixOperation.value));
+  choixAttribut.addEventListener("change", majOperations);
+  choixOperation.addEventListener("change", majValeur);
+  const formulaire = el("form", { class: "actions" }, choixAttribut, choixOperation, zoneValeur, el("button", { type: "submit", class: "bouton bouton--discret" }, "Filtrer"));
+  formulaire.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const lu = (nom) => formulaire.querySelector(`[name="${nom}"]`)?.value.trim() ?? "";
+    const filtre = { code: choixAttribut.value, operation: choixOperation.value, valeur: lu("valeur"), min: lu("min"), max: lu("max") };
+    if (filtre.operation === "egal" && !filtre.valeur) return afficherErreur("Saisir la valeur recherchée.");
+    if (filtre.operation === "entre" && !filtre.min && !filtre.max) return afficherErreur("Saisir au moins une borne.");
+    changerFiltresAttributs([...etat.filtres.attr, ecrireFiltre(filtre)]);
+  });
+  majOperations();
+  return formulaire;
+}
+
+function choixColonnes(actifs) {
+  const zone = el("div", { class: "choix-colonnes", hidden: true });
+  for (const a of actifs) {
+    const coche = el("input", { type: "checkbox", checked: etat.filtres.cols.includes(a.code) });
+    coche.addEventListener("change", () => {
+      const cols = coche.checked ? [...etat.filtres.cols, a.code] : etat.filtres.cols.filter((c) => c !== a.code);
+      changerColonnes(actifs.map((x) => x.code).filter((c) => cols.includes(c)));
+    });
+    zone.append(el("label", { class: "filtre-case" }, coche, titreAttribut(a)));
+  }
+  return zone;
+}
+
+function barreAttributs() {
+  const actifs = attributsActifs();
+  if (!actifs.length && !etat.filtres.attr.length) return el("div");
+  const pastilles = etat.filtres.attr.map((texte, rang) =>
+    el(
+      "span",
+      { class: "pastille-filtre" },
+      libelleFiltre(lireFiltre(texte)),
+      el("button", { type: "button", class: "bouton-icone", title: "Retirer ce filtre", onclick: () => changerFiltresAttributs(etat.filtres.attr.filter((_, i) => i !== rang)) }, "×"),
+    ),
+  );
+  const colonnesChoisies = choixColonnes(actifs);
+  const boutonColonnes = el(
+    "button",
+    { type: "button", class: "bouton bouton--discret", title: "Afficher des caractéristiques en colonnes", onclick: () => (colonnesChoisies.hidden = !colonnesChoisies.hidden) },
+    `Colonnes (${etat.filtres.cols.length})`,
+  );
+  return el(
+    "div",
+    {},
+    el("div", { class: "filtres-attributs" }, el("span", { class: "texte-doux" }, "Caractéristiques :"), actifs.length ? formulaireFiltreAttribut(actifs) : null, pastilles, actifs.length ? boutonColonnes : null),
+    colonnesChoisies,
+  );
 }
 
 // --- Rendu de la table ----------------------------------------------------------------------
@@ -172,6 +298,7 @@ function trier(colonne) {
     etat.filtres.ordre = "asc";
   }
   majUrl();
+  etat.table.querySelector("thead").replaceWith(entete());
   rechargerListe();
 }
 
@@ -182,7 +309,7 @@ function entete() {
     el(
       "tr",
       {},
-      COLONNES.map((col) => {
+      colonnes().map((col) => {
         const actif = col.tri && etat.filtres.tri === col.tri;
         const fleche = actif ? (etat.filtres.ordre === "asc" ? " ▲" : " ▼") : "";
         return el(
@@ -201,7 +328,7 @@ function entete() {
 
 function ligne(c) {
   const tr = el("tr", { "data-id": c.id, class: c.id === etat.ficheOuverte ? "ligne--selection" : "", onclick: () => ouvrirFicheComposant(c.id) });
-  for (const col of COLONNES) {
+  for (const col of colonnes()) {
     const td = el("td", { class: [col.classe ?? "", col.edition ? "editable" : ""].join(" "), title: col.infobulle?.(c) ?? null }, col.rendu(c));
     if (col.edition) {
       td.addEventListener("click", (e) => {
@@ -238,7 +365,7 @@ function rendrePied() {
       el("td", { colspan: COLONNES.length - 6, class: "texte-doux" }, `${etat.composants.length} composant(s) affiché(s)`),
       el("td", { class: "nombre" }, "Total HT"),
       el("td", { class: "nombre fort" }, formatMontant(total)),
-      el("td", { colspan: 4 }),
+      el("td", { colspan: 4 + colonnesAttributs().length }),
     ),
   );
   etat.compteur.textContent = `${etat.composants.length} résultat(s)`;
@@ -305,7 +432,7 @@ async function exporterListe(evenement) {
   const bouton = evenement.currentTarget;
   bouton.disabled = true;
   try {
-    enregistrerFichier(await api.exporterComposants(parametresApi(), COLONNES.map((col) => col.cle)));
+    enregistrerFichier(await api.exporterComposants(parametresApi(), colonnes().map((col) => col.cle)));
     masquerErreur();
   } catch (erreur) {
     afficherErreur(erreur);
@@ -328,7 +455,7 @@ function ouvrirCreationComposant() {
 
 export async function afficherComposants(conteneur, parametres) {
   fermerPanneau({ silencieux: true });
-  const [blocs, fournisseurs, ensembles] = await Promise.all([api.getBlocs(), api.getFournisseurs(), api.getEnsembles()]);
+  const [blocs, fournisseurs, ensembles] = await Promise.all([api.getBlocs(), api.getFournisseurs(), api.getEnsembles(), chargerAttributs()]);
   etat = {
     filtres: lireFiltres(parametres),
     blocs,
@@ -345,6 +472,8 @@ export async function afficherComposants(conteneur, parametres) {
     indicateurs: el("div", { class: "indicateurs" }),
   };
   etat.zoneFiltres = barreFiltres();
+  etat.zoneAttributs = barreAttributs();
+  etat.table = el("table", { class: "table table--dense table--composants" }, entete(), etat.corps, etat.pied);
   conteneur.replaceChildren(
     el(
       "div",
@@ -359,8 +488,9 @@ export async function afficherComposants(conteneur, parametres) {
     ),
     etat.indicateurs,
     etat.zoneFiltres,
+    etat.zoneAttributs,
     el("div", { class: "barre-resultats" }, etat.compteur, el("span", { class: "texte-doux" }, "Cliquer sur une ligne pour ouvrir la fiche ; les colonnes soulignées se modifient sur place.")),
-    el("div", { class: "table-defilante" }, el("table", { class: "table table--dense table--composants" }, entete(), etat.corps, etat.pied)),
+    el("div", { class: "table-defilante" }, etat.table),
   );
   await Promise.all([rechargerListe(), rendreIndicateurs()]);
   if (etat.ficheOuverte) ouvrirFicheComposant(etat.ficheOuverte);

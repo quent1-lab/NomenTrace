@@ -24,6 +24,9 @@ assembly. The interface and documentation are in French.*
 - **Composants** : tableau filtrable et triable, modifiable sur place, fiche détaillée avec
   l'historique de chaque changement et les documents joints. Le bouton « Exporter » en
   tire un classeur Excel de la liste affichée, avec ses filtres et son tri.
+- **Caractéristiques** paramétrables (tension, matériau…), créées dans Paramètres ›
+  Attributs : affichables en colonnes, filtrables, triables, présentes dans les exports et
+  les modèles Excel. L'écran Attributs montre la répartition des composants par valeur.
 - **Deux découpages** : le *bloc fonctionnel* (à quoi sert le composant, un seul, figé dans
   l'identifiant) et l'*ensemble* physique (où il est monté, plusieurs possibles, avec une
   quantité). Voir [docs/MODELE.md](docs/MODELE.md).

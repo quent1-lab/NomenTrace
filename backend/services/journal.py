@@ -21,6 +21,7 @@ CLES_PRIMAIRES: dict[str, str] = {
     "ligne_commande": "id",
     "parametre": "cle",
     "document": "id",
+    "attribut": "code",
 }
 
 
@@ -46,7 +47,7 @@ def write_journal(
     )
 
 
-def _differe(ancienne: Any, nouvelle: Any) -> bool:
+def differe(ancienne: Any, nouvelle: Any) -> bool:
     """Compare deux valeurs ; les nombres au millionième près, pour ignorer le bruit flottant."""
     if isinstance(ancienne, int | float) and isinstance(nouvelle, int | float):
         return abs(float(ancienne) - float(nouvelle)) > 1e-6
@@ -76,7 +77,7 @@ def update_with_journal(
     for champ, valeur in modifications.items():
         if champ not in colonnes_autorisees:
             raise ValueError(f"Champ non modifiable : {champ}")
-        if _differe(actuel[champ], valeur):
+        if differe(actuel[champ], valeur):
             changes[champ] = valeur
     # Un changement de clé (renommage de fournisseur) passe en dernier, sinon les mises à
     # jour suivantes ne retrouveraient plus la ligne.

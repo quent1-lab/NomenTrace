@@ -3,31 +3,43 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 
 from backend.arrondi import round_output
 from backend.deps import get_conn
-from backend.models import ComposantCreation, ComposantModif, Reclassement
+from backend.models import ComposantCreation, ComposantModif, Reclassement, ValeursAttributs
 from backend.services import composants, export_composants, reclassement
 from backend.services.composants import FiltresComposants
 
 router = APIRouter(prefix="/api/composants", tags=["composants"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+# Filtres d'attribut, répétables : ?attr=tension:egal:24&attr=materiau:vide
+FiltresAttributs = Annotated[list[str] | None, Query()]
+
+
+def _filtres(filtres: FiltresComposants, attr: list[str] | None) -> FiltresComposants:
+    filtres.attr = attr or []
+    return filtres
 
 
 @router.get("")
-def read_composants(conn: Conn, filtres: Annotated[FiltresComposants, Depends()]) -> list[dict]:
-    return round_output(composants.list_composants(conn, filtres))
+def read_composants(
+    conn: Conn, filtres: Annotated[FiltresComposants, Depends()], attr: FiltresAttributs = None
+) -> list[dict]:
+    return round_output(composants.list_composants(conn, _filtres(filtres, attr)))
 
 
 # Déclarée avant /{identifiant}, sinon « export » serait lu comme un identifiant.
 @router.get("/export")
 def export_composants_filtres(
-    conn: Conn, filtres: Annotated[FiltresComposants, Depends()], colonnes: str | None = None
+    conn: Conn,
+    filtres: Annotated[FiltresComposants, Depends()],
+    colonnes: str | None = None,
+    attr: FiltresAttributs = None,
 ) -> Response:
     contenu = export_composants.build_export_composants(
-        conn, filtres, export_composants.parse_colonnes(colonnes)
+        conn, _filtres(filtres, attr), export_composants.parse_colonnes(conn, colonnes)
     )
     nom = export_composants.nom_fichier()
     return Response(
@@ -62,3 +74,8 @@ def archive_composant(identifiant: str, conn: Conn) -> dict:
 @router.post("/{identifiant}/reclasser", status_code=201)
 def reclasser_composant(identifiant: str, corps: Reclassement, conn: Conn) -> dict:
     return round_output(reclassement.reclasser_composant(conn, identifiant, corps.bloc_code))
+
+
+@router.put("/{identifiant}/attributs")
+def update_attributs(identifiant: str, corps: ValeursAttributs, conn: Conn) -> dict:
+    return composants.patch_attributs(conn, identifiant, corps.valeurs)

@@ -50,6 +50,13 @@ def reclasser_composant(conn: sqlite3.Connection, identifiant: str, bloc_cible: 
         journal.write_journal(
             conn, "composant", nouveau, "creation", None, f"reclassé, remplace {identifiant}"
         )
+        # Les caractéristiques sont des données du composant : recopiées, comme les autres.
+        conn.execute(
+            "INSERT INTO composant_attribut (composant_id, attribut_code, valeur_texte,"
+            " valeur_nombre) SELECT ?, attribut_code, valeur_texte, valeur_nombre"
+            " FROM composant_attribut WHERE composant_id = ?",
+            (nouveau, identifiant),
+        )
         _reporter_affectations(conn, identifiant, nouveau)
         journal.update_with_journal(
             conn,

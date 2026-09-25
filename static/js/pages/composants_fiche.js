@@ -2,6 +2,7 @@
 // ensembles (modifiables), ses lignes de commande, ses mouvements et son historique.
 
 import { api } from "../api.js";
+import { champAttribut, chargerAttributs, formatAttribut, tousLesAttributs } from "../attributs.js";
 import { sectionDocuments } from "../documents.js";
 import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
@@ -288,6 +289,71 @@ function formulaireAffectation(c, disponibles, nbEnsembles, surChangement) {
   return formulaire;
 }
 
+// --- Caractéristiques (attributs paramétrables) ----------------------------------------------
+
+// Attributs affichés : les actifs, plus les désactivés qui portent encore une valeur.
+function attributsAffiches(valeurs) {
+  return tousLesAttributs().filter((a) => a.actif || valeurs[a.code] !== undefined);
+}
+
+function vueCaracteristiques(valeurs) {
+  const affiches = attributsAffiches(valeurs);
+  if (!affiches.length) {
+    return el("p", { class: "texte-doux" }, "Aucune caractéristique définie : les attributs (tension, matériau…) se créent dans Paramètres › Attributs.");
+  }
+  return definitions(affiches.map((a) => [a.unite ? `${a.libelle} (${a.unite})` : a.libelle, formatAttribut(a, valeurs[a.code])]));
+}
+
+function formulaireCaracteristiques(c, valeurs, { surEnregistre, surAnnule }) {
+  const champs = attributsAffiches(valeurs).filter((a) => a.actif).map((a) => ({ a, ...champAttribut(a, valeurs[a.code] ?? null) }));
+  const formulaire = el(
+    "form",
+    { class: "formulaire", novalidate: true },
+    champs.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element)),
+    el("div", { class: "actions-formulaire" },
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: surAnnule }, "Annuler"),
+      el("button", { type: "submit", class: "bouton" }, "Enregistrer"),
+    ),
+  );
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const modifs = {};
+    for (const { a, lire } of champs) {
+      const lu = lire();
+      if (lu.erreur) return afficherErreur(lu.erreur);
+      if (lu.valeur !== (valeurs[a.code] ?? null)) modifs[a.code] = lu.valeur;
+    }
+    if (!Object.keys(modifs).length) return surAnnule();
+    try {
+      await api.putAttributsComposant(c.id, modifs);
+      masquerErreur();
+      await surEnregistre();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  return formulaire;
+}
+
+function sectionCaracteristiques(c, valeurs, surEnregistre) {
+  const zone = el("div", {}, vueCaracteristiques(valeurs));
+  const modifiable = tousLesAttributs().some((a) => a.actif);
+  const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret", hidden: !modifiable }, "Modifier");
+  bouton.addEventListener("click", () => {
+    bouton.hidden = true;
+    zone.replaceChildren(
+      formulaireCaracteristiques(c, valeurs, {
+        surEnregistre,
+        surAnnule: () => {
+          bouton.hidden = false;
+          zone.replaceChildren(vueCaracteristiques(valeurs));
+        },
+      }),
+    );
+  });
+  return el("section", { class: "fiche__section" }, el("div", { class: "titre-section" }, el("h3", {}, "Caractéristiques"), bouton), zone);
+}
+
 function sectionCommandes(lignes) {
   return section(
     "Lignes de commande",
@@ -349,6 +415,7 @@ function ouvrirFicheArchivee(fiche, documents, surFermeture) {
           ["Créé le / modifié le", `${formatDate(c.cree_le)} / ${formatDate(c.modifie_le)}`],
         ]),
       ),
+      Object.keys(fiche.attributs).length ? section("Caractéristiques", vueCaracteristiques(fiche.attributs)) : null,
       fiche.affectations.length
         ? section("Affectations conservées", tableSimple([["Ensemble"], ["Qté", "nombre"]], fiche.affectations.map((a) => el("tr", {}, el("td", {}, a.ensemble_code, " ", el("span", { class: "texte-doux" }, a.ensemble_nom)), el("td", { class: "nombre" }, formatNombre(a.qte_affectee)))), ""))
         : null,
@@ -365,7 +432,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   let fiche;
   let documents;
   try {
-    [fiche, documents] = await Promise.all([api.getComposant(id), api.getDocumentsComposant(id)]);
+    [fiche, documents] = await Promise.all([api.getComposant(id), api.getDocumentsComposant(id), chargerAttributs()]);
   } catch (erreur) {
     afficherErreur(erreur);
     surFermeture();
@@ -425,6 +492,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
         : null,
       section("Composant", zoneChamps),
+      sectionCaracteristiques(c, fiche.attributs, rafraichir),
       sectionAffectations(fiche, ensembles, rafraichir),
       sectionCommandes(fiche.lignes_commande),
       sectionDocuments({

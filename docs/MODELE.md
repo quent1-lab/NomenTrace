@@ -38,6 +38,9 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `ensemble` | Ensembles physiques, avec `statut_montage`. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
 | `composant` | Le cœur : quantités, prix relevé, statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
+| `attribut` | Caractéristiques paramétrables des composants (tension, matériau…) : `libelle`, `type` (`texte`, `nombre`, `liste`, `booleen`), `unite`, `ordre`, `actif`. Code dérivé du libellé et type figés à la création. | `code` |
+| `attribut_valeur` | Valeurs possibles d'un attribut de type liste ; renommer ne change que le libellé. | `attribut_code`, `code` |
+| `composant_attribut` | Valeur d'un attribut pour un composant : `valeur_nombre` pour le type nombre, `valeur_texte` sinon (texte, code de liste, `1`/`0` pour un booléen). Une seule valeur par couple. | `composant_id`, `attribut_code` |
 | `affectation` | Composant × ensemble, avec la quantité. | `id` ; unique (`ensemble_code`, `composant_id`) |
 | `commande` | Devis et commandes, avec `port_ht` et `taux_tva`. | `numero` (`CMD-NNN`) |
 | `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
@@ -92,6 +95,7 @@ l'export.
 | `v_stock` | Composants dont le stock n'est pas nul, avec leur valeur. |
 | `v_repartition_liste` | Nombre de composants et coût par valeur de liste (graphiques). |
 | `v_pilotage` | Une ligne : tous les indicateurs du tableau de bord. |
+| `v_attribut_composant` | Chaque composant non archivé face à chaque attribut, avec sa valeur ou rien : base de la répartition des valeurs (écran Attributs). |
 | `v_qualite_composant` | Chaque composant, archivés compris : contrôles de qualité (désignation trop courte, fonction vide, achat sans prix ou sans fournisseur, besoin nul, lien invalide, valeur de liste désactivée, fournisseur archivé) et traces qui interdisent sa suppression. Les doublons probables sont repérés à part, par le moteur de l'import. |
 
 ## Valeurs autorisées

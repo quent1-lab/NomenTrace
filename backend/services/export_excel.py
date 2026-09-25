@@ -16,6 +16,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from backend import db
 from backend.arrondi import round_value
+from backend.services import attributs
 
 journal_log = logging.getLogger(__name__)
 
@@ -37,6 +38,9 @@ TABLES: tuple[str, ...] = (
     "ensemble",
     "fournisseur",
     "composant",
+    "attribut",
+    "attribut_valeur",
+    "composant_attribut",
     "affectation",
     "commande",
     "ligne_commande",
@@ -56,6 +60,20 @@ def _write_rows(feuille: Worksheet, lignes: list[dict], colonnes: list[str]) -> 
         for cellule, colonne in zip(feuille[feuille.max_row], colonnes, strict=True):
             if isinstance(cellule.value, float) and not colonne.startswith("taux"):
                 cellule.number_format = FORMAT_MONTANT
+
+
+def _write_attributs(feuille: Worksheet, conn: sqlite3.Connection) -> None:
+    """Une colonne par attribut actif à droite de la feuille composant, valeurs lisibles."""
+    colonne_id = next(c.column for c in feuille[1] if c.value == "id")
+    valeurs = attributs.valeurs_par_composant(conn)
+    libelles = attributs.libelles_valeurs(conn)
+    for attribut in attributs.list_attributs(conn, actifs_seulement=True):
+        colonne = feuille.max_column + 1
+        feuille.cell(1, colonne, attributs.entete(attribut)).font = Font(bold=True)
+        for ligne in range(2, feuille.max_row + 1):
+            identifiant = feuille.cell(ligne, colonne_id).value
+            valeur = valeurs.get(identifiant, {}).get(attribut["code"])
+            feuille.cell(ligne, colonne, attributs.affichage(attribut, valeur, libelles))
 
 
 def _colonnes(conn: sqlite3.Connection, sql: str) -> list[str]:
@@ -83,6 +101,8 @@ def build_workbook(chemin_base: Path) -> Workbook:
         for nom, sql in requetes:
             feuille = classeur.create_sheet(nom)
             _write_rows(feuille, db.fetch_all(conn, sql), _colonnes(conn, sql))
+            if nom == "composant":
+                _write_attributs(feuille, conn)
         return classeur
     finally:
         conn.close()

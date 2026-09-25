@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from backend import config, db
 from backend.erreurs import ErreurMetier
 from backend.routes import (
+    attributs,
     blocs,
     commandes,
     composants,
@@ -171,6 +172,7 @@ def create_app(
     modules = (
         sante,
         pilotage,
+        attributs,
         blocs,
         ensembles,
         fournisseurs,

@@ -3,11 +3,13 @@
 from typing import Any
 
 DECIMALES: int = 2
+# Valeurs d'attributs (tension, résistance…) : ce ne sont pas des montants, jamais arrondies.
+CLES_NON_ARRONDIES: frozenset[str] = frozenset({"attributs", "attribut", "valeur"})
 
 
 def round_value(cle: str, valeur: Any) -> Any:
     """Arrondit un réel à deux décimales, sauf les taux (0.055 doit rester 0.055)."""
-    if isinstance(valeur, float) and not cle.startswith("taux"):
+    if isinstance(valeur, float) and not cle.startswith("taux") and cle not in CLES_NON_ARRONDIES:
         return round(valeur, DECIMALES)
     return valeur
 
@@ -18,7 +20,11 @@ def round_output(donnees: Any) -> Any:
         return [round_output(element) for element in donnees]
     if isinstance(donnees, dict):
         return {
-            cle: round_output(v) if isinstance(v, dict | list) else round_value(cle, v)
+            cle: v
+            if cle in CLES_NON_ARRONDIES
+            else round_output(v)
+            if isinstance(v, dict | list)
+            else round_value(cle, v)
             for cle, v in donnees.items()
         }
     return donnees

@@ -125,14 +125,21 @@ def raison_ensemble(conn: sqlite3.Connection, code: str) -> str | None:
 
 
 def _delete_composant(conn: sqlite3.Connection, identifiant: str) -> None:
-    """Supprime un composant et ses affectations."""
+    """Supprime un composant, ses affectations et ses caractéristiques."""
     ligne = db.fetch_one(conn, "SELECT * FROM composant WHERE id = ?", (identifiant,))
     affectations = db.fetch_all(
         conn, "SELECT ensemble_code, qte FROM affectation WHERE composant_id = ?", (identifiant,)
     )
+    caracteristiques = db.fetch_all(
+        conn,
+        "SELECT attribut_code, valeur_texte, valeur_nombre FROM composant_attribut"
+        " WHERE composant_id = ?",
+        (identifiant,),
+    )
     conn.execute("DELETE FROM affectation WHERE composant_id = ?", (identifiant,))
+    conn.execute("DELETE FROM composant_attribut WHERE composant_id = ?", (identifiant,))
     conn.execute("DELETE FROM composant WHERE id = ?", (identifiant,))
-    resume = _resume({**(ligne or {}), "affectations": affectations})
+    resume = _resume({**(ligne or {}), "affectations": affectations, "attributs": caracteristiques})
     journal.write_journal(conn, "composant", identifiant, CHAMP_SUPPRESSION, resume, None)
 
 
