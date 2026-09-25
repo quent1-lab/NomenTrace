@@ -172,6 +172,20 @@ h2 {
   font-weight: 600;
 }
 
+.menu__source {
+  margin: var(--espace-4) var(--espace-4) 0;
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  text-decoration: none;
+}
+
+.menu__source:hover {
+  color: var(--couleur-ardoise);
+  text-decoration: underline;
+}
+
 .contenu {
   padding: var(--espace-4) var(--espace-5);
   min-width: 0;

@@ -46,7 +46,7 @@ assembly. The interface and documentation are in French.*
 ## Installation et lancement
 
 ```
-git clone <adresse du dépôt> nomentrace
+git clone https://github.com/quent1-lab/NomenTrace.git nomentrace
 cd nomentrace
 ```
 
@@ -185,7 +185,8 @@ Sous Linux / macOS, remplacer `.venv\Scripts\python.exe` par `.venv/bin/python`.
 
 Nomentrace est un logiciel libre, distribué sous la licence
 [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
-Copyright © 2026 Quentin Cunha.
+Copyright © 2026 Quentin Cunha. Le lien « Code source » en bas du menu de l'application
+renvoie à ce dépôt ; une version modifiée et hébergée doit pointer vers son propre code.
 
 En résumé : vous pouvez utiliser, étudier, modifier et redistribuer Nomentrace, y compris
 dans un cadre commercial. Si vous distribuez une version modifiée, **ou si vous la mettez à
