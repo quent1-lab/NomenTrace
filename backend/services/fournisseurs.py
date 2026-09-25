@@ -14,7 +14,9 @@ CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
         "base_prix_defaut",
         "pays",
         "site_web",
-        "compte_ecole",
+        "numero_compte",
+        "categorie",
+        "contact",
         "delai_moyen_j",
         "commentaire",
     }
@@ -39,6 +41,24 @@ def get_fournisseur(conn: sqlite3.Connection, nom: str) -> dict:
     fournisseur = db.fetch_one(conn, "SELECT * FROM fournisseur WHERE nom = ?", (nom,))
     if fournisseur is None:
         raise Introuvable(f"Fournisseur « {nom} » introuvable.")
+    return fournisseur
+
+
+def get_fiche(conn: sqlite3.Connection, nom: str) -> dict:
+    """Fiche d'un fournisseur, archivé compris, avec ses composants et ses commandes."""
+    fournisseur = get_fournisseur(conn, nom)
+    fournisseur["composants"] = db.fetch_all(
+        conn,
+        "SELECT id, bloc_code, designation, ref_fabricant, qte_a_acheter, pu_ht, total_ht,"
+        " avancement FROM v_composant WHERE fournisseur_nom = ? ORDER BY id",
+        (nom,),
+    )
+    fournisseur["commandes"] = db.fetch_all(
+        conn,
+        "SELECT numero, type, statut, date_commande, livraison_annoncee, total_ht, engagee"
+        " FROM v_commande WHERE fournisseur_nom = ? AND archive = 0 ORDER BY numero DESC",
+        (nom,),
+    )
     return fournisseur
 
 

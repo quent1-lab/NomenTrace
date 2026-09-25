@@ -2,11 +2,13 @@
 
 import { api } from "../api.js";
 import { formatMontant, formatNombre, libelle } from "../format.js";
-import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
-import { BASES_PRIX } from "../valeurs.js";
+import { naviguer } from "../router.js";
 import { ouvrirFormulaireEnsemble } from "./ensembles_commun.js";
+import { afficherComparaison } from "./fournisseurs_comparaison.js";
+import { archiverFournisseur, lienFournisseur, ouvrirFormulaireFournisseur, routeFournisseur } from "./fournisseurs_commun.js";
 
 function table(entetes, lignes, vide) {
   if (!lignes.length) return el("p", { class: "texte-doux" }, vide);
@@ -174,103 +176,79 @@ export async function afficherOngletEnsembles(cible) {
 
 // --- Fournisseurs -----------------------------------------------------------------------------
 
-const DESCRIPTION_FOURNISSEUR = {
-  nom: "texte",
-  type: "texte",
-  base_prix_defaut: "choix",
-  pays: "texte",
-  site_web: "texte",
-  compte_ecole: "texte",
-  delai_moyen_j: "entier",
-  commentaire: "texte",
-};
+function premiereLigne(texte) {
+  if (!texte) return "";
+  const [ligne, ...reste] = texte.split("\n");
+  return reste.length ? `${ligne} (+${reste.length})` : ligne;
+}
 
-function ouvrirFormulaireFournisseur(fournisseur, rafraichir) {
-  const creation = fournisseur === null;
-  const f = fournisseur ?? {};
-  const formulaire = el(
-    "form",
-    { class: "formulaire", novalidate: true },
-    ligneChamp("Nom", champTexte("nom", f.nom ?? ""), {
-      requis: true,
-      aide: creation ? "" : "Renommer met à jour les composants et les commandes qui citent ce fournisseur.",
-    }),
-    ligneChamp("Type", champTexte("type", f.type ?? ""), { aide: "Distributeur, fabricant, atelier…" }),
-    ligneChamp("Prix affichés en", champChoix("base_prix_defaut", BASES_PRIX, f.base_prix_defaut ?? null, { vide: "—" })),
-    ligneChamp("Pays", champTexte("pays", f.pays ?? "")),
-    ligneChamp("Site web", champTexte("site_web", f.site_web ?? "", { placeholder: "https://…" })),
-    ligneChamp("Compte client", champTexte("compte_ecole", f.compte_ecole ?? "")),
-    ligneChamp("Délai moyen (jours)", champNombre("delai_moyen_j", f.delai_moyen_j ?? null)),
-    ligneChamp("Commentaire", champZone("commentaire", f.commentaire ?? "")),
-    boutonsFormulaire(creation ? "Créer le fournisseur" : "Enregistrer"),
-  );
-  surSoumission(
-    formulaire,
-    async () => {
-      const lu = lireFormulaire(formulaire, DESCRIPTION_FOURNISSEUR, { delai_moyen_j: "Délai moyen" });
-      if (lu.erreur) throw new Error(lu.erreur);
-      if (!lu.valeurs.nom) throw new Error("Le nom du fournisseur est obligatoire.");
-      if (creation) return api.createFournisseur(lu.valeurs);
-      return api.patchFournisseur(fournisseur.nom, lu.valeurs);
-    },
-    rafraichir,
-  );
-  ouvrirPanneau(creation ? "Nouveau fournisseur" : `Modifier ${fournisseur.nom}`, formulaire);
-  formulaire.elements.namedItem("nom").focus();
+function champFichierListe(surComparaison) {
+  const fichier = el("input", { type: "file", accept: ".xlsx,.xlsm", hidden: true });
+  fichier.addEventListener("change", async () => {
+    if (!fichier.files.length) return;
+    const donnees = new FormData();
+    donnees.append("fichier", fichier.files[0]);
+    try {
+      const resultat = await api.comparerFournisseurs(donnees);
+      masquerErreur();
+      surComparaison(resultat, fichier.files[0].name);
+    } catch (erreur) {
+      afficherErreur(erreur);
+    } finally {
+      fichier.value = "";
+    }
+  });
+  const bouton = el("button", { type: "button", class: "bouton bouton--discret", title: "Comparer avec un classeur Excel de fournisseurs (liste des fournisseurs autorisés…)" }, "Comparer avec une liste…");
+  bouton.addEventListener("click", () => fichier.click());
+  return [fichier, bouton];
 }
 
 export async function afficherOngletFournisseurs(cible) {
   const rafraichir = () => afficherOngletFournisseurs(cible);
   const fournisseurs = await api.getFournisseurs();
-  const archiver = async (f) => {
-    const usages = f.nb_composants + f.nb_commandes;
-    const message =
-      `Archiver le fournisseur « ${f.nom} » ?\n\n` +
-      (usages
-        ? `Il reste cité par ${f.nb_composants} composant(s) et ${f.nb_commandes} commande(s), qui le gardent. `
-        : "") +
-      "Il ne sera plus proposé dans les listes. Recréer un fournisseur du même nom le réactive.";
-    if (!confirm(message)) return;
-    try {
-      await api.archiveFournisseur(f.nom);
-      masquerErreur();
-      await rafraichir();
-    } catch (erreur) {
-      afficherErreur(erreur);
-    }
-  };
-  const lignes = fournisseurs.map((f) =>
+  const recherche = el("input", { class: "champ champ--recherche", type: "search", placeholder: "Filtrer : nom, catégorie, contact…", "aria-label": "Filtrer les fournisseurs" });
+  const ligne = (f) =>
     el(
       "tr",
-      {},
-      el("td", {}, f.nom, " ", lienProduit(f.site_web)),
-      el("td", {}, f.type ?? ""),
-      el("td", {}, f.pays ?? ""),
-      el("td", {}, f.base_prix_defaut ?? ""),
-      el("td", { class: "nombre" }, f.delai_moyen_j === null ? "" : `${formatNombre(f.delai_moyen_j)} j`),
+      { class: "ligne-cliquable", "data-texte": [f.nom, f.categorie, f.contact, f.numero_compte, f.type].join(" ").toLowerCase(), onclick: () => naviguer(routeFournisseur(f.nom)) },
+      el("td", {}, lienFournisseur(f.nom), " ", lienProduit(f.site_web)),
+      el("td", {}, f.categorie ?? ""),
+      el("td", { class: "texte-petit" }, premiereLigne(f.contact)),
+      el("td", {}, f.numero_compte ?? ""),
       el("td", { class: "nombre" }, formatNombre(f.nb_composants)),
       el("td", { class: "nombre" }, formatNombre(f.nb_commandes)),
       el(
         "td",
-        { class: "nombre" },
+        { class: "nombre", onclick: (e) => e.stopPropagation() },
         el("span", { class: "actions actions--droite" },
-          el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireFournisseur(f, rafraichir) }, "Modifier"),
-          el("button", { type: "button", class: "bouton bouton--petit bouton--danger", onclick: () => archiver(f) }, "Archiver"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: rafraichir }) }, "Modifier"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--danger", onclick: async () => (await archiverFournisseur(f)) && rafraichir() }, "Archiver"),
         ),
       ),
-    ),
+    );
+  const tableau = table(
+    [["Nom"], ["Catégorie"], ["Contact devis"], ["N° de compte"], ["Composants", "nombre"], ["Commandes", "nombre"], [""]],
+    fournisseurs.map(ligne),
+    "Aucun fournisseur pour l'instant.",
   );
+  recherche.addEventListener("input", () => {
+    const texte = recherche.value.trim().toLowerCase();
+    tableau.querySelectorAll("tbody tr").forEach((tr) => {
+      tr.hidden = Boolean(texte) && !tr.dataset.texte.includes(texte);
+    });
+  });
+  const comparer = (resultat, nomFichier) => afficherComparaison(cible, resultat, nomFichier, rafraichir);
   cible.replaceChildren(
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "Un fournisseur archivé n'est plus proposé, mais les composants et les commandes qui le citent le gardent."),
-      el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireFournisseur(null, rafraichir) }, "Nouveau fournisseur"),
+      el("p", { class: "texte-doux" }, "Cliquer sur un fournisseur ouvre sa fiche. Un fournisseur archivé n'est plus proposé, mais les composants et les commandes qui le citent le gardent."),
+      el("span", { class: "actions" },
+        champFichierListe(comparer),
+        el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),
+      ),
     ),
-    table(
-      [["Nom"], ["Type"], ["Pays"], ["Prix"], ["Délai", "nombre"], ["Composants", "nombre"], ["Commandes", "nombre"], [""]],
-      lignes,
-      "Aucun fournisseur pour l'instant.",
-    ),
+    fournisseurs.length ? el("div", { class: "barre-filtres" }, recherche) : null,
+    tableau,
   );
 }

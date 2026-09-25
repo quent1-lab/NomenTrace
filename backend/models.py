@@ -100,7 +100,9 @@ class FournisseurCreation(Modele):
     base_prix_defaut: BasePrix | None = None
     pays: str | None = None
     site_web: str | None = None
-    compte_ecole: str | None = None
+    numero_compte: str | None = None
+    categorie: str | None = None
+    contact: str | None = None
     delai_moyen_j: int | None = Field(default=None, ge=0)
     commentaire: str | None = None
 
@@ -111,9 +113,34 @@ class FournisseurModif(Modele):
     base_prix_defaut: BasePrix | None = None
     pays: str | None = None
     site_web: str | None = None
-    compte_ecole: str | None = None
+    numero_compte: str | None = None
+    categorie: str | None = None
+    contact: str | None = None
     delai_moyen_j: int | None = Field(default=None, ge=0)
     commentaire: str | None = None
+
+
+class ChampsFournisseur(Modele):
+    """Champs complétés sur un fournisseur existant depuis une liste (le nom ne change pas)."""
+
+    type: str | None = None
+    pays: str | None = None
+    site_web: str | None = None
+    numero_compte: str | None = None
+    categorie: str | None = None
+    contact: str | None = None
+    delai_moyen_j: int | None = Field(default=None, ge=0)
+    commentaire: str | None = None
+
+
+class CompletionFournisseur(Modele):
+    nom: str = Field(min_length=1)
+    champs: ChampsFournisseur
+
+
+class ApplicationListeFournisseurs(Modele):
+    creations: list[FournisseurCreation] = []
+    completions: list[CompletionFournisseur] = []
 
 
 class ComposantCreation(Modele):

@@ -12,6 +12,7 @@ import { afficherEnsembles } from "./pages/ensembles.js";
 import { afficherRevueImport } from "./pages/import_revue.js";
 import { afficherImports } from "./pages/imports.js";
 import { afficherParametres } from "./pages/parametres.js";
+import { afficherFicheFournisseur } from "./pages/fournisseur_detail.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur } from "./router.js";
@@ -35,6 +36,11 @@ function routeParametree(chemin) {
   if (detail) {
     const code = decodeURIComponent(detail[1]);
     return (conteneur, parametres) => afficherDetailEnsemble(conteneur, parametres, code);
+  }
+  const fournisseur = chemin.match(/^\/fournisseurs\/([^/]+)$/);
+  if (fournisseur) {
+    const nom = decodeURIComponent(fournisseur[1]);
+    return (conteneur, parametres) => afficherFicheFournisseur(conteneur, parametres, nom);
   }
   const depot = chemin.match(/^\/imports\/(\d+)$/);
   if (depot) return (conteneur, parametres) => afficherRevueImport(conteneur, parametres, depot[1]);
@@ -60,7 +66,9 @@ function pageAVenir(conteneur, titre) {
 }
 
 function marquerMenu(chemin) {
-  const racine = "/" + (chemin.split("/")[1] ?? "");
+  const segment = chemin.split("/")[1] ?? "";
+  // La fiche d'un fournisseur se rattache à l'écran Paramètres.
+  const racine = "/" + (segment === "fournisseurs" ? "parametres" : segment);
   document.querySelectorAll(".menu__lien").forEach((lien) => {
     lien.classList.toggle("menu__lien--actif", lien.dataset.route === racine);
   });

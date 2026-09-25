@@ -9,6 +9,7 @@ import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
+import { lienFournisseur } from "./fournisseurs_commun.js";
 
 const DESCRIPTION_MODIF = {
   fonction: "texte",
@@ -64,7 +65,7 @@ function vueChamps(c) {
       ["Réf fabricant", c.ref_fabricant],
       ["Fabricant", c.fabricant],
       ["Mode d'appro", libelle(c.mode_appro)],
-      ["Fournisseur", c.fournisseur_nom],
+      ["Fournisseur", c.fournisseur_nom ? lienFournisseur(c.fournisseur_nom) : null],
       ["Lien produit", lien],
     ]),
     definitions([

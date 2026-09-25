@@ -1589,3 +1589,74 @@ td.editable:hover {
   background: var(--couleur-surveiller-fond);
   color: var(--couleur-surveiller);
 }
+
+/* --- Fournisseurs ------------------------------------------------------------------------ */
+
+.etiquette--alerte {
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.lien-fournisseur {
+  color: inherit;
+  text-decoration: underline dotted var(--couleur-texte-doux);
+  text-underline-offset: 2px;
+}
+
+.lien-fournisseur:hover {
+  color: var(--couleur-ardoise);
+  text-decoration-style: solid;
+}
+
+.contact a {
+  color: var(--couleur-ardoise);
+}
+
+.numero-compte code {
+  padding: 1px var(--espace-1);
+  background: var(--couleur-neutre-fond);
+  border-radius: var(--rayon);
+}
+
+.table--parametres tr.ligne-cliquable:hover td {
+  background: var(--couleur-ardoise-clair);
+}
+
+.barre-filtres {
+  margin-bottom: var(--espace-2);
+}
+
+.champ--recherche {
+  max-width: 360px;
+}
+
+.comparaison {
+  padding: var(--espace-2) 0;
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.comparaison:last-child {
+  border-bottom: none;
+}
+
+.comparaison p {
+  margin: 0 0 var(--espace-2);
+}
+
+.table--ecarts {
+  width: auto;
+  min-width: 60%;
+}
+
+.table--ecarts td {
+  vertical-align: top;
+}
+
+.onglet-parametres > section.panneau + section.panneau,
+.onglet-parametres > .barre-application + section.panneau {
+  margin-top: var(--espace-4);
+}
+
+.cellule-nom .champ {
+  width: 260px;
+}

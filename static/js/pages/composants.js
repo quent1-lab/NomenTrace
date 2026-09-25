@@ -10,6 +10,7 @@ import { classeBloc, el, lienProduit, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import { ouvrirFiche } from "./composants_fiche.js";
+import { lienFournisseur } from "./fournisseurs_commun.js";
 
 const FILTRES_TEXTE = ["q", "bloc", "ensemble", "mode_appro", "statut_appro", "statut_choix", "criticite", "fournisseur"];
 const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation"];
@@ -48,7 +49,7 @@ const COLONNES = [
     titre: "Fournisseur",
     tri: "fournisseur_nom",
     classe: "tronque",
-    rendu: (c) => c.fournisseur_nom ?? "—",
+    rendu: (c) => lienFournisseur(c.fournisseur_nom),
     edition: { champ: "fournisseur_nom", type: "choix", vide: true, options: () => etat.fournisseurs.map((f) => [f.nom, f.nom]) },
   },
   { titre: "Besoin", classe: "nombre", rendu: (c) => formatNombre(c.qte_besoin), edition: { champ: "qte_besoin", type: "entier" } },

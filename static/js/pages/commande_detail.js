@@ -9,6 +9,7 @@ import { lienRoute, naviguer } from "../router.js";
 import { afficherAvertissements, afficherErreur, el, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
+import { lienFournisseur } from "./fournisseurs_commun.js";
 
 const SEUIL_ECART_PCT = 10;
 let etat = null;
@@ -205,7 +206,7 @@ function infos() {
   });
   const lien = c.lien_document ? el("a", { href: c.lien_document, target: "_blank", rel: "noopener noreferrer" }, "ouvrir") : "—";
   const paires = [
-    ["Fournisseur", c.fournisseur_nom ?? "—"],
+    ["Fournisseur", lienFournisseur(c.fournisseur_nom)],
     ["Statut", statut],
     ["Demandée par", c.demande_par ?? "—"],
     ["Référence externe", c.reference_externe ?? "—"],

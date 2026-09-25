@@ -72,7 +72,7 @@ class LigneLue:
     entites: list[dict] = field(default_factory=list)
 
 
-def _texte_cellule(valeur: Any) -> str | None:
+def texte_cellule(valeur: Any) -> str | None:
     """Texte d'une cellule : les nombres entiers perdent leur « .0 », les dates leur heure."""
     if valeur is None:
         return None
@@ -94,7 +94,7 @@ def read_classeur(contenu: bytes) -> Classeur:
     if NOM_FEUILLE_META in classeur.sheetnames:
         for cle, valeur, *_ in classeur[NOM_FEUILLE_META].iter_rows(values_only=True):
             if cle:
-                meta[str(cle)] = _texte_cellule(valeur) or ""
+                meta[str(cle)] = texte_cellule(valeur) or ""
     feuille = (
         classeur[NOM_FEUILLE] if NOM_FEUILLE in classeur.sheetnames else classeur.worksheets[0]
     )
@@ -188,7 +188,7 @@ def _reference(champ: str, texte: str, ctx: Contexte) -> tuple[Any, str | None, 
 
 def _convertir(champ: str, valeur: Any, ctx: Contexte) -> tuple[Any, str | None, dict | None]:
     """Valeur typée d'une cellule, erreur en français, entité à créer éventuelle."""
-    texte = _texte_cellule(valeur)
+    texte = texte_cellule(valeur)
     nature, libelle = NATURES[champ], LIBELLES[champ]
     if texte is None:
         return None, None, None
@@ -217,7 +217,7 @@ def _convertir(champ: str, valeur: Any, ctx: Contexte) -> tuple[Any, str | None,
 
 def convert_ligne(numero: int, brut: dict[str, Any], ctx: Contexte) -> LigneLue | None:
     """Convertit une ligne ; None si elle est entièrement vide."""
-    textes = {champ: _texte_cellule(v) for champ, v in brut.items()}
+    textes = {champ: texte_cellule(v) for champ, v in brut.items()}
     if all(v is None for v in textes.values()):
         return None
     lue = LigneLue(numero, {k: v for k, v in textes.items() if v is not None})

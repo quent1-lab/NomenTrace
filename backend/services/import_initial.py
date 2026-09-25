@@ -50,7 +50,7 @@ COLONNES_FOURNISSEURS: dict[str, str] = {
     "Base prix par defaut": "base_prix_defaut",
     "Pays": "pays",
     "Site web": "site_web",
-    "Compte ecole": "compte_ecole",
+    "Compte ecole": "numero_compte",
     "Delai moyen (j)": "delai_moyen_j",
     "Commentaire": "commentaire",
 }
