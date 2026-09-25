@@ -180,3 +180,19 @@ Sous Linux / macOS, remplacer `.venv\Scripts\python.exe` par `.venv/bin/python`.
   et le dossier d'échange (pratique pour essayer sans toucher à ses données).
 - Les conventions du code sont dans `docs/MODELE.md` ; le modèle de données et les définitions
   de calcul dans [docs/MODELE.md](docs/MODELE.md).
+
+## Licence
+
+Nomentrace est un logiciel libre, distribué sous la licence
+[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
+Copyright © 2026 Quentin C.
+
+En résumé : vous pouvez utiliser, étudier, modifier et redistribuer Nomentrace, y compris
+dans un cadre commercial. Si vous distribuez une version modifiée, **ou si vous la mettez à
+disposition d'autres personnes à travers un réseau** (par exemple hébergée sur un
+serveur), vous devez en fournir le code source complet à ses utilisateurs, sous la même
+licence. Le texte de la licence fait foi.
+
+Les données que vous saisissez dans l'outil (base, exports, documents) vous appartiennent :
+la licence porte sur le code, pas sur elles. Les bibliothèques utilisées (FastAPI,
+Uvicorn, Pydantic, openpyxl, Chart.js…) gardent leurs propres licences, compatibles.
