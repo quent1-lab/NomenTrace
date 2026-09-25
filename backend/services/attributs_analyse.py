@@ -8,6 +8,7 @@ import sqlite3
 from typing import Any
 
 from backend import db
+from backend.erreurs import ErreurMetier
 from backend.services import attributs
 
 
@@ -66,3 +67,54 @@ def get_repartition(
         valeurs.sort(key=lambda v: str(v["libelle"]).lower())
     vide = {"nb_composants": 0, "nb_pieces": 0, "cout_ht": 0.0}
     return {"attribut": attribut, "valeurs": valeurs, "non_renseigne": non_renseigne or vide}
+
+
+def get_calcul(
+    conn: sqlite3.Connection, code: str, filtres: dict[str, str | None]
+) -> dict[str, Any]:
+    """Somme et moyenne d'un attribut nombre sur les composants filtrés, simples et pondérées.
+
+    La pondération compte chaque composant autant de fois que de pièces : la quantité de
+    besoin, ou la quantité affectée quand un ensemble est choisi. Les composants sans valeur
+    ne sont pas comptés ; une moyenne sans aucune valeur vaut NULL.
+    """
+    attribut = attributs.get_attribut(conn, code)
+    if attribut["type"] != "nombre":
+        raise ErreurMetier(f"« {attribut['libelle']} » n'est pas un attribut de type nombre.")
+    ensemble = filtres.get("ensemble")
+    resultat = db.fetch_one(
+        conn,
+        "SELECT COUNT(valeur_nombre) AS nb_renseignes,"
+        " COUNT(*) - COUNT(valeur_nombre) AS nb_non_renseignes,"
+        " TOTAL(CASE WHEN valeur_nombre IS NOT NULL THEN qte END) AS nb_pieces,"
+        " SUM(valeur_nombre) AS somme,"
+        " AVG(valeur_nombre) AS moyenne,"
+        " SUM(valeur_nombre * qte) AS somme_ponderee,"
+        " SUM(valeur_nombre * qte)"
+        "   / NULLIF(TOTAL(CASE WHEN valeur_nombre IS NOT NULL THEN qte END), 0)"
+        "   AS moyenne_ponderee"
+        " FROM (SELECT v.valeur_nombre,"
+        "        CASE WHEN ? IS NULL THEN v.qte_besoin ELSE a.qte END AS qte"
+        "       FROM v_attribut_composant v"
+        "       LEFT JOIN affectation a"
+        "         ON a.composant_id = v.composant_id AND a.ensemble_code = ?"
+        "       WHERE v.attribut_code = ?"
+        "         AND (? IS NULL OR v.bloc_code = ?)"
+        "         AND (? IS NULL OR v.mode_appro = ?)"
+        "         AND (? IS NULL OR a.id IS NOT NULL))",
+        (
+            ensemble,
+            ensemble,
+            code,
+            filtres.get("bloc"),
+            filtres.get("bloc"),
+            filtres.get("mode_appro"),
+            filtres.get("mode_appro"),
+            ensemble,
+        ),
+    )
+    return {
+        **(resultat or {}),
+        "nb_pieces": int((resultat or {}).get("nb_pieces") or 0),
+        "quantite": "affectee" if ensemble else "besoin",
+    }

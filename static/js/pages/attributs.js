@@ -51,9 +51,78 @@ function ligne(texte, chiffres, total, lien) {
   );
 }
 
+function filtresApi() {
+  return Object.fromEntries(FILTRES.map((cle) => [cle, etat.filtres[cle]]));
+}
+
+// --- Options avancées (attribut de type nombre) : somme ou moyenne sur les composants filtrés --
+
+const CALCULS = { somme: "Somme", moyenne: "Moyenne" };
+
+// Au plus trois décimales, sans zéros inutiles.
+function arrondi(valeur) {
+  return valeur === null || valeur === undefined ? null : Math.round(valeur * 1000) / 1000;
+}
+
+async function rendreCalcul() {
+  const a = etat.attribut;
+  const zone = etat.zoneAvancee;
+  if (!a || a.type !== "nombre") {
+    zone.replaceChildren();
+    return;
+  }
+  const bascule = el(
+    "button",
+    { type: "button", class: "bouton-lien", "aria-expanded": String(etat.avance.ouvert), onclick: () => {
+      etat.avance.ouvert = !etat.avance.ouvert;
+      rendreCalcul().catch(afficherErreur);
+    } },
+    `Options avancées ${etat.avance.ouvert ? "▾" : "▸"}`,
+  );
+  if (!etat.avance.ouvert) {
+    zone.replaceChildren(bascule);
+    return;
+  }
+  const c = await api.getCalculAttribut(a.code, filtresApi());
+  const choixCalcul = el("select", { class: "filtre", "aria-label": "Calcul" }, Object.entries(CALCULS).map(([code, texte]) => el("option", { value: code, selected: code === etat.avance.calcul }, texte)));
+  choixCalcul.addEventListener("change", () => {
+    etat.avance.calcul = choixCalcul.value;
+    rendreCalcul().catch(afficherErreur);
+  });
+  const ponderer = el("input", { type: "checkbox", checked: etat.avance.ponderer });
+  ponderer.addEventListener("change", () => {
+    etat.avance.ponderer = ponderer.checked;
+    rendreCalcul().catch(afficherErreur);
+  });
+  const cle = `${etat.avance.calcul}${etat.avance.ponderer ? "_ponderee" : ""}`;
+  const valeur = arrondi(c[cle]);
+  const quantite = c.quantite === "affectee" ? "quantité affectée à l'ensemble choisi" : "quantité de besoin";
+  const detail = [
+    `${formatNombre(c.nb_renseignes)} composant(s)`,
+    etat.avance.ponderer ? `${formatNombre(c.nb_pieces)} pièce(s), selon la ${quantite}` : "chacun compté une fois",
+  ];
+  if (c.nb_non_renseignes) detail.push(`${formatNombre(c.nb_non_renseignes)} composant(s) sans valeur, non compté(s)`);
+  zone.replaceChildren(
+    bascule,
+    el(
+      "div",
+      { class: "panneau panneau--encart options-avancees" },
+      el("div", { class: "filtres" }, choixCalcul, el("label", { class: "filtre-case" }, ponderer, "Tenir compte du nombre de pièces nécessaires")),
+      el(
+        "p",
+        { class: "resultat-calcul" },
+        `${CALCULS[etat.avance.calcul]} — ${a.libelle} : `,
+        el("strong", {}, valeur === null ? "—" : formatAttribut(a, valeur)),
+      ),
+      el("p", { class: "texte-doux texte-petit" }, detail.join(" ; ") + "."),
+    ),
+  );
+}
+
 async function rendreRepartition() {
   if (!etat.attribut) return;
-  const filtres = Object.fromEntries(FILTRES.map((cle) => [cle, etat.filtres[cle]]));
+  rendreCalcul().catch(afficherErreur);
+  const filtres = filtresApi();
   const donnees = await api.getRepartitionAttribut(etat.attribut.code, filtres);
   const a = etat.attribut;
   const total = donnees.valeurs.reduce((s, v) => s + v.nb_composants, 0) + donnees.non_renseigne.nb_composants;
@@ -101,6 +170,8 @@ export async function afficherAttributs(conteneur, parametres) {
     attribut,
     filtres: { attribut: attribut.code, ...Object.fromEntries(FILTRES.map((cle) => [cle, parametres.get(cle) || ""])) },
     zone: el("div"),
+    zoneAvancee: el("div", { class: "zone-avancee" }),
+    avance: { ouvert: false, calcul: "somme", ponderer: true },
   };
   conteneur.replaceChildren(
     el("h1", {}, "Analyse des attributs"),
@@ -112,6 +183,7 @@ export async function afficherAttributs(conteneur, parametres) {
       select("ensemble", "Tous les ensembles", ensembles.map((e) => [e.code, `${e.code} — ${e.nom}`]), (v) => changer("ensemble", v)),
       select("mode_appro", "Tous les modes d'appro", valeursListe("mode_appro", { inclureInactives: true }), (v) => changer("mode_appro", v)),
     ),
+    etat.zoneAvancee,
     el("section", { class: "panneau" }, etat.zone),
   );
   remplacerRoute("/attributs", parametresUrl());

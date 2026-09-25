@@ -318,3 +318,44 @@ def test_suppression_et_reclassement_gardent_la_coherence(client_attributs: Test
     assert client_attributs.post("/api/nettoyage/composants", json=corps).json()["supprimes"] == [
         C3
     ]
+
+
+# --- Options avancées : somme et moyenne d'un attribut nombre ------------------------------------
+
+
+def test_calcul_somme_et_moyenne(client_attributs: TestClient) -> None:
+    _saisir(client_attributs, "ESSAI-ALI-010", tension=5)  # besoin : 3 pièces
+    calcul = client_attributs.get("/api/attributs/tension/calcul").json()
+    assert calcul["nb_renseignes"] == 4
+    assert calcul["nb_non_renseignes"] == 56
+    assert calcul["nb_pieces"] == 6
+    assert calcul["somme"] == pytest.approx(68.3)
+    assert calcul["somme_ponderee"] == pytest.approx(78.3)
+    assert calcul["moyenne"] == pytest.approx(68.3 / 4)
+    assert calcul["moyenne_ponderee"] == pytest.approx(78.3 / 6)
+    assert calcul["quantite"] == "besoin"
+    filtre = client_attributs.get("/api/attributs/tension/calcul", params={"bloc": "TR"}).json()
+    assert (filtre["nb_renseignes"], filtre["somme"], filtre["moyenne"]) == (0, None, None)
+
+
+def test_calcul_sur_un_ensemble_pondere_par_la_quantite_affectee(
+    client_attributs: TestClient,
+) -> None:
+    _saisir(client_attributs, "ESSAI-ALI-010", tension=5)
+    client_attributs.post("/api/ensembles", json={"code": "COFFRET", "nom": "Coffret"})
+    for composant, qte in ((C1, 2), ("ESSAI-ALI-010", 1), ("ESSAI-ALI-002", 1)):
+        corps = {"composant_id": composant, "qte": qte}
+        client_attributs.post("/api/ensembles/COFFRET/affectations", json=corps)
+    calcul = client_attributs.get(
+        "/api/attributs/tension/calcul", params={"ensemble": "COFFRET"}
+    ).json()
+    assert (calcul["nb_renseignes"], calcul["nb_non_renseignes"]) == (2, 1)
+    assert calcul["somme_ponderee"] == pytest.approx(48 * 2 + 5)
+    assert calcul["nb_pieces"] == 3
+    assert calcul["quantite"] == "affectee"
+
+
+def test_calcul_refuse_hors_type_nombre(client_attributs: TestClient) -> None:
+    reponse = client_attributs.get("/api/attributs/materiau/calcul")
+    assert reponse.status_code == 400
+    assert "nombre" in reponse.json()["erreur"]

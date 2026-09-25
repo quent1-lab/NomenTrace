@@ -110,6 +110,8 @@ export const api = {
   createValeurAttribut: (code, libelle) => requete("POST", `/api/attributs/${encodeURIComponent(code)}/valeurs`, { libelle }),
   patchValeurAttribut: (code, valeur, modifs) =>
     requete("PATCH", `/api/attributs/${encodeURIComponent(code)}/valeurs/${encodeURIComponent(valeur)}`, modifs),
+  getCalculAttribut: (code, filtres) =>
+    requete("GET", avecParametres(`/api/attributs/${encodeURIComponent(code)}/calcul`, filtres)),
   getRepartitionAttribut: (code, filtres) =>
     requete("GET", avecParametres(`/api/attributs/${encodeURIComponent(code)}/repartition`, filtres)),
 

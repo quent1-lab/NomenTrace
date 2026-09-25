@@ -54,3 +54,16 @@ def read_repartition(
 ) -> dict:
     filtres = {"bloc": bloc, "ensemble": ensemble, "mode_appro": mode_appro}
     return round_output(attributs_analyse.get_repartition(conn, code, filtres))
+
+
+@router.get("/{code}/calcul")
+def read_calcul(
+    code: str,
+    conn: Conn,
+    bloc: str | None = None,
+    ensemble: str | None = None,
+    mode_appro: str | None = None,
+) -> dict:
+    # Valeurs d'attribut, pas des montants : aucun arrondi à deux décimales.
+    filtres = {"bloc": bloc, "ensemble": ensemble, "mode_appro": mode_appro}
+    return attributs_analyse.get_calcul(conn, code, filtres)
