@@ -250,13 +250,13 @@ function rendre() {
       ),
     ),
     bandeau(),
-    e.enfants.length ? sectionSousEnsembles() : null,
+    ...(e.enfants.length ? [sectionSousEnsembles()] : []),
     el(
       "section",
       { class: "panneau" },
       el("div", { class: "titre-section" }, el("h2", {}, e.enfants.length ? "Composants affectés directement" : "Composants affectés"), etat.lignes.length ? grouper : null),
       etat.lignes.length
-        ? tableComposants()
+        ? [el("p", { class: "texte-doux texte-petit" }, "Cliquer sur une quantité affectée pour la modifier ; × retire le composant de l'ensemble."), tableComposants()]
         : el("p", { class: "texte-doux" }, "Aucun composant n'est encore affecté à cet ensemble. Utiliser « Affecter un composant »."),
     ),
     el("section", { class: "panneau" }, el("h2", {}, "Liste de montage"), el("p", { class: "texte-doux texte-petit" }, "Composants qu'il reste à monter. Le stock est celui du composant, tous ensembles confondus."), listeMontage()),
@@ -299,21 +299,34 @@ function ligneSelecteur(c, ici, surAffecte) {
   };
   qte.addEventListener("input", majAlerte);
   majAlerte();
-  const valider = async () => {
-    const n = Number(qte.value.trim());
-    if (!Number.isInteger(n) || n <= 0) return afficherErreur("La quantité doit être un entier supérieur à zéro.");
+  const executer = async (action) => {
     try {
-      if (ici) await api.patchAffectation(ici.affectation_id, { qte: n });
-      else await api.createAffectation(etat.code, { composant_id: c.id, qte: n });
+      await action();
       masquerErreur();
       await surAffecte();
     } catch (erreur) {
       afficherErreur(erreur);
     }
   };
+  const retirer = () => executer(() => api.deleteAffectation(ici.affectation_id));
+  const valider = () => {
+    const n = Number(qte.value.trim());
+    // Déjà affecté : 0 vaut retrait, la même quantité ne fait rien.
+    if (ici && n === 0) return retirer();
+    if (!Number.isInteger(n) || n <= 0) return afficherErreur("La quantité doit être un entier supérieur à zéro.");
+    if (ici && n === ici.qte_affectee) return;
+    return executer(() =>
+      ici ? api.patchAffectation(ici.affectation_id, { qte: n }) : api.createAffectation(etat.code, { composant_id: c.id, qte: n }),
+    );
+  };
   qte.addEventListener("keydown", (e) => {
     if (e.key === "Enter") valider();
   });
+  // Pour un composant déjà affecté, la quantité s'enregistre dès qu'on quitte le champ.
+  if (ici) qte.addEventListener("change", valider);
+  const actions = ici
+    ? [el("button", { type: "button", class: "bouton bouton--petit bouton--danger", title: "Retirer de l'ensemble", onclick: retirer }, "Retirer")]
+    : [el("button", { type: "button", class: "bouton bouton--petit", onclick: valider }, "Affecter")];
   return el(
     "tr",
     { class: ici ? "ligne--selection" : "" },
@@ -324,7 +337,7 @@ function ligneSelecteur(c, ici, surAffecte) {
     el("td", { class: "nombre" }, formatNombre(ailleurs)),
     el("td", { class: "nombre" }, ici ? formatNombre(ici.qte_affectee) : "—"),
     el("td", { class: "nombre" }, qte),
-    el("td", {}, el("button", { type: "button", class: "bouton bouton--petit", onclick: valider }, ici ? "Modifier" : "Affecter"), " ", alerte),
+    el("td", {}, actions, " ", alerte),
   );
 }
 
@@ -339,6 +352,7 @@ async function ouvrirSelecteur() {
     const terme = recherche.value.trim().toLowerCase();
     const trouves = liste.filter((c) => !terme || [c.id, c.designation, c.fonction, c.ref_fabricant].some((v) => (v ?? "").toLowerCase().includes(terme)));
     const parId = new Map(etat.lignes.map((l) => [l.composant_id, l]));
+    trouves.sort((a, b) => Number(parId.has(b.id)) - Number(parId.has(a.id)));
     corps.replaceChildren(...trouves.slice(0, 40).map((c) => ligneSelecteur(c, parId.get(c.id), surAffecte)));
     compte.textContent = trouves.length > 40 ? `${trouves.length} composants trouvés, 40 affichés : préciser la recherche.` : `${trouves.length} composant(s) trouvé(s).`;
   };
@@ -367,7 +381,7 @@ async function ouvrirSelecteur() {
     });
 
   ouvrirPanneau(`Affecter un composant à ${etat.code}`, [
-    el("p", { class: "texte-doux" }, "« Ailleurs » est la quantité déjà affectée aux autres ensembles : comparée au besoin, elle montre tout de suite une sur-affectation. Entrée ou « Affecter » valide la ligne."),
+    el("p", { class: "texte-doux" }, "« Ailleurs » est la quantité déjà affectée aux autres ensembles : comparée au besoin, elle montre tout de suite une sur-affectation. Entrée ou « Affecter » valide la ligne. Les composants déjà affectés ici sont en tête : leur quantité s'enregistre dès qu'on quitte le champ (0 ou « Retirer » les enlève)."),
     recherche,
     compte,
     el(

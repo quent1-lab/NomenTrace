@@ -1,6 +1,7 @@
 // Vue d'ensemble (#/ensembles) : une carte par ensemble physique et l'encadré de cohérence.
 
 import { api } from "../api.js";
+import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, formatPourcent } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
 import { vueSchema } from "./ensembles_schema.js";
@@ -94,7 +95,32 @@ function celluleNom(texte, code, niveau) {
   );
 }
 
-function ligneArbre(e) {
+const EDITION_BUDGET = { champ: "budget_cible_ht", type: "montant" };
+
+// Cellule éditable du budget cible. Saisir un montant verrouille l'ensemble dessus ;
+// vider la case le déverrouille. Sur la racine, c'est le budget du projet.
+function celluleBudgetCible(valeur, enregistrer, rafraichir, contenu) {
+  const td = el("td", { class: "nombre editable", title: "Cliquer pour saisir le budget cible" }, contenu);
+  td.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    editerCellule(td, EDITION_BUDGET, { budget_cible_ht: valeur }, {
+      enregistrer: (modifs) => enregistrer(modifs.budget_cible_ht),
+      terminer: (reussi) => reussi && rafraichir(),
+    });
+  });
+  td.addEventListener("keydown", (ev) => ev.stopPropagation());
+  return td;
+}
+
+function budgetCibleEnsemble(e, rafraichir) {
+  const valeur = e.budget_verrouille ? e.budget_cible_ht : null;
+  const enregistrer = (montant) =>
+    api.patchEnsemble(e.code, montant === null ? { budget_verrouille: false, budget_cible_ht: null } : { budget_cible_ht: montant, budget_verrouille: true });
+  const contenu = valeur === null ? el("span", { class: "texte-doux" }, "calculé") : [formatMontant(valeur), el("span", { class: "etiquette etiquette--espace" }, "verrouillé")];
+  return celluleBudgetCible(valeur, enregistrer, rafraichir, contenu);
+}
+
+function ligneArbre(e, rafraichir) {
   const c = e.cumul;
   const appro = c.nb_composants_a_acheter > 0 ? `${formatNombre(c.nb_composants_recus)} / ${formatNombre(c.nb_composants_a_acheter)}` : "—";
   const nom = celluleNom(e.nom, e.code, e.niveau);
@@ -107,14 +133,15 @@ function ligneArbre(e) {
     nom,
     el("td", { class: "nombre" }, texteCout(c)),
     el("td", { class: "nombre" }, e.nb_sous_ensembles ? formatMontant(e.cout_ht) : ""),
-    el("td", { class: "nombre" }, texteBudget(e)),
+    budgetCibleEnsemble(e, rafraichir),
+    el("td", { class: "nombre" }, e.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(e.budget_ht)),
     el("td", { class: "nombre" }, texteEcartBudget(e.ecart_budget_ht)),
     el("td", { class: "nombre" }, appro),
     el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
   );
 }
 
-function ligneRacine(racine) {
+function ligneRacine(racine, rafraichir) {
   const nom = celluleNom(racine.nom || "Projet", null, 0);
   nom.append(el("span", { class: "texte-doux texte-petit" }, " (projet)"));
   const alerte = alerteDepassement(racine.depassement_verrouille_ht, "arbre__alerte");
@@ -128,6 +155,12 @@ function ligneRacine(racine) {
     nom,
     el("td", { class: "nombre" }, formatMontant(racine.cout_ht)),
     el("td"),
+    celluleBudgetCible(
+      racine.budget_ht,
+      (montant) => api.patchParametres({ budget_ht: montant }),
+      rafraichir,
+      racine.budget_ht === null ? el("span", { class: "texte-doux" }, "à saisir") : formatMontant(racine.budget_ht),
+    ),
     el("td", { class: "nombre" }, racine.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(racine.budget_ht)),
     el("td", { class: "nombre" }, texteEcartBudget(racine.ecart_budget_ht)),
     el("td"),
@@ -135,8 +168,8 @@ function ligneRacine(racine) {
   );
 }
 
-function vueArbre(arbre) {
-  const entetes = [["Ensemble"], ["Coût HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget HT", "nombre"], ["Écart", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
+function vueArbre(arbre, rafraichir) {
+  const entetes = [["Ensemble"], ["Coût HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget cible HT", "nombre"], ["Budget HT", "nombre"], ["Écart", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
   return el(
     "section",
     { class: "panneau" },
@@ -147,13 +180,18 @@ function vueArbre(arbre) {
         "Ces budgets d'ensemble sont un axe parallèle aux budgets de bloc : les deux découpent le même budget total, l'un par partie physique, l'autre par fonction.",
     ),
     el(
+      "p",
+      { class: "texte-doux texte-petit" },
+      "Cliquer sur un budget cible pour le saisir : l'ensemble est alors verrouillé sur ce montant. Vider la case le déverrouille, son budget redevient calculé. Sur la ligne du projet, c'est le budget total.",
+    ),
+    el(
       "div",
       { class: "table-defilante" },
       el(
         "table",
         { class: "table table--dense table--arbre" },
         el("thead", {}, el("tr", {}, entetes.map(([t, c]) => el("th", { class: c ?? "" }, t)))),
-        el("tbody", {}, ligneRacine(arbre.racine), arbre.ensembles.map(ligneArbre)),
+        el("tbody", {}, ligneRacine(arbre.racine, rafraichir), arbre.ensembles.map((e) => ligneArbre(e, rafraichir))),
       ),
     ),
   );
@@ -269,7 +307,7 @@ export async function afficherEnsembles(conteneur, parametres) {
   };
   const corps = {
     cartes: () => el("div", { class: "grille-cartes" }, ensembles.map(carteDe)),
-    arbre: () => vueArbre(arbre),
+    arbre: () => vueArbre(arbre, rafraichir),
     schema: () => vueSchema(arbre),
   }[vue]();
   conteneur.replaceChildren(
