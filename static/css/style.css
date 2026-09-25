@@ -746,6 +746,8 @@ h2 {
 .table--composants tfoot td {
   position: sticky;
   bottom: 0;
+  /* Au-dessus de la colonne ID figée des lignes qui défilent dessous. */
+  z-index: 2;
   background: var(--couleur-ardoise-clair);
   border-top: 2px solid var(--couleur-bordure);
 }
