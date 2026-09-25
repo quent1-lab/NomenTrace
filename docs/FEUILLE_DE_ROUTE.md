@@ -14,29 +14,38 @@ attributs paramétrables, le travail en équipe par modèles Excel, le nettoyage
 l'historique complet, la recherche globale, les sauvegardes avec leur corbeille de
 documents. Le tout en mode local : un seul utilisateur, sans connexion, sur 127.0.0.1.
 
-## Comptes, droits et connexion GitHub
+## Comptes, droits et connexion
 
 C'est la prochaine étape, et elle conditionne la suivante : l'outil ne sera pas exposé sur
 un réseau tant qu'elle n'est pas faite.
 
-La connexion se fera uniquement par GitHub, sans mot de passe stocké par l'outil. Seuls les
-comptes inscrits dans une liste tenue par l'administrateur pourront entrer. Trois rôles
-sont prévus. Le lecteur voit tout et télécharge les exports. Le contributeur écrit, mais
-seulement sur les composants des blocs qui lui sont attribués ; les commandes, les
-réceptions et le stock lui restent ouverts. L'administrateur a tout, y compris les
-paramètres, les utilisateurs, le nettoyage, la restauration et la validation des
-fournisseurs proposés. Les droits seront vérifiés côté serveur, l'interface se contentant
-de masquer ce qui est interdit.
+Les comptes seront internes à l'outil. Il n'y aura pas d'inscription libre :
+l'administrateur crée chaque utilisateur et lui transmet un lien d'invitation à usage
+unique, par lequel la personne choisit son mot de passe. Un mot de passe oublié se règle de
+la même façon, par un nouveau lien. Les mots de passe ne sont jamais stockés en clair, et
+les tentatives répétées bloquent le compte pour quelques minutes. Trois rôles sont prévus.
+Le lecteur voit tout et télécharge les exports. Le contributeur écrit, mais seulement sur
+les composants des blocs qui lui sont attribués ; les commandes, les réceptions et le stock
+lui restent ouverts. L'administrateur a tout, y compris les paramètres, les utilisateurs,
+le nettoyage, la restauration et la validation des fournisseurs proposés. Les droits seront
+vérifiés côté serveur, l'interface se contentant de masquer ce qui est interdit.
+
+Les comptes vivront dans une base à part, avec des rôles attribués projet par projet, pour
+que plusieurs projets puissent un jour partager le même serveur sans rien changer à cette
+organisation. L'identité d'un utilisateur ne dépendra pas du moyen de connexion : une
+connexion par un compte Microsoft ou GitHub pourra s'ajouter plus tard, rattachée au même
+utilisateur.
 
 Chaque ligne du journal portera l'auteur de la modification. Plusieurs personnes écrivant
 en même temps, une modification faite sur une donnée changée entre-temps sera signalée
 plutôt qu'écrasée.
 
-Le mode local restera disponible pour les essais : sans configuration GitHub, et seulement
+Le mode local restera disponible pour les essais : sans clé de session configurée, et seulement
 en écoute sur 127.0.0.1, l'outil fonctionnera comme aujourd'hui avec un administrateur
 implicite. Il refusera de démarrer sur une autre adresse sans authentification.
 
-Une seule dépendance s'ajoutera, `itsdangerous`, pour signer le cookie de session.
+Une seule dépendance s'ajoutera, `itsdangerous`, pour signer le cookie de session ; le
+hachage des mots de passe utilise la bibliothèque standard.
 
 ## Hébergement
 

@@ -20,7 +20,8 @@ dossier d'échange à part :
 ```
 set NOMENTRACE_BASE=C:\temp\essai\nomentrace.db
 set NOMENTRACE_ECHANGE=C:\temp\essai\echange
-.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8765
+set NOMENTRACE_PORT=8765
+.venv\Scripts\python.exe -m backend
 ```
 
 Une base neuve démarre vide. Pour disposer de données, on peut charger le jeu d'essai des

@@ -6,7 +6,9 @@ setlocal
 cd /d "%~dp0"
 
 set "PY=.venv\Scripts\python.exe"
-set "PORT=8000"
+rem Port : NOMENTRACE_PORT s'il est défini, 8000 sinon.
+if not defined NOMENTRACE_PORT set "NOMENTRACE_PORT=8000"
+set "PORT=%NOMENTRACE_PORT%"
 
 rem 1. Environnement virtuel
 if exist "%PY%" goto venv_ok
@@ -49,7 +51,7 @@ start "" /b "%PY%" -c "import socket,time,webbrowser; [time.sleep(0.5) for _ in 
 
 rem 5. Serveur
 echo Nomentrace démarre sur http://127.0.0.1:%PORT%  (fermer cette fenêtre pour l'arrêter)
-"%PY%" -m uvicorn backend.main:app --host 127.0.0.1 --port %PORT%
+"%PY%" -m backend
 if errorlevel 1 goto erreur
 goto fin
 

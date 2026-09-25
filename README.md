@@ -55,7 +55,7 @@ macOS :
 ```
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m backend
 ```
 
 Dans l'outil, commencer par Paramètres › Projet (nom, préfixe des identifiants, budget),
