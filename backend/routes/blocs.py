@@ -15,8 +15,8 @@ Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 
 
 @router.get("")
-def read_blocs(conn: Conn) -> list[dict]:
-    return round_output(blocs.list_blocs(conn))
+def read_blocs(conn: Conn, archives: bool = False) -> list[dict]:
+    return round_output(blocs.list_blocs(conn, archives))
 
 
 @router.post("", status_code=201)

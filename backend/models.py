@@ -65,6 +65,23 @@ class BlocModif(Modele):
     budget_cible_ht: float | None = Field(default=None, ge=0)
     responsable: str | None = None
     description: str | None = None
+    archive: Literal[0, 1] | None = None
+
+
+class TraitementLot(Modele):
+    """Action en lot de l'écran nettoyage ; `simuler` rend le récapitulatif sans rien faire."""
+
+    cles: list[str] = Field(min_length=1)
+    action: Literal["supprimer", "archiver"]
+    simuler: bool = False
+
+
+class PurgeJournal(Modele):
+    confirmer: Literal[True]
+
+
+class Reclassement(Modele):
+    bloc_code: str = Field(pattern=r"^[A-Z]{2,4}$")
 
 
 class EnsembleCreation(Modele):

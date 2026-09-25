@@ -89,27 +89,50 @@ function ouvrirFormulaireBloc(bloc, ordreSuggere, rafraichir) {
 
 export async function afficherOngletBlocs(cible) {
   const rafraichir = () => afficherOngletBlocs(cible);
-  const blocs = await api.getBlocs();
-  const rangs = rangsBlocs(blocs);
+  const blocs = await api.getBlocs({ archives: true });
+  const rangs = rangsBlocs(blocs.filter((b) => !b.archive));
+  const basculerArchive = async (b) => {
+    const archiver = !b.archive;
+    const message = archiver
+      ? `Archiver le bloc « ${b.code} — ${b.nom} » ?
+
+Il ne sera plus proposé à la création de composant. Il peut être réactivé ensuite.`
+      : `Réactiver le bloc « ${b.code} — ${b.nom} » ?`;
+    if (!confirm(message)) return;
+    try {
+      await api.patchBloc(b.code, { archive: archiver ? 1 : 0 });
+      masquerErreur();
+      await rafraichir();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
   const ordreSuggere = Math.max(0, ...blocs.map((b) => b.ordre)) + 1;
   const lignes = blocs.map((b) =>
     el(
       "tr",
-      {},
-      el("td", {}, el("span", { class: `etiquette-bloc ${classeBloc(rangs.get(b.code))}` }, b.code)),
-      el("td", {}, b.nom),
+      { class: b.archive ? "ligne--inactive" : "" },
+      el("td", {}, el("span", { class: `etiquette-bloc ${classeBloc(rangs.get(b.code) ?? 0)}` }, b.code)),
+      el("td", {}, b.nom, b.archive ? el("span", { class: "etiquette etiquette--espace" }, "Archivé") : null),
       el("td", { class: "nombre" }, formatNombre(b.ordre)),
       el("td", { class: "nombre" }, b.budget_cible_ht === null ? "—" : formatMontant(b.budget_cible_ht)),
       el("td", {}, b.responsable ?? ""),
       el("td", { class: "nombre" }, formatNombre(b.nb_composants)),
-      el("td", { class: "nombre" }, el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireBloc(b, ordreSuggere, rafraichir) }, "Modifier")),
+      el(
+        "td",
+        { class: "nombre" },
+        el("span", { class: "actions actions--droite" },
+          el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaireBloc(b, ordreSuggere, rafraichir) }, "Modifier"),
+          el("button", { type: "button", class: `bouton bouton--petit ${b.archive ? "bouton--discret" : "bouton--danger"}`, onclick: () => basculerArchive(b) }, b.archive ? "Réactiver" : "Archiver"),
+        ),
+      ),
     ),
   );
   cible.replaceChildren(
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "Le bloc est le découpage fonctionnel : un seul par composant, figé dans son identifiant. Un bloc ne se supprime pas."),
+      el("p", { class: "texte-doux" }, "Le bloc est le découpage fonctionnel : un seul par composant, figé dans son identifiant. Un bloc archivé n'accepte plus de composant ; un bloc qui n'a jamais porté de composant se supprime depuis l'écran Nettoyage."),
       el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireBloc(null, ordreSuggere, rafraichir) }, "Nouveau bloc"),
     ),
     table(

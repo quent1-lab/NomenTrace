@@ -4,7 +4,7 @@
 import { api } from "../api.js";
 import { formatDate, formatNombre } from "../format.js";
 import { champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulaire.js";
-import { remplacerRoute } from "../router.js";
+import { lienRoute, remplacerRoute } from "../router.js";
 import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
 import { afficherListes } from "./parametres_listes.js";
@@ -290,7 +290,13 @@ export async function afficherParametres(conteneur, parametres) {
       ),
     ),
   );
-  conteneur.replaceChildren(el("h1", {}, "Paramètres"), barre, corps);
+  const titre = el(
+    "div",
+    { class: "titre-page" },
+    el("h1", {}, "Paramètres"),
+    el("a", { class: "bouton bouton--discret", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
+  );
+  conteneur.replaceChildren(titre, barre, corps);
   const [, , afficher] = ONGLETS.find(([code]) => code === courant);
   try {
     await afficher(corps, parametres);

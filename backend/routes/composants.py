@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Response
 
 from backend.arrondi import round_output
 from backend.deps import get_conn
-from backend.models import ComposantCreation, ComposantModif
-from backend.services import composants, export_composants
+from backend.models import ComposantCreation, ComposantModif, Reclassement
+from backend.services import composants, export_composants, reclassement
 from backend.services.composants import FiltresComposants
 
 router = APIRouter(prefix="/api/composants", tags=["composants"])
@@ -57,3 +57,8 @@ def update_composant(identifiant: str, corps: ComposantModif, conn: Conn) -> dic
 def archive_composant(identifiant: str, conn: Conn) -> dict:
     composants.archive_composant(conn, identifiant)
     return {"statut": "archivé"}
+
+
+@router.post("/{identifiant}/reclasser", status_code=201)
+def reclasser_composant(identifiant: str, corps: Reclassement, conn: Conn) -> dict:
+    return round_output(reclassement.reclasser_composant(conn, identifiant, corps.bloc_code))

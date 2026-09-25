@@ -12,6 +12,7 @@ import { afficherDetailEnsemble } from "./pages/ensemble_detail.js";
 import { afficherEnsembles } from "./pages/ensembles.js";
 import { afficherRevueImport } from "./pages/import_revue.js";
 import { afficherImports } from "./pages/imports.js";
+import { afficherNettoyage } from "./pages/nettoyage.js";
 import { afficherParametres } from "./pages/parametres.js";
 import { afficherFicheFournisseur } from "./pages/fournisseur_detail.js";
 import { afficherStock } from "./pages/stock.js";
@@ -29,6 +30,7 @@ const ROUTES = {
   "/stock": afficherStock,
   "/parametres": afficherParametres,
   "/imports": afficherImports,
+  "/nettoyage": afficherNettoyage,
 };
 
 // Routes à paramètre : #/ensembles/CODE et #/achats/NUMERO.
@@ -68,8 +70,8 @@ function pageAVenir(conteneur, titre) {
 
 function marquerMenu(chemin) {
   const segment = chemin.split("/")[1] ?? "";
-  // La fiche d'un fournisseur se rattache à l'écran Paramètres.
-  const racine = "/" + (segment === "fournisseurs" ? "parametres" : segment);
+  // La fiche d'un fournisseur et l'écran nettoyage se rattachent à l'écran Paramètres.
+  const racine = "/" + (["fournisseurs", "nettoyage"].includes(segment) ? "parametres" : segment);
   document.querySelectorAll(".menu__lien").forEach((lien) => {
     lien.classList.toggle("menu__lien--actif", lien.dataset.route === racine);
   });

@@ -35,6 +35,10 @@ assembly. The interface and documentation are in French.*
   l'équipe le remplit, on le redépose, et chaque différence est présentée pour être
   acceptée ou refusée (nouveaux composants, doublons probables, modifications).
 - **Export Excel** de toute la base, réécrit automatiquement après chaque modification.
+- **Nettoyage** (Paramètres › Nettoyage de la base) : contrôles de qualité des composants
+  (désignation trop courte, achat sans prix ou sans fournisseur, lien invalide, doublon
+  probable…), actions en lot, suppression de ce qui n'a laissé aucune trace, reclassement
+  d'un composant dans un autre bloc.
 - **Sauvegardes** automatiques et restauration depuis l'interface ; archive complète
   (base et documents) à télécharger.
 

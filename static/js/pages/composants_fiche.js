@@ -6,7 +6,7 @@ import { sectionDocuments } from "../documents.js";
 import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
-import { lienRoute } from "../router.js";
+import { lienRoute, naviguer } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
 import { champFournisseur, lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
@@ -53,6 +53,52 @@ function tableSimple(entetes, lignes, vide) {
     el("thead", {}, el("tr", {}, entetes.map(([t, c]) => el("th", { class: c ?? "" }, t)))),
     el("tbody", {}, lignes),
   );
+}
+
+function lienComposant(id) {
+  return el("a", { class: "code", href: lienRoute("/composants", { fiche: id }) }, id);
+}
+
+// Reclassement : le composant est recréé dans le bloc cible avec un nouvel identifiant.
+async function ouvrirReclassement(c, zone, surReclasse) {
+  let blocs;
+  try {
+    blocs = (await api.getBlocs()).filter((b) => b.code !== c.bloc_code);
+  } catch (erreur) {
+    afficherErreur(erreur);
+    return;
+  }
+  if (!blocs.length) {
+    zone.replaceChildren(el("p", { class: "texte-doux" }, "Aucun autre bloc fonctionnel ouvert."));
+    return;
+  }
+  const choix = champChoix("bloc_code", blocs.map((b) => [b.code, `${b.code} — ${b.nom}`]), null, { vide: "— bloc cible —" });
+  const formulaire = el(
+    "form",
+    { class: "panneau panneau--encart" },
+    el(
+      "p",
+      { class: "texte-petit" },
+      "Le bloc est figé dans l'identifiant : reclasser crée un nouveau composant dans le bloc choisi, avec les mêmes données " +
+        `et un nouvel identifiant. ${c.id} est archivé ; ses affectations passent au nouveau, ses commandes, son stock et ses documents lui restent.`,
+    ),
+    el("div", { class: "formulaire-ligne" }, choix,
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: () => zone.replaceChildren() }, "Annuler"),
+      el("button", { type: "submit", class: "bouton" }, "Reclasser"),
+    ),
+  );
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!choix.value) return afficherErreur("Choisir le bloc cible.");
+    try {
+      const nouveau = await api.reclasserComposant(c.id, choix.value);
+      masquerErreur();
+      await surReclasse(nouveau);
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  zone.replaceChildren(formulaire);
 }
 
 function vueChamps(c, statuts) {
@@ -275,6 +321,46 @@ function sectionHistorique(journal) {
   );
 }
 
+// Fiche d'un composant archivé, en lecture seule : son historique reste consultable,
+// notamment celui d'un composant reclassé dans un autre bloc.
+function ouvrirFicheArchivee(fiche, documents, surFermeture) {
+  const c = fiche.composant;
+  const lien = c.lien_produit ? el("a", { href: c.lien_produit, target: "_blank", rel: "noopener noreferrer" }, "ouvrir la page produit") : null;
+  ouvrirPanneau(
+    `${c.id} — ${c.designation}`,
+    [
+      el(
+        "p",
+        { class: "message message-attention" },
+        c.remplace_par ? ["Composant archivé, reclassé : remplacé par ", lienComposant(c.remplace_par), "."] : "Composant archivé : il n'apparaît plus dans les listes ni dans les calculs.",
+      ),
+      section(
+        "Composant",
+        definitions([
+          ["Bloc fonctionnel", c.bloc_code],
+          ["Fonction", c.fonction],
+          ["Désignation", c.designation],
+          ["Réf fabricant", c.ref_fabricant],
+          ["Mode d'appro", libelle(c.mode_appro)],
+          ["Fournisseur", c.fournisseur_nom],
+          ["Lien produit", lien],
+          ["Qté besoin / rechange / déjà dispo.", `${c.qte_besoin} / ${c.qte_rechange} / ${c.qte_disponible}`],
+          ["PU relevé", c.pu_releve === null ? null : `${formatMontant(c.pu_releve)} ${c.base_prix_releve}`],
+          ["Créé le / modifié le", `${formatDate(c.cree_le)} / ${formatDate(c.modifie_le)}`],
+        ]),
+      ),
+      fiche.affectations.length
+        ? section("Affectations conservées", tableSimple([["Ensemble"], ["Qté", "nombre"]], fiche.affectations.map((a) => el("tr", {}, el("td", {}, a.ensemble_code, " ", el("span", { class: "texte-doux" }, a.ensemble_nom)), el("td", { class: "nombre" }, formatNombre(a.qte_affectee)))), ""))
+        : null,
+      sectionCommandes(fiche.lignes_commande),
+      sectionDocuments({ documents, avecSource: true, depot: false, surChangement: () => {} }),
+      sectionMouvements(fiche.mouvements),
+      sectionHistorique(fiche.journal),
+    ],
+    surFermeture,
+  );
+}
+
 export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture }) {
   let fiche;
   let documents;
@@ -286,6 +372,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
     return;
   }
   const c = fiche.composant;
+  if (c.archive) return ouvrirFicheArchivee(fiche, documents, surFermeture);
   const rafraichir = async () => {
     await surChangement();
     await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture });
@@ -318,10 +405,25 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
       }
     },
   }, "Archiver");
+  const zoneReclassement = el("div");
+  const boutonReclasser = el("button", {
+    type: "button",
+    class: "bouton bouton--discret",
+    title: "Changer de bloc fonctionnel (nouvel identifiant)",
+    onclick: () =>
+      ouvrirReclassement(c, zoneReclassement, async (nouveau) => {
+        await surChangement();
+        naviguer("/composants", { fiche: nouveau.id });
+      }),
+  }, "Reclasser…");
   ouvrirPanneau(
     `${c.id} — ${c.designation}`,
     [
-      el("div", { class: "fiche__actions" }, boutonModifier, boutonArchiver),
+      el("div", { class: "fiche__actions" }, boutonModifier, boutonReclasser, boutonArchiver),
+      zoneReclassement,
+      fiche.remplace.length
+        ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
+        : null,
       section("Composant", zoneChamps),
       sectionAffectations(fiche, ensembles, rafraichir),
       sectionCommandes(fiche.lignes_commande),

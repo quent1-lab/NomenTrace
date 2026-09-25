@@ -176,8 +176,8 @@ def list_documents_commande(conn: sqlite3.Connection, numero: str) -> list[dict]
 
 
 def list_documents_composant(conn: sqlite3.Connection, identifiant: str) -> list[dict]:
-    """Documents du composant et documents des commandes où il figure."""
-    composants.get_composant(conn, identifiant)
+    """Documents du composant et documents des commandes où il figure, archivé compris."""
+    composants.get_existant(conn, identifiant)
     return db.fetch_all(
         conn,
         "SELECT * FROM v_document_composant WHERE pour_composant = ?"

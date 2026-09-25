@@ -130,17 +130,42 @@ def get_composant(conn: sqlite3.Connection, identifiant: str) -> dict:
     return composant
 
 
+def get_existant(conn: sqlite3.Connection, identifiant: str) -> dict:
+    """Renvoie la ligne brute d'un composant, archivé compris."""
+    composant = db.fetch_one(conn, "SELECT * FROM composant WHERE id = ?", (identifiant,))
+    if composant is None:
+        raise Introuvable(f"Composant « {identifiant} » introuvable.")
+    return composant
+
+
 def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
-    """Renvoie la fiche complète : composant, affectations, commandes, mouvements, journal."""
-    composant = get_composant(conn, identifiant)
+    """Renvoie la fiche complète : composant, affectations, commandes, mouvements, journal.
+
+    Un composant archivé garde une fiche en lecture seule : c'est son historique (celui d'un
+    composant reclassé dans un autre bloc, par exemple). `remplace` liste les composants
+    archivés que celui-ci remplace.
+    """
+    composant = db.fetch_one(conn, "SELECT * FROM v_composant WHERE id = ?", (identifiant,))
+    affectations_sql = (
+        "SELECT * FROM v_ensemble_composant WHERE composant_id = ? ORDER BY ensemble_code"
+    )
+    if composant is None:
+        composant = get_existant(conn, identifiant)
+        affectations_sql = (
+            "SELECT a.id AS affectation_id, a.ensemble_code, e.nom AS ensemble_nom,"
+            " a.qte AS qte_affectee FROM affectation a JOIN ensemble e ON e.code = a.ensemble_code"
+            " WHERE a.composant_id = ? ORDER BY a.ensemble_code"
+        )
     cle = (identifiant,)
     return {
         "composant": composant,
-        "affectations": db.fetch_all(
-            conn,
-            "SELECT * FROM v_ensemble_composant WHERE composant_id = ? ORDER BY ensemble_code",
-            cle,
-        ),
+        "remplace": [
+            ligne["id"]
+            for ligne in db.fetch_all(
+                conn, "SELECT id FROM composant WHERE remplace_par = ? ORDER BY id", cle
+            )
+        ],
+        "affectations": db.fetch_all(conn, affectations_sql, cle),
         "lignes_commande": db.fetch_all(
             conn,
             "SELECT l.*, c.type, c.statut, c.fournisseur_nom, c.date_commande"
@@ -184,14 +209,18 @@ def _check_listes(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
             listes.check_valeur(conn, champ, valeurs[champ])
 
 
-def _ensure_bloc(conn: sqlite3.Connection, code: str) -> None:
-    if db.fetch_one(conn, "SELECT 1 FROM bloc WHERE code = ?", (code,)) is None:
+def ensure_bloc_ouvert(conn: sqlite3.Connection, code: str) -> None:
+    """Un nouveau composant ne peut entrer que dans un bloc existant et non archivé."""
+    bloc = db.fetch_one(conn, "SELECT archive FROM bloc WHERE code = ?", (code,))
+    if bloc is None:
         raise Introuvable(f"Bloc « {code} » introuvable.")
+    if bloc["archive"]:
+        raise ErreurMetier(f"Le bloc « {code} » est archivé : il n'accepte plus de composant.")
 
 
 def preview_id(conn: sqlite3.Connection, bloc_code: str) -> str:
     """Identifiant qu'aurait un composant créé maintenant dans ce bloc (indicatif)."""
-    _ensure_bloc(conn, bloc_code)
+    ensure_bloc_ouvert(conn, bloc_code)
     return next_id(conn, bloc_code)
 
 
@@ -202,7 +231,7 @@ def insert_composant(
     lot_id: int | None = None,
 ) -> str:
     """Insère un composant avec un identifiant généré. À appeler dans une transaction."""
-    _ensure_bloc(conn, valeurs["bloc_code"])
+    ensure_bloc_ouvert(conn, valeurs["bloc_code"])
     _check_listes(conn, valeurs)
     fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
     if valeurs.get("taux_tva") is None:

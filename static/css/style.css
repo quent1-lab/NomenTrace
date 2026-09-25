@@ -318,6 +318,11 @@ h2 {
   cursor: pointer;
 }
 
+a.bouton {
+  display: inline-block;
+  text-decoration: none;
+}
+
 .bouton--discret {
   background: transparent;
   color: var(--couleur-ardoise);
@@ -1761,4 +1766,48 @@ td.editable:hover {
   display: flex;
   flex-direction: column;
   gap: var(--espace-1);
+}
+
+/* --- Nettoyage ------------------------------------------------------------------------- */
+
+.barre-actions-lot {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-2);
+}
+
+.table-defilante--nettoyage {
+  max-height: 480px;
+}
+
+.table-defilante--nettoyage thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--couleur-surface);
+}
+
+.recap {
+  margin-bottom: var(--espace-3);
+}
+
+.recap h3 {
+  margin: 0 0 var(--espace-1);
+  font-size: var(--taille-texte);
+}
+
+.recap ul {
+  margin: 0;
+  padding-left: var(--espace-5);
+}
+
+.lien-remplacement {
+  margin: 0 0 var(--espace-3);
+}
+
+.panneau--encart {
+  margin: 0 0 var(--espace-3);
+  padding: var(--espace-3);
+  background: var(--couleur-fond);
 }

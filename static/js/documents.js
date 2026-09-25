@@ -86,7 +86,7 @@ function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
  * documents : liste renvoyée par l'API ; deposer(FormData) renvoie une promesse ;
  * avecSource : affiche d'où vient chaque document (fiche composant).
  */
-export function sectionDocuments({ titre = "Documents", documents, deposer, surChangement, typeParDefaut, avecSource = false, aide }) {
+export function sectionDocuments({ titre = "Documents", documents, deposer, surChangement, typeParDefaut, avecSource = false, aide, depot = true }) {
   const entetes = ["Type", "Fichier", avecSource ? "Source" : null, "Taille", "Ajouté le", "Commentaire", ""].filter((t) => t !== null);
   return el(
     "section",
@@ -101,6 +101,6 @@ export function sectionDocuments({ titre = "Documents", documents, deposer, surC
           el("tbody", {}, documents.map((d) => ligneDocument(d, { avecSource, surChangement }))),
         )
       : el("p", { class: "texte-doux" }, "Aucun document joint."),
-    formulaireDepot({ typeParDefaut, deposer, surChangement }),
+    depot ? formulaireDepot({ typeParDefaut, deposer, surChangement }) : null,
   );
 }

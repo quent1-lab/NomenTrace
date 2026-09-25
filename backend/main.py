@@ -23,6 +23,7 @@ from backend.routes import (
     fournisseurs,
     imports,
     listes,
+    nettoyage,
     pilotage,
     sante,
 )
@@ -178,6 +179,7 @@ def create_app(
         listes,
         documents,
         imports,
+        nettoyage,
         routes_sauvegardes,
     )
     for module in modules:

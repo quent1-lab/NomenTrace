@@ -34,10 +34,10 @@ affectation n'est pas une anomalie : c'est un état normal.
 |---|---|---|
 | `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut` (stockés en texte). | `cle` |
 | `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
-| `bloc` | Blocs fonctionnels, avec `budget_cible_ht`. | `code` (2 à 4 lettres) |
+| `bloc` | Blocs fonctionnels, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage`. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
-| `composant` | Le cœur : quantités, prix relevé, statuts. | `id` (`PREFIXE-BLOC-NNN`) |
+| `composant` | Le cœur : quantités, prix relevé, statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
 | `affectation` | Composant × ensemble, avec la quantité. | `id` ; unique (`ensemble_code`, `composant_id`) |
 | `commande` | Devis et commandes, avec `port_ht` et `taux_tva`. | `numero` (`CMD-NNN`) |
 | `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
@@ -46,8 +46,28 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `import_lot`, `import_ligne` | Dépôts de fichiers d'équipe et leurs lignes analysées, en attente ou appliquées. | `id` |
 | `journal` | Historique de toutes les modifications : table, clé, champ, ancienne et nouvelle valeur, origine (`interface` ou `import`), lot d'import éventuel. | `id` |
 
-Composants, ensembles, commandes et fournisseurs ne sont jamais supprimés : la colonne
-`archive` les retire des listes et des calculs, l'historique reste.
+Composants, blocs, ensembles, commandes et fournisseurs portent une colonne `archive` qui
+les retire des listes et des calculs ; l'historique reste. Un bloc archivé n'accepte plus
+de nouveau composant.
+
+La suppression physique est réservée à ce qui n'a laissé aucune trace (écran Nettoyage) :
+
+| Élément | Supprimable si | Part avec lui |
+|---|---|---|
+| Composant | aucune ligne de commande, aucun mouvement de stock, aucun document, aucun reclassement | ses affectations |
+| Commande | aucune ligne reçue, aucun mouvement de stock lié | ses lignes, ses documents et leurs fichiers |
+| Fournisseur | cité par aucun composant ni aucune commande, archivés compris | — |
+| Bloc | aucun composant, archivés compris | — |
+| Ensemble | aucune affectation, aucun mouvement de montage, aucun sous-ensemble | — |
+
+Chaque suppression prend d'abord une sauvegarde de la base et laisse une ligne de journal
+(champ `suppression`, ancienne valeur = résumé JSON de la ligne supprimée). Vider le
+journal (après sauvegarde) le laisse avec une seule ligne, qui trace la purge.
+
+**Reclassement.** Le bloc est figé dans l'identifiant : reclasser un composant dans un
+autre bloc crée un nouveau composant (nouvel identifiant, mêmes données). L'ancien est
+archivé et sa colonne `remplace_par` désigne le nouveau ; ses affectations passent au
+nouveau, ses commandes, son stock et ses documents lui restent.
 
 Des déclencheurs refusent, sur `composant` et `mouvement_stock`, une valeur absente de
 `valeur_liste`. Les listes figées (statuts de commande, de ligne, de montage, base de
@@ -72,6 +92,7 @@ l'export.
 | `v_stock` | Composants dont le stock n'est pas nul, avec leur valeur. |
 | `v_repartition_liste` | Nombre de composants et coût par valeur de liste (graphiques). |
 | `v_pilotage` | Une ligne : tous les indicateurs du tableau de bord. |
+| `v_qualite_composant` | Chaque composant, archivés compris : contrôles de qualité (désignation trop courte, fonction vide, achat sans prix ou sans fournisseur, besoin nul, lien invalide, valeur de liste désactivée, fournisseur archivé) et traces qui interdisent sa suppression. Les doublons probables sont repérés à part, par le moteur de l'import. |
 
 ## Valeurs autorisées
 

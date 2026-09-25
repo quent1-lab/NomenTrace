@@ -4,17 +4,21 @@ import sqlite3
 from typing import Any
 
 from backend import db
-from backend.erreurs import Conflit, Introuvable
+from backend.erreurs import Conflit, ErreurMetier, Introuvable
 from backend.services import journal
 
 CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
-    {"nom", "ordre", "budget_cible_ht", "responsable", "description"}
+    {"nom", "ordre", "budget_cible_ht", "responsable", "description", "archive"}
 )
 
 
-def list_blocs(conn: sqlite3.Connection) -> list[dict]:
-    """Renvoie les blocs avec leurs indicateurs, triés par ordre."""
-    return db.fetch_all(conn, "SELECT * FROM v_bloc ORDER BY ordre, code")
+def list_blocs(conn: sqlite3.Connection, inclure_archives: bool = False) -> list[dict]:
+    """Renvoie les blocs avec leurs indicateurs, triés par ordre ; archivés sur demande."""
+    return db.fetch_all(
+        conn,
+        "SELECT * FROM v_bloc WHERE ? OR archive = 0 ORDER BY archive, ordre, code",
+        (int(inclure_archives),),
+    )
 
 
 def get_bloc(conn: sqlite3.Connection, code: str) -> dict:
@@ -42,7 +46,19 @@ def create_bloc(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
 
 
 def patch_bloc(conn: sqlite3.Connection, code: str, modifications: dict[str, Any]) -> dict:
-    """Modifie un bloc ; son code, figé dans les identifiants, n'est jamais modifiable."""
+    """Modifie un bloc ; son code, figé dans les identifiants, n'est jamais modifiable.
+
+    Un bloc qui porte encore des composants actifs ne peut pas être archivé.
+    """
     with db.transaction(conn):
+        if modifications.get("archive") == 1:
+            nombre = conn.execute(
+                "SELECT COUNT(*) FROM composant WHERE bloc_code = ? AND archive = 0", (code,)
+            ).fetchone()[0]
+            if nombre:
+                raise ErreurMetier(
+                    f"Le bloc « {code} » porte encore {nombre} composant(s) actif(s) : "
+                    "archivez-les ou reclassez-les d'abord."
+                )
         journal.update_with_journal(conn, "bloc", code, modifications, CHAMPS_MODIFIABLES)
     return get_bloc(conn, code)

@@ -102,7 +102,7 @@ export const api = {
     requete("PATCH", `/api/listes/${liste}/${encodeURIComponent(code)}`, modifs),
   deleteValeurListe: (liste, code) => requete("DELETE", `/api/listes/${liste}/${encodeURIComponent(code)}`),
 
-  getBlocs: () => requete("GET", "/api/blocs"),
+  getBlocs: ({ archives = false } = {}) => requete("GET", avecParametres("/api/blocs", { archives: archives ? "true" : "" })),
   createBloc: (valeurs) => requete("POST", "/api/blocs", valeurs),
   patchBloc: (code, modifs) => requete("PATCH", `/api/blocs/${encodeURIComponent(code)}`, modifs),
   getProchainId: (code) => requete("GET", `/api/blocs/${encodeURIComponent(code)}/prochain-id`),
@@ -130,6 +130,16 @@ export const api = {
   createComposant: (valeurs) => requete("POST", "/api/composants", valeurs),
   patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),
   archiveComposant: (id) => requete("DELETE", `/api/composants/${encodeURIComponent(id)}`),
+  reclasserComposant: (id, blocCode) =>
+    requete("POST", `/api/composants/${encodeURIComponent(id)}/reclasser`, { bloc_code: blocCode }),
+
+  getControlesComposants: () => requete("GET", "/api/nettoyage/composants"),
+  traiterComposants: (cles, action, simuler) => requete("POST", "/api/nettoyage/composants", { cles, action, simuler }),
+  getControlesCommandes: () => requete("GET", "/api/nettoyage/commandes"),
+  traiterCommandes: (cles, action, simuler) => requete("POST", "/api/nettoyage/commandes", { cles, action, simuler }),
+  getEntitesSupprimables: () => requete("GET", "/api/nettoyage/entites"),
+  supprimerEntite: (type, cle) => requete("DELETE", `/api/nettoyage/entites/${type}/${encodeURIComponent(cle)}`),
+  viderJournal: () => requete("POST", "/api/nettoyage/journal/purge", { confirmer: true }),
 
   getCommandes: () => requete("GET", "/api/commandes"),
   getCommande: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}`),
