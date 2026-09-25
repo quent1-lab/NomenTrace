@@ -45,7 +45,9 @@ function ligne(texte, chiffres, total, lien) {
     {},
     el("td", {}, el("a", { href: lien }, texte)),
     el("td", { class: "nombre" }, formatNombre(chiffres.nb_composants)),
-    el("td", { class: "cellule-part" }, el("div", { class: "barre" }, largeur(el("div", { class: "barre__remplissage" }), part)), el("span", { class: "texte-doux texte-petit" }, formatPourcent(part, 0))),
+    // La mise en ligne barre + pourcentage se fait dans un bloc interne : une cellule de
+    // tableau en display: flex perd sa bordure et son alignement avec la ligne.
+    el("td", {}, el("div", { class: "cellule-part" }, el("div", { class: "barre" }, largeur(el("div", { class: "barre__remplissage" }), part)), el("span", { class: "texte-doux texte-petit" }, formatPourcent(part, 0)))),
     el("td", { class: "nombre" }, formatNombre(chiffres.nb_pieces)),
     el("td", { class: "nombre" }, formatMontant(chiffres.cout_ht)),
   );

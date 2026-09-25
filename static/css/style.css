@@ -1864,6 +1864,13 @@ td.editable:hover {
 
 .cellule-part .barre {
   flex: 1;
+  margin-top: 0;
+}
+
+/* Pourcentage de largeur fixe : toutes les barres ont la même longueur. */
+.cellule-part span {
+  min-width: 36px;
+  text-align: right;
 }
 
 .table--repartition {
