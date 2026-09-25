@@ -25,3 +25,9 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Fichiers personnels déposés à la racine (listes de fournisseurs, notes) : jamais versionnés.
+# Seul le jeu de départ est suivi.
+/*.xlsx
+!/SPOC_base_airtable.xlsx
+/*.txt
