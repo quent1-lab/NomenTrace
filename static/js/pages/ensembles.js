@@ -171,7 +171,7 @@ function vueArbre(arbre, rafraichir) {
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Le budget du projet descend l'arbre : à chaque niveau, les ensembles verrouillés gardent leur montant, le reste est partagé entre les autres et les composants affectés directement au parent, au prorata du coût estimé cumulé (à parts égales si rien n'est chiffré). " +
+      "Le budget du projet descend l'arbre : à chaque niveau, les ensembles verrouillés gardent leur montant, le reste est partagé à parts égales entre les autres, même vides, pour voir ce qu'il reste à chacun ; les composants affectés directement au parent comptent pour une part. " +
         "Ces budgets d'ensemble sont un axe parallèle aux budgets de bloc : les deux découpent le même budget total, l'un par partie physique, l'autre par fonction.",
     ),
     el(

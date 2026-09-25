@@ -163,7 +163,7 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
     ligneChamp("Ordre d'affichage", champNombre("ordre", ensemble?.ordre ?? ordreSuggere), { aide: "Ordre parmi les ensembles de même parent." }),
     ligneChamp("Responsable", champTexte("responsable", ensemble?.responsable ?? "")),
     ligneChamp("Description", champZone("description", ensemble?.description ?? "")),
-    ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part du budget du parent, au prorata du coût estimé." }),
+    ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part égale du reste du budget du parent." }),
     el("label", { class: "filtre-case" }, verrou, "Verrouiller le budget sur ce montant"),
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),

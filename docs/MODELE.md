@@ -224,13 +224,10 @@ fonction. Il est réparti à chaque niveau, en partant de la racine (budget de l
 
 ```
 1. un enfant verrouillé (budget_verrouille = 1) garde son budget_cible_ht ;
-2. reste = budget du parent - somme des budgets verrouillés, réparti entre les enfants
-   non verrouillés et la part propre du parent (ses affectations directes), au prorata
-   de leur coût estimé cumulé (cout_ht de v_ensemble_cumul ; cout_ht propre pour la
-   part propre) ;
-3. si tous ces coûts sont nuls : parts égales ; la part propre n'entre dans ce partage
-   que si le parent porte des affectations directes ;
-4. si les verrouillés dépassent le budget du parent (tolérance 0,01 €), les non
+2. reste = budget du parent - somme des budgets verrouillés, partagé à parts égales
+   entre les enfants non verrouillés, qu'ils portent des composants ou non ; la part
+   propre du parent (ses affectations directes) compte pour une part s'il en a ;
+3. si les verrouillés dépassent le budget du parent (tolérance 0,01 €), les non
    verrouillés reçoivent 0 et le dépassement est signalé sur le parent.
 part propre du budget = reste - somme des parts des enfants non verrouillés
 ecart_budget_ht       = coût cumulé - budget de l'ensemble   (positif = dépassement)
@@ -241,7 +238,7 @@ descendants. Un budget verrouillé exige un montant saisi ; déverrouillé, le m
 est conservé mais ignoré.
 
 **Exception à la règle des vues** : ce budget n'est pas calculé par une vue SQL, parce
-qu'une répartition récursive au prorata s'y exprime mal. Il est recalculé à chaque
+qu'une répartition récursive s'y exprime mal. Il est recalculé à chaque
 lecture, sans arrondi et sans rien stocker, par `backend/services/ensembles_arbre.py`.
 
 ## Conventions

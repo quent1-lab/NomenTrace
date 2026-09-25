@@ -30,7 +30,7 @@ assembly. The interface and documentation are in French.*
 - **Deux découpages** : le *bloc fonctionnel* (à quoi sert le composant, un seul, figé dans
   l'identifiant) et l'*ensemble* physique (où il est monté, plusieurs possibles, avec une
   quantité). Les ensembles s'imbriquent en arbre sous le projet, avec des indicateurs
-  cumulés et un budget d'ensemble réparti au prorata du coût estimé, verrouillable.
+  cumulés et un budget d'ensemble réparti à parts égales, verrouillable.
   Voir [docs/MODELE.md](docs/MODELE.md).
 - **Achats** : devis et commandes, réceptions partielles, stock, montage dans les
   ensembles, devis et factures joints.

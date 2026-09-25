@@ -120,43 +120,46 @@ def test_archive_sort_des_cumuls(client_essai: TestClient) -> None:
 # --- Budgets : règle de répartition -----------------------------------------------------------
 
 
-def _noeud(code: str, cout: float, verrou: float | None = None) -> NoeudBudget:
-    return NoeudBudget(code, cout, verrou is not None, verrou)
+def _noeud(code: str, verrou: float | None = None) -> NoeudBudget:
+    return NoeudBudget(code, verrou is not None, verrou)
 
 
-def test_repartition_au_prorata() -> None:
-    resultat = repartir_budget(1000, [_noeud("A", 300), _noeud("B", 100)], 100, True)
-    assert resultat.parts == {"A": pytest.approx(600), "B": pytest.approx(200)}
-    assert resultat.propre == pytest.approx(200)
+def test_parts_egales_entre_les_enfants() -> None:
+    resultat = repartir_budget(900, [_noeud("A"), _noeud("B"), _noeud("C")], False)
+    assert resultat.parts == {"A": 300, "B": 300, "C": 300}
+    assert resultat.propre == pytest.approx(0)
     assert resultat.depassement is None
 
 
-def test_verrouille_garde_son_budget() -> None:
-    enfants = [_noeud("A", 300, verrou=700), _noeud("B", 100), _noeud("C", 200)]
-    resultat = repartir_budget(1000, enfants, 0, False)
-    assert resultat.parts == {"A": 700, "B": pytest.approx(100), "C": pytest.approx(200)}
-    assert resultat.propre == pytest.approx(0)
-
-
-def test_parts_egales_quand_les_couts_sont_nuls() -> None:
-    enfants = [_noeud("A", 0), _noeud("B", 0)]
-    assert repartir_budget(900, enfants, 0, False).parts == {"A": 450, "B": 450}
-    # La part propre entre dans le partage si le parent porte des affectations.
-    avec_propre = repartir_budget(900, enfants, 0, True)
+def test_part_propre_si_le_parent_a_des_affectations() -> None:
+    avec_propre = repartir_budget(900, [_noeud("A"), _noeud("B")], True)
     assert avec_propre.parts == {"A": 300, "B": 300}
     assert avec_propre.propre == pytest.approx(300)
 
 
+def test_verrouille_garde_son_budget() -> None:
+    enfants = [_noeud("A", verrou=700), _noeud("B"), _noeud("C")]
+    resultat = repartir_budget(1000, enfants, False)
+    assert resultat.parts == {"A": 700, "B": pytest.approx(150), "C": pytest.approx(150)}
+    assert resultat.propre == pytest.approx(0)
+
+
+def test_tout_verrouille_le_reste_va_au_parent() -> None:
+    resultat = repartir_budget(1000, [_noeud("A", verrou=600)], False)
+    assert resultat.parts == {"A": 600}
+    assert resultat.propre == pytest.approx(400)
+
+
 def test_depassement_des_verrouilles() -> None:
-    enfants = [_noeud("A", 10, verrou=800), _noeud("B", 10, verrou=500), _noeud("C", 50)]
-    resultat = repartir_budget(1000, enfants, 20, True)
+    enfants = [_noeud("A", verrou=800), _noeud("B", verrou=500), _noeud("C")]
+    resultat = repartir_budget(1000, enfants, True)
     assert resultat.parts == {"A": 800, "B": 500, "C": 0}
     assert resultat.propre == 0
     assert resultat.depassement == pytest.approx(300)
 
 
 def test_sans_budget_seuls_les_verrouilles_en_ont_un() -> None:
-    resultat = repartir_budget(None, [_noeud("A", 10, verrou=50), _noeud("B", 10)], 0, False)
+    resultat = repartir_budget(None, [_noeud("A", verrou=50), _noeud("B")], False)
     assert resultat.parts == {"A": 50, "B": None}
     assert resultat.propre is None
 
@@ -181,15 +184,15 @@ def test_budgets_sur_l_arbre(client_essai: TestClient) -> None:
     _affecter(client_essai, "ROUE", "ESSAI-ALI-003", 2)  # 68 €
     _affecter(client_essai, "MAT", "ESSAI-ALI-003", 1)  # 34 €
     racine, noeuds = _arbre(client_essai)
-    # Racine : 3000 € répartis entre ROBOT (102 €) et MAT (34 €).
-    assert noeuds["ROBOT"]["budget_ht"] == pytest.approx(2250, abs=0.01)
-    assert noeuds["MAT"]["budget_ht"] == pytest.approx(750, abs=0.01)
+    # Racine : 3000 € à parts égales entre ROBOT et MAT, quels que soient leurs coûts.
+    assert noeuds["ROBOT"]["budget_ht"] == pytest.approx(1500, abs=0.01)
+    assert noeuds["MAT"]["budget_ht"] == pytest.approx(1500, abs=0.01)
     # ROBOT sans affectation propre : tout va à CHASSIS.
-    assert noeuds["CHASSIS"]["budget_ht"] == pytest.approx(2250, abs=0.01)
-    # CHASSIS : sa part propre (34 €) et ROUE (68 €).
-    assert noeuds["ROUE"]["budget_ht"] == pytest.approx(1500, abs=0.01)
+    assert noeuds["CHASSIS"]["budget_ht"] == pytest.approx(1500, abs=0.01)
+    # CHASSIS porte une affectation : sa part propre et ROUE ont une part chacun.
+    assert noeuds["ROUE"]["budget_ht"] == pytest.approx(750, abs=0.01)
     assert noeuds["CHASSIS"]["budget_propre_ht"] == pytest.approx(750, abs=0.01)
-    assert noeuds["ROUE"]["ecart_budget_ht"] == pytest.approx(68 - 1500, abs=0.01)
+    assert noeuds["ROUE"]["ecart_budget_ht"] == pytest.approx(68 - 750, abs=0.01)
     assert racine["budget_non_reparti_ht"] == pytest.approx(0, abs=0.01)
 
     # Verrouiller MAT à 1000 € : ROBOT reçoit le reste.
@@ -206,7 +209,7 @@ def test_budgets_sur_l_arbre(client_essai: TestClient) -> None:
         "/api/ensembles/MAT", json={"budget_cible_ht": None, "budget_verrouille": False}
     )
     assert reponse.status_code == 200, reponse.text
-    assert _arbre(client_essai)[1]["MAT"]["budget_ht"] == pytest.approx(750, abs=0.01)
+    assert _arbre(client_essai)[1]["MAT"]["budget_ht"] == pytest.approx(1500, abs=0.01)
 
 
 def test_depassement_signale_sur_le_parent(client_essai: TestClient) -> None:

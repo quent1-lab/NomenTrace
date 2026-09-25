@@ -5,15 +5,14 @@ et son budget (`parametre.budget_ht`). Les indicateurs propres et cumulés vienn
 `v_ensemble` et `v_ensemble_cumul`.
 
 Le budget d'un ensemble, lui, est calculé ici et jamais stocké : la répartition récursive
-au prorata se prête mal à une vue. C'est une exception à la règle « les calculs vivent
-dans des vues », signalée dans docs/MODELE.md. Règle, appliquée à chaque niveau en partant
-de la racine :
+se prête mal à une vue. C'est une exception à la règle « les calculs vivent dans des
+vues », signalée dans docs/MODELE.md. Règle, appliquée à chaque niveau en partant de la
+racine :
 1. un enfant verrouillé garde son budget saisi ;
-2. le reste du budget du parent est réparti entre les enfants non verrouillés et la part
-   propre du parent (ses affectations directes), au prorata de leur coût estimé cumulé ;
-3. si tous ces coûts sont nuls, à parts égales (la part propre n'entre dans le partage que
-   si le parent porte des affectations) ;
-4. si les verrouillés dépassent le budget du parent, les non verrouillés reçoivent 0 et le
+2. le reste du budget du parent est partagé à parts égales entre les enfants non
+   verrouillés, vides ou non : on voit ainsi ce qu'il reste à chacun. La part propre du
+   parent (ses affectations directes) compte pour une part s'il en a ;
+3. si les verrouillés dépassent le budget du parent, les non verrouillés reçoivent 0 et le
    parent porte le dépassement.
 Aucun arrondi : il se fait à la sortie de l'API.
 """
@@ -34,7 +33,6 @@ class NoeudBudget:
     """Ce dont la répartition a besoin pour un ensemble."""
 
     code: str
-    cout_cumule: float
     verrouille: bool
     budget_saisi: float | None
 
@@ -51,13 +49,12 @@ class Repartition:
 def repartir_budget(
     budget: float | None,
     enfants: list[NoeudBudget],
-    cout_propre: float,
     propre_eligible: bool,
 ) -> Repartition:
-    """Répartit le budget d'un nœud entre ses enfants et sa part propre.
+    """Répartit le budget d'un nœud, à parts égales, entre ses enfants et sa part propre.
 
-    `propre_eligible` : le nœud porte des affectations directes, donc sa part propre entre
-    dans un partage à parts égales. Sans budget connu, seuls les verrouillés en ont un.
+    `propre_eligible` : le nœud porte des affectations directes, sa part propre compte donc
+    pour une part. Sans budget connu, seuls les verrouillés en ont un.
     """
     parts: dict[str, float | None] = {
         e.code: e.budget_saisi for e in enfants if e.verrouille and e.budget_saisi is not None
@@ -71,12 +68,8 @@ def repartir_budget(
         parts.update({e.code: 0.0 for e in libres})
         return Repartition(parts, 0.0, -reste)
     reste = max(reste, 0.0)
-    total = sum(e.cout_cumule for e in libres) + cout_propre
-    if total > 0:
-        parts.update({e.code: reste * e.cout_cumule / total for e in libres})
-    else:
-        nb_parts = len(libres) + (1 if propre_eligible else 0)
-        parts.update({e.code: reste / nb_parts for e in libres})
+    nb_parts = len(libres) + (1 if propre_eligible else 0)
+    parts.update({e.code: reste / nb_parts for e in libres})
     propre = reste - sum(parts[e.code] or 0.0 for e in libres)
     return Repartition(parts, max(propre, 0.0), None)
 
@@ -110,7 +103,6 @@ def _enfants_par_parent(noeuds: dict[str, dict]) -> dict[str | None, list[dict]]
 def _noeud_budget(noeud: dict) -> NoeudBudget:
     return NoeudBudget(
         code=noeud["code"],
-        cout_cumule=noeud["cumul"]["cout_ht"],
         verrouille=bool(noeud["budget_verrouille"]),
         budget_saisi=noeud["budget_cible_ht"],
     )
@@ -127,7 +119,6 @@ def _poser_budgets(
     repartition = repartir_budget(
         budget,
         [_noeud_budget(e) for e in enfants.get(code, [])],
-        propres["cout_ht"] if propres else 0.0,
         bool(propres and propres["nb_composants_distincts"]),
     )
     for enfant in enfants.get(code, []):
