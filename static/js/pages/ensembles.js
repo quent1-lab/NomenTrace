@@ -98,7 +98,7 @@ function celluleNom(texte, code, niveau) {
 const EDITION_BUDGET = { champ: "budget_cible_ht", type: "montant" };
 
 // Cellule éditable du budget cible. Saisir un montant verrouille l'ensemble dessus ;
-// vider la case le déverrouille. Sur la racine, c'est le budget du projet.
+// vider la case le déverrouille.
 function celluleBudgetCible(valeur, enregistrer, rafraichir, contenu) {
   const td = el("td", { class: "nombre editable", title: "Cliquer pour saisir le budget cible" }, contenu);
   td.addEventListener("click", (ev) => {
@@ -141,7 +141,7 @@ function ligneArbre(e, rafraichir) {
   );
 }
 
-function ligneRacine(racine, rafraichir) {
+function ligneRacine(racine) {
   const nom = celluleNom(racine.nom || "Projet", null, 0);
   nom.append(el("span", { class: "texte-doux texte-petit" }, " (projet)"));
   const alerte = alerteDepassement(racine.depassement_verrouille_ht, "arbre__alerte");
@@ -155,12 +155,7 @@ function ligneRacine(racine, rafraichir) {
     nom,
     el("td", { class: "nombre" }, formatMontant(racine.cout_ht)),
     el("td"),
-    celluleBudgetCible(
-      racine.budget_ht,
-      (montant) => api.patchParametres({ budget_ht: montant }),
-      rafraichir,
-      racine.budget_ht === null ? el("span", { class: "texte-doux" }, "à saisir") : formatMontant(racine.budget_ht),
-    ),
+    el("td", { class: "nombre texte-doux texte-petit", title: "Le budget du projet se modifie dans Paramètres › Projet" }, "Paramètres"),
     el("td", { class: "nombre" }, racine.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(racine.budget_ht)),
     el("td", { class: "nombre" }, texteEcartBudget(racine.ecart_budget_ht)),
     el("td"),
@@ -182,7 +177,7 @@ function vueArbre(arbre, rafraichir) {
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Cliquer sur un budget cible pour le saisir : l'ensemble est alors verrouillé sur ce montant. Vider la case le déverrouille, son budget redevient calculé. Sur la ligne du projet, c'est le budget total.",
+      "Cliquer sur un budget cible pour le saisir : l'ensemble est alors verrouillé sur ce montant. Vider la case le déverrouille, son budget redevient calculé. Le budget du projet se modifie dans Paramètres.",
     ),
     el(
       "div",
@@ -191,7 +186,7 @@ function vueArbre(arbre, rafraichir) {
         "table",
         { class: "table table--dense table--arbre" },
         el("thead", {}, el("tr", {}, entetes.map(([t, c]) => el("th", { class: c ?? "" }, t)))),
-        el("tbody", {}, ligneRacine(arbre.racine, rafraichir), arbre.ensembles.map((e) => ligneArbre(e, rafraichir))),
+        el("tbody", {}, ligneRacine(arbre.racine), arbre.ensembles.map((e) => ligneArbre(e, rafraichir))),
       ),
     ),
   );
