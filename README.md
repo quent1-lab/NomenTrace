@@ -1,32 +1,91 @@
 # Nomentrace
 
-Nomentrace — nomenclature et traçabilité — est un outil web local de suivi de
-nomenclature, d'approvisionnement et de montage pour des projets techniques. Chaque
-composant porte un identifiant stable, et tout ce qui lui arrive — chiffrage, devis,
-commande, réception, affectation à un ensemble, montage — reste rattaché à cet
-identifiant et consultable dans sa fiche.
+**Nomenclature et traçabilité des composants d'un projet technique.**
 
-L'outil est générique : une instance suit un projet, dont le nom, le préfixe
-d'identifiant, le budget et le vocabulaire (modes d'appro, criticités…) sont des données
-de la base, modifiables dans l'écran Paramètres. La première instance suit le projet SPOC.
+Nomentrace est une petite application web, installée sur votre poste, pour suivre la
+nomenclature d'un projet (robot, machine, prototype…) : ce qu'il faut acheter, à quel
+prix, chez qui, ce qui a été commandé, reçu, affecté et monté. Chaque composant porte un
+identifiant stable, et tout ce qui lui arrive — chiffrage, devis, commande, réception,
+affectation à un ensemble, montage — reste rattaché à cet identifiant et consultable dans
+sa fiche.
 
-Le modèle de données et les définitions de calcul sont décrits dans
-[docs/MODELE.md](docs/MODELE.md).
+L'outil est générique : le nom du projet, le préfixe des identifiants, le budget, le
+vocabulaire (modes d'approvisionnement, criticités…) et les fournisseurs sont des données,
+saisies dans l'écran Paramètres. Un dépôt cloné démarre sur une base vide.
 
-## Lancer et arrêter
+*A self-hosted web app to track a hardware project's bill of materials, purchasing and
+assembly. The interface and documentation are in French.*
 
-**Lancer** : double-cliquer sur `lancer.bat`. Au premier lancement, le script crée
-l'environnement Python `.venv` (Python 3.14 requis) et installe les dépendances. Il
-démarre ensuite le serveur sur <http://127.0.0.1:8000> et ouvre le navigateur.
+## Ce que fait l'outil
 
-À chaque démarrage, Nomentrace sauvegarde la base, applique les éventuelles migrations
+- **Tableau de bord** : coût estimé, montant engagé, reste à engager face au budget,
+  avancement des achats, alertes (composants à chiffrer, commandes en retard, bloquants
+  non commandés, fournisseurs à valider).
+- **Composants** : tableau filtrable et triable, modifiable sur place, fiche détaillée avec
+  l'historique de chaque changement et les documents joints.
+- **Deux découpages** : le *bloc fonctionnel* (à quoi sert le composant, un seul, figé dans
+  l'identifiant) et l'*ensemble* physique (où il est monté, plusieurs possibles, avec une
+  quantité). Voir [docs/MODELE.md](docs/MODELE.md).
+- **Achats** : devis et commandes, réceptions partielles, stock, montage dans les
+  ensembles, devis et factures joints.
+- **Fournisseurs** : fiche avec contact et numéro de compte, comparaison avec une liste de
+  fournisseurs de référence, fournisseurs proposés par l'équipe à valider.
+- **Travail en équipe par Excel** : l'outil génère un modèle par bloc ou par ensemble ;
+  l'équipe le remplit, on le redépose, et chaque différence est présentée pour être
+  acceptée ou refusée (nouveaux composants, doublons probables, modifications).
+- **Export Excel** de toute la base, réécrit automatiquement après chaque modification.
+- **Sauvegardes** automatiques et restauration depuis l'interface.
+
+## Prérequis
+
+- **Python 3.14** ([python.org](https://www.python.org/downloads/)).
+- Un navigateur récent. Aucun accès Internet n'est nécessaire à l'usage.
+- Windows pour le lancement en double-clic ; Linux et macOS fonctionnent en ligne de
+  commande (voir plus bas).
+
+## Installation et lancement
+
+```
+git clone <adresse du dépôt> nomentrace
+cd nomentrace
+```
+
+**Windows** : double-cliquer sur `lancer.bat`. Au premier lancement, le script crée
+l'environnement Python `.venv` et installe les dépendances. Il démarre ensuite le serveur
+sur <http://127.0.0.1:8000> et ouvre le navigateur.
+
+**Linux / macOS** :
+
+```
+python3.14 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+puis ouvrir <http://127.0.0.1:8000>.
+
+À chaque démarrage, Nomentrace sauvegarde la base, applique les éventuelles mises à jour
 de schéma, puis régénère l'export Excel.
 
-**Arrêter** : fermer la fenêtre du script (ou `Ctrl+C` dedans). Fermer l'onglet du
-navigateur ne suffit pas : le serveur continue de tourner.
+**Arrêter** : fermer la fenêtre du script (ou `Ctrl+C` dans le terminal). Fermer l'onglet
+du navigateur ne suffit pas : le serveur continue de tourner.
 
-L'application est mono-utilisateur, sans authentification, et n'écoute que sur la
-machine locale (127.0.0.1) : elle n'est pas joignable depuis un autre poste.
+## Premiers pas
+
+La base est créée vide au premier lancement, avec seulement un vocabulaire de départ dans
+les listes (à adapter).
+
+1. **Paramètres › Projet** : nom du projet, préfixe des identifiants (par exemple `ROB`,
+   obligatoire pour créer des composants), budget HT et taux de TVA par défaut.
+2. **Paramètres › Blocs fonctionnels** : créer les blocs, chacun avec un code de 2 à 4
+   lettres (`ALI` pour l'alimentation…). Les composants s'appelleront `ROB-ALI-001`,
+   `ROB-ALI-002`…
+3. **Paramètres › Fournisseurs** et **Listes de valeurs** : compléter selon le projet. Une
+   liste de fournisseurs existante (classeur Excel) peut être importée par « Comparer avec
+   une liste… ».
+4. **Composants** : saisir les composants un à un, ou générer un modèle Excel par bloc
+   (écran **Imports**), le faire remplir par l'équipe, puis le déposer.
+5. **Ensembles** : créer les ensembles physiques et y affecter les composants.
 
 ## Où sont les données
 
@@ -39,105 +98,85 @@ machine locale (127.0.0.1) : elle n'est pas joignable depuis un autre poste.
 | `echange/modeles/` | Les modèles Excel à remplir, générés à la demande. |
 | `echange/imports/` | Une copie de chaque fichier déposé à l'import. |
 
-Aucun de ces fichiers n'est versionné dans git.
+Aucun de ces fichiers n'est versionné : vos données restent sur votre poste.
 
 ## L'Excel exporté
 
-`echange/exports/nomenclature.xlsx` est réécrit deux secondes environ après chaque
-modification, et sur demande (Paramètres › Export et sauvegardes › « Exporter
-maintenant »). Il contient une feuille Pilotage (indicateurs), les feuilles Blocs,
-Ensembles et Affectations (calculées), puis une feuille brute par table.
+`echange/exports/nomenclature.xlsx` est réécrit environ deux secondes après chaque
+modification, et sur demande (Paramètres › Export et sauvegardes). Il contient une feuille
+Pilotage, les feuilles Blocs, Ensembles et Affectations, puis une feuille brute par table.
 
-C'est une **copie de lecture** : ce qu'on y modifie ne revient jamais dans l'outil et
-sera écrasé au prochain export. Pour faire remonter des données de l'équipe, utiliser les
+C'est une **copie de lecture** : ce qu'on y modifie ne revient jamais dans l'outil et sera
+écrasé au prochain export. Pour faire remonter des données de l'équipe, utiliser les
 modèles de l'écran Imports.
 
 **« Export Excel en attente »** dans l'en-tête : le fichier est ouvert dans Excel, qui le
 verrouille. L'outil réessaie toutes les 30 secondes ; fermer le classeur suffit, rien
-n'est perdu (la base, elle, est à jour).
+n'est perdu.
 
 ## Sauvegarder et restaurer
 
-Une sauvegarde est prise automatiquement à chaque démarrage et avant chaque restauration ;
-les 20 plus récentes sont gardées. On peut en prendre une à tout moment : Paramètres ›
-Export et sauvegardes › « Sauvegarder maintenant ».
+Une sauvegarde est prise à chaque démarrage et avant chaque restauration ; les 20 plus
+récentes sont gardées. On peut en prendre une à tout moment dans Paramètres › Export et
+sauvegardes.
 
-**Restaurer** : dans la même page, bouton « Restaurer » sur la ligne voulue, puis deux
-confirmations. L'état courant est d'abord sauvegardé (il apparaît en tête de liste : on
-peut donc annuler une restauration en restaurant cette sauvegarde). Une sauvegarde prise
-avec une version plus ancienne de Nomentrace reçoit les migrations manquantes.
+**Restaurer** : même écran, bouton « Restaurer » sur la ligne voulue, puis deux
+confirmations. L'état courant est d'abord sauvegardé : on peut donc annuler une
+restauration. Une sauvegarde prise avec une version plus ancienne de Nomentrace reçoit les
+mises à jour de schéma manquantes.
 
-**Les sauvegardes ne contiennent que la base.** Les fichiers joints restent dans
-`echange/documents/`. Pour une sauvegarde complète hors de la machine (clé USB, disque
-réseau), arrêter Nomentrace puis copier :
+**Les sauvegardes ne contiennent que la base.** Pour une sauvegarde complète hors de la
+machine, arrêter Nomentrace puis copier `data/nomentrace.db` et le dossier
+`echange/documents/`. Restaurer à la main : arrêter, remettre ces deux éléments en place,
+relancer.
 
-- `data/nomentrace.db` ;
-- le dossier `echange/documents/` en entier.
+## Mettre à jour
 
-Restaurer à la main : arrêter Nomentrace, remettre ces deux éléments en place, relancer.
+```
+git pull
+```
+
+puis relancer. `lancer.bat` réinstalle les dépendances si `requirements.txt` a changé
+(sous Linux / macOS, relancer `pip install -r requirements.txt`). La base est mise à jour
+automatiquement au démarrage, après une sauvegarde.
 
 ## Problèmes courants
 
-**« le port 8000 est déjà occupé »** au lancement : Nomentrace tourne probablement déjà
-dans une autre fenêtre — ouvrir <http://127.0.0.1:8000>. Sinon, un autre programme utilise
-ce port : le fermer, ou lancer sur un autre port en modifiant la ligne `set "PORT=8000"`
-de `lancer.bat`.
+**« le port 8000 est déjà occupé »** : Nomentrace tourne probablement déjà dans une autre
+fenêtre — ouvrir <http://127.0.0.1:8000>. Sinon, fermer le programme qui utilise ce port,
+ou changer la ligne `set "PORT=8000"` de `lancer.bat`.
 
-**« Python 3.14 est introuvable »** : installer Python 3.14 depuis python.org, puis
-relancer.
+**« Python 3.14 est introuvable »** : installer Python 3.14, puis relancer.
 
-## Mettre à jour les dépendances
+## Limites actuelles
 
-Les versions sont épinglées dans `requirements.txt`. Pour en changer une :
+- **Mono-utilisateur et local** : pas de comptes ni d'authentification, écoute sur
+  127.0.0.1 uniquement. **Ne pas exposer l'application sur un réseau** en l'état.
+- Le code d'un bloc et celui d'un ensemble ne changent jamais après création ; le préfixe
+  d'identifiant ne s'applique qu'aux composants créés ensuite.
+- Le port des commandes compte dans le montant engagé global, mais n'est pas réparti entre
+  les blocs.
+- L'import par modèle Excel ne crée pas de blocs.
+- Interface pensée pour un écran d'ordinateur, pas pour un téléphone.
 
-1. modifier la version dans `requirements.txt` ;
-2. relancer `lancer.bat` : il détecte le changement et réinstalle ;
-3. vérifier que les tests passent : `.venv\Scripts\python.exe -m pytest`.
-
-Chart.js (4.5.1) est inclus dans `static/vendor/chart.min.js` : l'application fonctionne
-sans accès réseau. Pour le mettre à jour, remplacer ce fichier par la version `.umd.min.js`
-publiée.
-
-## Repartir pour un autre projet
-
-Une instance suit un seul projet. Pour un nouveau projet :
-
-1. copier le dossier de l'outil ailleurs, **sans** `data/`, `echange/` ni `.venv/` ;
-2. supprimer de la copie le fichier de départ `SPOC_base_airtable.xlsx` : sinon il est
-   importé au premier démarrage sur une base vide ;
-3. lancer `lancer.bat` : la base est créée sans aucune donnée, avec un vocabulaire de
-   base dans les listes (valeurs système et quelques statuts génériques, à adapter) ;
-4. dans Paramètres › Projet, renseigner le nom du projet, le préfixe des identifiants
-   (obligatoire pour créer des composants), le budget et la TVA par défaut ;
-5. créer les blocs fonctionnels, puis compléter les listes de valeurs et les
-   fournisseurs ;
-6. saisir les composants un à un, ou générer un modèle par bloc (écran Imports) et le
-   faire remplir.
-
-## Limites connues
-
-- Mono-utilisateur et local : pas de comptes, pas d'accès réseau, pas de travail
-  simultané sur deux postes.
-- Le code d'un bloc et celui d'un ensemble ne changent jamais après création ; un bloc
-  ne se supprime pas.
-- Le préfixe d'identifiant ne s'applique qu'aux composants créés ensuite : les
-  identifiants existants ne sont jamais renommés.
-- Le port des commandes entre dans le montant engagé global, mais n'est pas ventilé par
-  bloc : la somme des blocs peut être inférieure au total.
-- L'import ne crée pas de blocs : un bloc inconnu dans un fichier est signalé.
-- Les sauvegardes automatiques ne couvrent pas les documents joints (voir plus haut).
-- L'interface est pensée pour un écran de bureau, pas pour un téléphone.
-
-## Pour les développeurs
+## Développement
 
 ```
-.venv\Scripts\python.exe -m pytest
-.venv\Scripts\python.exe -m ruff check .
-.venv\Scripts\python.exe -m ruff format .
-.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+.venv\Scripts\python.exe -m pytest          # tests (base temporaire, jamais data/)
+.venv\Scripts\python.exe -m ruff check .    # lint
+.venv\Scripts\python.exe -m ruff format .   # formatage
 ```
 
-Les variables d'environnement `NOMENTRACE_BASE`, `NOMENTRACE_ECHANGE` et
-`NOMENTRACE_IMPORT_INITIAL` déplacent la base, le dossier d'échange et le fichier de
-départ (utile pour essayer sans toucher aux vraies données). Les règles du projet sont
-dans `docs/MODELE.md`.
+Sous Linux / macOS, remplacer `.venv\Scripts\python.exe` par `.venv/bin/python`.
+
+- **Backend** : FastAPI et `sqlite3` sans ORM (`backend/`) ; les calculs vivent dans des
+  vues SQL, les évolutions de schéma dans des migrations numérotées
+  (`backend/migrations/`).
+- **Front** : JavaScript sans framework ni étape de build (`static/`) ; Chart.js est inclus
+  dans `static/vendor/`.
+- **Tests** : pytest ; les tests qui ont besoin d'une base remplie utilisent un projet
+  fictif (`tests/jeu_essai.py`).
+- Les variables d'environnement `NOMENTRACE_BASE` et `NOMENTRACE_ECHANGE` déplacent la base
+  et le dossier d'échange (pratique pour essayer sans toucher à ses données).
+- Les conventions du code sont dans `docs/MODELE.md` ; le modèle de données et les définitions
+  de calcul dans [docs/MODELE.md](docs/MODELE.md).

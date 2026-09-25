@@ -78,7 +78,6 @@ ALIAS_ENTETES: dict[str, str] = {
     "modedapprovisionnement": "mode_appro",
     "fournisseurprivilegie": "fournisseur_nom",
     "lien": "lien_produit",
-    "qtedispoecole": "qte_disponible",
     "qtedisponible": "qte_disponible",
     "pureleve": "pu_releve",
     "prixunitaire": "pu_releve",

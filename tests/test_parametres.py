@@ -82,13 +82,13 @@ def test_code_bloc_non_modifiable(client: TestClient) -> None:
 # --- Fournisseurs -----------------------------------------------------------------------
 
 
-def test_fournisseur_renomme_en_cascade(client_spoc: TestClient) -> None:
-    avant = client_spoc.get("/api/composants?fournisseur=Farnell").json()
-    nb = next(f for f in client_spoc.get("/api/fournisseurs").json() if f["nom"] == "Farnell")
+def test_fournisseur_renomme_en_cascade(client_essai: TestClient) -> None:
+    avant = client_essai.get("/api/composants?fournisseur=Farnell").json()
+    nb = next(f for f in client_essai.get("/api/fournisseurs").json() if f["nom"] == "Farnell")
     assert nb["nb_composants"] == len(avant) > 0
-    reponse = client_spoc.patch("/api/fournisseurs/Farnell", json={"nom": "Farnell FR"})
+    reponse = client_essai.patch("/api/fournisseurs/Farnell", json={"nom": "Farnell FR"})
     assert reponse.status_code == 200, reponse.text
-    apres = client_spoc.get("/api/composants", params={"fournisseur": "Farnell FR"}).json()
+    apres = client_essai.get("/api/composants", params={"fournisseur": "Farnell FR"}).json()
     assert [c["id"] for c in apres] == [c["id"] for c in avant]
 
 

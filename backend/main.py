@@ -29,7 +29,7 @@ from backend.routes import (
 from backend.routes import (
     sauvegardes as routes_sauvegardes,
 )
-from backend.services import import_initial, sauvegardes
+from backend.services import sauvegardes
 from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger("nomentrace")
@@ -109,28 +109,24 @@ def _install_error_handlers(app: FastAPI) -> None:
         )
 
 
-def _prepare_base(base: Path, fichier_import: Path | None, dossier_sauvegardes: Path) -> None:
-    """Sauvegarde, migrations puis import initial éventuel, au démarrage."""
+def _prepare_base(base: Path, dossier_sauvegardes: Path) -> None:
+    """Sauvegarde puis migrations, au démarrage. Une base neuve démarre vide."""
     sauvegardes.create_sauvegarde(base, dossier_sauvegardes)
     conn = db.connect(base)
     try:
         version = db.apply_migrations(conn)
         journal_log.info("Base %s prête, schéma version %d", base, version)
-        if fichier_import is not None:
-            import_initial.run_import_initial(conn, fichier_import)
     finally:
         conn.close()
 
 
 def create_app(
     chemin_base: Path | None = None,
-    fichier_import: Path | None = config.FICHIER_IMPORT_INITIAL,
     dossier_echange: Path | None = None,
 ) -> FastAPI:
     """Construit l'application.
 
-    Les tests passent une base et un dossier d'échange temporaires ; `fichier_import` à
-    None désactive l'import initial.
+    Les tests passent une base et un dossier d'échange temporaires.
     """
     _configure_logging()
     base = chemin_base or config.CHEMIN_BASE
@@ -139,7 +135,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        _prepare_base(base, fichier_import, echange / "sauvegardes")
+        _prepare_base(base, echange / "sauvegardes")
         export.start()
         export.signaler()
         yield

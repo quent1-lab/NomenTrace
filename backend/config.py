@@ -22,11 +22,6 @@ DOSSIER_SAUVEGARDES: Path = DOSSIER_ECHANGE / "sauvegardes"
 DOSSIER_MIGRATIONS: Path = RACINE / "backend" / "migrations"
 DOSSIER_STATIC: Path = RACINE / "static"
 
-# Fichier de départ importé une seule fois, au premier démarrage sur une base vide.
-FICHIER_IMPORT_INITIAL: Path = _chemin(
-    "NOMENTRACE_IMPORT_INITIAL", RACINE / "SPOC_base_airtable.xlsx"
-)
-
 HOTE: str = os.environ.get("NOMENTRACE_HOTE", "127.0.0.1")
 PORT: int = int(os.environ.get("NOMENTRACE_PORT", "8000"))
 

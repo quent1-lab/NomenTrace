@@ -1,12 +1,11 @@
-"""Calculs des vues SQL et import initial, sur base temporaire."""
+"""Calculs des vues SQL, sur base temporaire vide ou remplie par le jeu d'essai."""
 
 import sqlite3
 
 import pytest
 
 from backend import db
-from backend.services import import_initial
-from tests.conftest import FICHIER_SPOC
+from tests import jeu_essai
 
 
 def _composant(conn: sqlite3.Connection, **champs: object) -> str:
@@ -47,7 +46,7 @@ def test_prix_ttc_converti_en_ht(conn_vide: sqlite3.Connection) -> None:
     assert _vue(conn_vide, "T-TST-001")["pu_ht"] == pytest.approx(170.00, abs=0.001)
 
 
-def test_fourni_pfm_ne_coute_rien(conn_vide: sqlite3.Connection) -> None:
+def test_mode_hors_achat_ne_coute_rien(conn_vide: sqlite3.Connection) -> None:
     conn_vide.execute(
         "INSERT INTO valeur_liste (liste, code, libelle) VALUES ('mode_appro', 'Fourni', 'Fourni')"
     )
@@ -162,14 +161,14 @@ def test_devis_n_engage_rien(conn_vide: sqlite3.Connection) -> None:
     assert _vue(conn_vide, identifiant)["avancement"] == "Commande"
 
 
-# --- Jeu de départ -------------------------------------------------------------------
+# --- Jeu d'essai ---------------------------------------------------------------------
 
 
 def _compte(conn: sqlite3.Connection, table: str) -> int:
     return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
 
 
-def test_import_initial_volumes(conn_spoc: sqlite3.Connection) -> None:
+def test_jeu_essai_volumes(conn_essai: sqlite3.Connection) -> None:
     attendus = {
         "composant": 60,
         "bloc": 9,
@@ -180,41 +179,19 @@ def test_import_initial_volumes(conn_spoc: sqlite3.Connection) -> None:
         "ligne_commande": 0,
         "mouvement_stock": 0,
     }
-    assert {table: _compte(conn_spoc, table) for table in attendus} == attendus
-    nb_ali = conn_spoc.execute("SELECT COUNT(*) FROM composant WHERE bloc_code = 'ALI'")
+    assert {table: _compte(conn_essai, table) for table in attendus} == attendus
+    nb_ali = conn_essai.execute("SELECT COUNT(*) FROM composant WHERE bloc_code = 'ALI'")
     assert nb_ali.fetchone()[0] == 20
+    parametres = dict(conn_essai.execute("SELECT cle, valeur FROM parametre").fetchall())
+    assert parametres == jeu_essai.PARAMETRES
 
 
-def test_import_initial_parametres(conn_spoc: sqlite3.Connection) -> None:
-    parametres = dict(conn_spoc.execute("SELECT cle, valeur FROM parametre").fetchall())
-    assert parametres == import_initial.PARAMETRES_INITIAUX
+def test_pu_ht_non_arrondi_dans_la_vue(conn_essai: sqlite3.Connection) -> None:
+    assert _vue(conn_essai, "ESSAI-ODB-005")["pu_ht"] == pytest.approx(11.95 / 1.2, abs=1e-9)
 
 
-def test_import_initial_blocs_ordonnes_sans_budget(conn_spoc: sqlite3.Connection) -> None:
-    blocs = db.fetch_all(conn_spoc, "SELECT code, ordre, budget_cible_ht FROM bloc ORDER BY ordre")
-    assert [b["code"] for b in blocs] == [
-        "TR", "IHM", "ODB", "AGI", "OBS", "ALI", "BMP", "BUS", "MEC",
-    ]  # fmt: skip
-    assert all(b["budget_cible_ht"] is None for b in blocs)
-
-
-def test_import_initial_idempotent(conn_spoc: sqlite3.Connection) -> None:
-    avant = db.fetch_all(conn_spoc, "SELECT * FROM composant ORDER BY id")
-    assert import_initial.run_import_initial(conn_spoc, FICHIER_SPOC) is False
-    assert db.fetch_all(conn_spoc, "SELECT * FROM composant ORDER BY id") == avant
-
-
-def test_aucune_ligne_exemple_importee(conn_spoc: sqlite3.Connection) -> None:
-    nb = conn_spoc.execute("SELECT COUNT(*) FROM composant WHERE id LIKE 'EXEMPLE%'")
-    assert nb.fetchone()[0] == 0
-
-
-def test_pu_ht_non_arrondi_dans_la_vue(conn_spoc: sqlite3.Connection) -> None:
-    assert _vue(conn_spoc, "SPOC-ODB-005")["pu_ht"] == pytest.approx(11.95 / 1.2, abs=1e-9)
-
-
-def test_total_ht_du_jeu_de_depart(conn_spoc: sqlite3.Connection) -> None:
-    ligne = conn_spoc.execute(
+def test_total_ht_du_jeu_essai(conn_essai: sqlite3.Connection) -> None:
+    ligne = conn_essai.execute(
         "SELECT TOTAL(total_ht), COUNT(CASE WHEN mode_appro = 'Achat'"
         " AND pu_releve IS NOT NULL THEN 1 END) FROM v_composant"
     ).fetchone()
@@ -222,8 +199,8 @@ def test_total_ht_du_jeu_de_depart(conn_spoc: sqlite3.Connection) -> None:
     assert ligne[1] == 44
 
 
-def test_pilotage_du_jeu_de_depart(conn_spoc: sqlite3.Connection) -> None:
-    pilotage = db.fetch_one(conn_spoc, "SELECT * FROM v_pilotage")
+def test_pilotage_du_jeu_essai(conn_essai: sqlite3.Connection) -> None:
+    pilotage = db.fetch_one(conn_essai, "SELECT * FROM v_pilotage")
     assert pilotage is not None
     assert pilotage["nb_composants"] == 60
     assert pilotage["nb_a_chiffrer"] == 11

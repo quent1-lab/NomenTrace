@@ -9,7 +9,7 @@ de `backend/migrations/` ; la table `schema_version` retient la dernière appliq
 Un composant est rangé de deux façons indépendantes.
 
 - **Bloc fonctionnel** : à quoi sert le composant. Un seul bloc par composant, choisi à
-  la création et figé dans l'identifiant (`SPOC-ALI-003` appartient au bloc `ALI`). Le
+  la création et figé dans l'identifiant (`ROB-ALI-003` appartient au bloc `ALI`). Le
   bloc porte un budget cible et sert au suivi budgétaire.
 - **Ensemble** : où le composant est monté physiquement. Un composant peut entrer dans
   plusieurs ensembles, ou dans aucun ; le lien, appelé **affectation**, porte une
@@ -20,9 +20,9 @@ Exemple : un robot avec un bloc `ALI` (alimentation) et deux ensembles physiques
 
 | Composant | Bloc | Besoin | Affectations |
 |---|---|---|---|
-| `SPOC-ALI-003` Fusible 10 A | ALI | 6 | Châssis avant : 2, Châssis arrière : 4 |
-| `SPOC-ALI-007` Convertisseur 24→12 V | ALI | 1 | Châssis arrière : 1 |
-| `SPOC-ALI-009` Batterie de rechange | ALI | 1 | aucune (rangée en stock) |
+| `ROB-ALI-003` Fusible 10 A | ALI | 6 | Châssis avant : 2, Châssis arrière : 4 |
+| `ROB-ALI-007` Convertisseur 24→12 V | ALI | 1 | Châssis arrière : 1 |
+| `ROB-ALI-009` Batterie de rechange | ALI | 1 | aucune (rangée en stock) |
 
 Le bloc ALI totalise les trois composants et leur coût. Chaque ensemble ne voit que ce
 qui y est affecté. L'écart d'affectation du fusible est 6 − (2 + 4) = 0. La batterie sans

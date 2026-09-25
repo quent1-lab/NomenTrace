@@ -17,7 +17,7 @@ def _liste(lignes: list[tuple]) -> bytes:
         feuille.append(ligne)
     feuille.append(())
     feuille.append(("CONSIGNES",))
-    feuille.append(("Demandez des devis au nom de l'école.",))
+    feuille.append(("Demandez des devis au nom de l'établissement.",))
     sortie = io.BytesIO()
     classeur.save(sortie)
     return sortie.getvalue()
@@ -29,8 +29,8 @@ def _comparer(client: TestClient, contenu: bytes) -> dict:
     return reponse.json()
 
 
-def test_fiche_fournisseur(client_spoc: TestClient) -> None:
-    fiche = client_spoc.get("/api/fournisseurs/Farnell").json()
+def test_fiche_fournisseur(client_essai: TestClient) -> None:
+    fiche = client_essai.get("/api/fournisseurs/Farnell").json()
     assert fiche["nom"] == "Farnell"
     assert len(fiche["composants"]) == 7
     assert {"id", "designation", "total_ht", "avancement"} <= set(fiche["composants"][0])
@@ -96,7 +96,7 @@ def test_lecture_de_la_liste(client: TestClient) -> None:
 
 
 def test_comparaison_classe_les_fournisseurs(client: TestClient) -> None:
-    for nom in ("Farnell", "Conrad", "RS Components", "PFM"):
+    for nom in ("Farnell", "Conrad", "RS Components", "Atelier"):
         client.post("/api/fournisseurs", json={"nom": nom, "site_web": "https://fr.farnell.com"})
     resultat = _comparer(
         client,
@@ -117,7 +117,7 @@ def test_comparaison_classe_les_fournisseurs(client: TestClient) -> None:
         ("Conrad", "CONRAD ELECTRONIQUE")
     ]
     assert [f["nom"] for f in resultat["nouveaux"]] == ["IGUS"]
-    assert resultat["absents"] == ["PFM"]
+    assert resultat["absents"] == ["Atelier"]
     # Rien n'est écrit par la comparaison.
     assert len(client.get("/api/fournisseurs").json()) == 4
 
@@ -191,9 +191,9 @@ def test_fournisseur_a_valider_puis_valide(client: TestClient) -> None:
     assert client.patch("/api/fournisseurs/Bossard", json={"statut": "Douteux"}).status_code == 422
 
 
-def test_composant_avec_fournisseur_a_valider(client_spoc: TestClient) -> None:
-    client_spoc.post("/api/fournisseurs", json={"nom": "Bossard", "statut": "A valider"})
-    reponse = client_spoc.post(
+def test_composant_avec_fournisseur_a_valider(client_essai: TestClient) -> None:
+    client_essai.post("/api/fournisseurs", json={"nom": "Bossard", "statut": "A valider"})
+    reponse = client_essai.post(
         "/api/composants",
         json={
             "bloc_code": "ALI",
@@ -205,7 +205,7 @@ def test_composant_avec_fournisseur_a_valider(client_spoc: TestClient) -> None:
         },
     )
     assert reponse.status_code == 201, reponse.text
-    fiche = client_spoc.get("/api/fournisseurs/Bossard").json()
+    fiche = client_essai.get("/api/fournisseurs/Bossard").json()
     assert [c["id"] for c in fiche["composants"]] == [reponse.json()["id"]]
 
 
