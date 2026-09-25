@@ -35,7 +35,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut` (stockés en texte). | `cle` |
 | `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
 | `bloc` | Blocs fonctionnels, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
-| `ensemble` | Ensembles physiques, avec `statut_montage`. | `code` |
+| `ensemble` | Ensembles physiques, avec `statut_montage` ; `parent_code` désigne l'ensemble parent (un seul, ou aucun pour un ensemble de premier niveau) ; `budget_cible_ht` et `budget_verrouille` pour le budget d'ensemble. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
 | `composant` | Le cœur : quantités, prix relevé, statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
 | `attribut` | Caractéristiques paramétrables des composants (tension, matériau…) : `libelle`, `type` (`texte`, `nombre`, `liste`, `booleen`), `unite`, `ordre`, `actif`. Code dérivé du libellé et type figés à la création. | `code` |
@@ -87,7 +87,10 @@ l'export.
 | `v_composant` | Chaque composant non archivé avec ses quantités calculées, prix HT/TTC, totaux, avancement. |
 | `v_ligne_engagee` | Lignes non annulées des commandes engagées. |
 | `v_bloc` | Par bloc : nombre de composants, à chiffrer, coût HT/TTC, engagé, écart au budget cible, avancement. |
-| `v_ensemble` | Par ensemble : composants distincts, pièces, coût, avancement d'appro et de montage. |
+| `v_ensemble` | Par ensemble : composants distincts, pièces, coût, avancement d'appro et de montage, sur ses affectations seules (indicateurs « propres »). |
+| `v_ensemble_descendant` | Chaque ensemble face à lui-même et à tous ses descendants non archivés (requête récursive). |
+| `v_ensemble_cumul` | Mêmes indicateurs que `v_ensemble`, « cumulés » : l'ensemble et tous ses descendants, plus le nombre de sous-ensembles. |
+| `v_ensemble_bloc_cumul` | Répartition par bloc d'un ensemble et de ses descendants. |
 | `v_ensemble_composant` | Chaque affectation avec coût de ligne, quantité montée, reste à monter. |
 | `v_ensemble_bloc` | Répartition de chaque ensemble par bloc. |
 | `v_incoherence` | Signalements : sur-affectation, affecté non commandé, monté au-delà de l'affectation, monté sans affectation. |
@@ -199,6 +202,47 @@ nb_pieces_montees    = somme de MIN(MAX(qte_montee, 0), qte_affectee)
 ```
 
 Toute division par zéro (budget nul, rien à acheter) donne NULL, affiché « — », jamais 0.
+
+## Arborescence et budgets d'ensemble
+
+Un ensemble a au plus un parent. La racine de l'arbre n'est pas stockée : c'est un nœud
+virtuel qui porte le nom du projet (`parametre.nom_projet`) et rassemble les ensembles de
+premier niveau. La profondeur est libre. Le service refuse un cycle (un ensemble ne peut
+pas devenir le descendant de lui-même) et un parent archivé ; un ensemble qui a des
+sous-ensembles non archivés ne peut pas être archivé.
+
+Les affectations restent propres à chaque ensemble. Ses indicateurs sont donnés deux
+fois : « propres » (`v_ensemble`, ses affectations seules) et « cumulés »
+(`v_ensemble_cumul`, lui et tous ses descendants). Dans le cumul, un composant affecté à
+plusieurs nœuds de la branche compte une fois parmi les composants distincts, mais toutes
+ses pièces et tout son coût comptent.
+
+Le budget d'un ensemble est un découpage du budget du projet parallèle aux budgets de
+bloc : les deux découpent le même budget total, l'un par partie physique, l'autre par
+fonction. Il est réparti à chaque niveau, en partant de la racine (budget de la racine =
+`parametre.budget_ht`) :
+
+```
+1. un enfant verrouillé (budget_verrouille = 1) garde son budget_cible_ht ;
+2. reste = budget du parent - somme des budgets verrouillés, réparti entre les enfants
+   non verrouillés et la part propre du parent (ses affectations directes), au prorata
+   de leur coût estimé cumulé (cout_ht de v_ensemble_cumul ; cout_ht propre pour la
+   part propre) ;
+3. si tous ces coûts sont nuls : parts égales ; la part propre n'entre dans ce partage
+   que si le parent porte des affectations directes ;
+4. si les verrouillés dépassent le budget du parent (tolérance 0,01 €), les non
+   verrouillés reçoivent 0 et le dépassement est signalé sur le parent.
+part propre du budget = reste - somme des parts des enfants non verrouillés
+ecart_budget_ht       = coût cumulé - budget de l'ensemble   (positif = dépassement)
+```
+
+Sans budget de projet, seuls les ensembles verrouillés ont un budget, et leurs
+descendants. Un budget verrouillé exige un montant saisi ; déverrouillé, le montant saisi
+est conservé mais ignoré.
+
+**Exception à la règle des vues** : ce budget n'est pas calculé par une vue SQL, parce
+qu'une répartition récursive au prorata s'y exprime mal. Il est recalculé à chaque
+lecture, sans arrondi et sans rien stocker, par `backend/services/ensembles_arbre.py`.
 
 ## Conventions
 

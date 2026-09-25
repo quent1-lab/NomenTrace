@@ -167,7 +167,8 @@ export async function afficherOngletEnsembles(cible) {
       "tr",
       {},
       el("td", {}, el("span", { class: "etiquette" }, e.code)),
-      el("td", {}, e.nom),
+      el("td", { class: `arbre__nom arbre__nom--${Math.min(e.niveau, 6)}` }, e.niveau > 1 ? el("span", { class: "arbre__trait", "aria-hidden": "true" }, "└ ") : null, e.nom),
+      el("td", {}, e.parent_code ?? el("span", { class: "texte-doux" }, "—")),
       el("td", { class: "nombre" }, formatNombre(e.ordre)),
       el("td", {}, e.responsable ?? ""),
       el("td", {}, libelle(e.statut_montage)),
@@ -186,11 +187,11 @@ export async function afficherOngletEnsembles(cible) {
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "L'ensemble est le découpage physique : un composant peut entrer dans plusieurs ensembles, avec une quantité pour chacun."),
+      el("p", { class: "texte-doux" }, "L'ensemble est le découpage physique : un composant peut entrer dans plusieurs ensembles, avec une quantité pour chacun. Un ensemble peut avoir un ensemble parent."),
       el("button", { type: "button", class: "bouton", onclick: () => ouvrirFormulaireEnsemble({ ordreSuggere, surEnregistre: rafraichir }) }, "Nouvel ensemble"),
     ),
     table(
-      [["Code"], ["Nom"], ["Ordre", "nombre"], ["Responsable"], ["Montage"], ["Composants", "nombre"], [""]],
+      [["Code"], ["Nom"], ["Parent"], ["Ordre", "nombre"], ["Responsable"], ["Montage"], ["Composants", "nombre"], [""]],
       lignes,
       "Aucun ensemble pour l'instant.",
     ),

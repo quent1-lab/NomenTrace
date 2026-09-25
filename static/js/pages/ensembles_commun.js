@@ -1,8 +1,8 @@
 // Éléments partagés par la vue d'ensemble et le détail d'un ensemble.
 
 import { api } from "../api.js";
-import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
-import { champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
+import { formatEcart, formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
+import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, classeBloc, el, largeur, masquerErreur } from "../ui.js";
 import { STATUTS_MONTAGE } from "../valeurs.js";
@@ -82,23 +82,89 @@ export function selectStatutMontage(ensemble, surChangement) {
   return select;
 }
 
-const DESCRIPTION = { nom: "texte", ordre: "entier", description: "texte", responsable: "texte" };
+// --- Budget d'ensemble -------------------------------------------------------------------------
+
+// Budget calculé (ou verrouillé) d'un ensemble, avec la mention du verrou.
+export function texteBudget(ensemble) {
+  if (ensemble.budget_ht === null || ensemble.budget_ht === undefined) {
+    return el("span", { class: "texte-doux", title: "Aucun budget projet défini dans les paramètres" }, "non défini");
+  }
+  return [
+    formatMontant(ensemble.budget_ht),
+    ensemble.budget_verrouille ? el("span", { class: "etiquette etiquette--espace", title: "Budget verrouillé : il garde le montant saisi" }, "verrouillé") : null,
+  ];
+}
+
+// Écart entre le coût estimé cumulé et le budget : positif = dépassement.
+export function texteEcartBudget(ecart) {
+  if (ecart === null || ecart === undefined) return "";
+  return el("span", { class: ecart > 0 ? "texte-alerte" : "texte-conforme" }, formatEcart(ecart));
+}
+
+// Alerte portée par un parent dont les sous-ensembles verrouillés dépassent le budget.
+export function alerteDepassement(depassement, classe = "") {
+  if (!depassement) return null;
+  return el(
+    "p",
+    { class: `texte-alerte texte-petit ${classe}` },
+    `Les budgets verrouillés des sous-ensembles dépassent ce budget de ${formatMontant(depassement)} : les autres reçoivent 0.`,
+  );
+}
+
+// --- Formulaire -------------------------------------------------------------------------------
+
+const DESCRIPTION = { nom: "texte", ordre: "entier", description: "texte", responsable: "texte", parent_code: "choix", budget_cible_ht: "montant" };
+const LIBELLES = { ordre: "Ordre d'affichage", budget_cible_ht: "Budget cible HT" };
+
+// L'ensemble et ses descendants : aucun d'eux ne peut devenir son parent.
+function exclus(ensembles, code) {
+  const resultat = new Set([code]);
+  let ajout = true;
+  while (ajout) {
+    ajout = false;
+    for (const e of ensembles) {
+      if (!resultat.has(e.code) && resultat.has(e.parent_code)) {
+        resultat.add(e.code);
+        ajout = true;
+      }
+    }
+  }
+  return resultat;
+}
+
+function choixParent(ensembles, ensemble, parentInitial) {
+  const interdits = ensemble ? exclus(ensembles, ensemble.code) : new Set();
+  const options = ensembles
+    .filter((e) => !interdits.has(e.code))
+    .map((e) => [e.code, `${"\u2003".repeat(e.niveau - 1)}${e.nom} (${e.code})`]);
+  return champChoix("parent_code", options, ensemble ? ensemble.parent_code : parentInitial, { vide: "— Aucun : premier niveau, sous le projet" });
+}
 
 /** Panneau de création (ensemble absent) ou de modification d'un ensemble. */
-export function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere = 1, surEnregistre }) {
+export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere = 1, parentInitial = null, surEnregistre }) {
   const creation = ensemble === null;
+  const ensembles = await api.getEnsembles();
   const code = champTexte("code", ensemble?.code ?? "", { disabled: !creation, maxlength: "20", autocomplete: "off" });
   code.addEventListener("input", () => {
     code.value = code.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  });
+  const budget = champNombre("budget_cible_ht", ensemble?.budget_cible_ht ?? null, 2);
+  const verrou = el("input", { type: "checkbox", name: "budget_verrouille", checked: Boolean(ensemble?.budget_verrouille) });
+  // Verrouiller sans montant saisi : on part du budget calculé actuel.
+  verrou.addEventListener("change", () => {
+    if (verrou.checked && !budget.value.trim() && ensemble?.budget_ht != null) budget.value = formatNombre(ensemble.budget_ht, 2);
   });
   const formulaire = el(
     "form",
     { class: "formulaire", novalidate: true },
     ligneChamp("Code", code, { requis: true, aide: creation ? "Majuscules, chiffres et tirets, sans espace. Il ne pourra plus être modifié." : "Le code d'un ensemble n'est pas modifiable." }),
     ligneChamp("Nom", champTexte("nom", ensemble?.nom ?? ""), { requis: true }),
-    ligneChamp("Ordre d'affichage", champNombre("ordre", ensemble?.ordre ?? ordreSuggere)),
+    ligneChamp("Ensemble parent", choixParent(ensembles, ensemble, parentInitial), { aide: "Un ensemble a au plus un parent. Sans parent, il se range directement sous le projet." }),
+    ligneChamp("Ordre d'affichage", champNombre("ordre", ensemble?.ordre ?? ordreSuggere), { aide: "Ordre parmi les ensembles de même parent." }),
     ligneChamp("Responsable", champTexte("responsable", ensemble?.responsable ?? "")),
     ligneChamp("Description", champZone("description", ensemble?.description ?? "")),
+    ligneChamp("Budget cible HT", budget, { aide: "Pris en compte seulement si le budget est verrouillé. Sinon, le budget est calculé : une part du budget du parent, au prorata du coût estimé." }),
+    el("label", { class: "filtre-case" }, verrou, "Verrouiller le budget sur ce montant"),
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),
       el("button", { type: "submit", class: "bouton" }, creation ? "Créer l'ensemble" : "Enregistrer"),
@@ -106,11 +172,12 @@ export function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere = 1, su
   );
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const lu = lireFormulaire(formulaire, DESCRIPTION, { ordre: "Ordre d'affichage" });
+    const lu = lireFormulaire(formulaire, DESCRIPTION, LIBELLES);
     if (lu.erreur) return afficherErreur(lu.erreur);
     if (creation && !code.value) return afficherErreur("Le code de l'ensemble est obligatoire.");
     if (!lu.valeurs.nom) return afficherErreur("Le nom de l'ensemble est obligatoire.");
-    const valeurs = { ...lu.valeurs, ordre: lu.valeurs.ordre ?? 0 };
+    if (verrou.checked && lu.valeurs.budget_cible_ht === null) return afficherErreur("Saisir un budget cible HT avant de verrouiller le budget.");
+    const valeurs = { ...lu.valeurs, ordre: lu.valeurs.ordre ?? 0, budget_verrouille: verrou.checked };
     try {
       const resultat = creation
         ? await api.createEnsemble({ code: code.value, ...valeurs })

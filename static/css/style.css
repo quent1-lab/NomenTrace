@@ -1911,3 +1911,100 @@ td.editable:hover {
   margin: 0 0 var(--espace-1);
   font-size: 16px;
 }
+
+/* --- Arborescence d'ensembles ---------------------------------------------------------------- */
+
+.carte__propre {
+  display: block;
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  font-weight: 400;
+}
+
+.carte__mention {
+  margin: calc(-1 * var(--espace-2)) 0 0;
+}
+
+.carte__chiffres .texte-alerte {
+  margin: 0;
+}
+
+/* Une branche occupe toute la largeur de la grille des ensembles de premier niveau. */
+.branche {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.branche__tete {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: var(--espace-3);
+  align-items: start;
+}
+
+.branche__actions {
+  align-self: start;
+}
+
+.branche__enfants {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  margin-left: var(--espace-5);
+  padding-left: var(--espace-4);
+  border-left: 2px solid var(--couleur-bordure);
+}
+
+.branche__titre {
+  margin: 0;
+  color: var(--couleur-texte-doux);
+}
+
+.table--arbre td {
+  vertical-align: top;
+}
+
+.arbre__racine td {
+  background: var(--couleur-fond);
+  font-weight: 600;
+}
+
+.arbre__trait {
+  color: var(--couleur-texte-doux);
+}
+
+.table td.arbre__nom--1 {
+  padding-left: calc(var(--espace-2) + 0px);
+}
+
+.table td.arbre__nom--2 {
+  padding-left: calc(var(--espace-2) + 24px);
+}
+
+.table td.arbre__nom--3 {
+  padding-left: calc(var(--espace-2) + 48px);
+}
+
+.table td.arbre__nom--4 {
+  padding-left: calc(var(--espace-2) + 72px);
+}
+
+.table td.arbre__nom--5 {
+  padding-left: calc(var(--espace-2) + 96px);
+}
+
+.table td.arbre__nom--6 {
+  padding-left: calc(var(--espace-2) + 120px);
+}
+
+.arbre__alerte {
+  margin: 2px 0 0;
+  font-weight: 400;
+}
+
+.table--arbre tbody tr.ligne-cliquable:hover td,
+.table--arbre tbody tr.ligne-cliquable:focus-visible td {
+  background: var(--couleur-fond);
+}

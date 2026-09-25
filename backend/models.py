@@ -123,6 +123,9 @@ class EnsembleCreation(Modele):
     description: str | None = None
     responsable: str | None = None
     statut_montage: StatutMontage = "Non commence"
+    parent_code: str | None = None
+    budget_cible_ht: float | None = Field(default=None, ge=0)
+    budget_verrouille: bool = False
 
 
 class EnsembleModif(Modele):
@@ -131,6 +134,9 @@ class EnsembleModif(Modele):
     description: str | None = None
     responsable: str | None = None
     statut_montage: StatutMontage | None = None
+    parent_code: str | None = None
+    budget_cible_ht: float | None = Field(default=None, ge=0)
+    budget_verrouille: bool | None = None
 
 
 class AffectationCreation(Modele):

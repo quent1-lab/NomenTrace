@@ -29,7 +29,9 @@ assembly. The interface and documentation are in French.*
   les modèles Excel. L'écran Attributs montre la répartition des composants par valeur.
 - **Deux découpages** : le *bloc fonctionnel* (à quoi sert le composant, un seul, figé dans
   l'identifiant) et l'*ensemble* physique (où il est monté, plusieurs possibles, avec une
-  quantité). Voir [docs/MODELE.md](docs/MODELE.md).
+  quantité). Les ensembles s'imbriquent en arbre sous le projet, avec des indicateurs
+  cumulés et un budget d'ensemble réparti au prorata du coût estimé, verrouillable.
+  Voir [docs/MODELE.md](docs/MODELE.md).
 - **Achats** : devis et commandes, réceptions partielles, stock, montage dans les
   ensembles, devis et factures joints.
 - **Fournisseurs** : fiche avec contact et numéro de compte, comparaison avec une liste de
@@ -94,7 +96,8 @@ les listes (à adapter).
    une liste… ».
 4. **Composants** : saisir les composants un à un, ou générer un modèle Excel par bloc
    (écran **Imports**), le faire remplir par l'équipe, puis le déposer.
-5. **Ensembles** : créer les ensembles physiques et y affecter les composants.
+5. **Ensembles** : créer les ensembles physiques, les ranger en sous-ensembles si besoin,
+   et y affecter les composants.
 
 ## Où sont les données
 

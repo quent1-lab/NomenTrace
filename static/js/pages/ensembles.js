@@ -1,15 +1,18 @@
 // Vue d'ensemble (#/ensembles) : une carte par ensemble physique et l'encadré de cohérence.
 
 import { api } from "../api.js";
-import { formatNombre } from "../format.js";
-import { lienRoute, naviguer } from "../router.js";
+import { formatMontant, formatNombre, formatPourcent } from "../format.js";
+import { lienRoute, naviguer, remplacerRoute } from "../router.js";
 import { el, rangsBlocs } from "../ui.js";
 import {
+  alerteDepassement,
   barreProgression,
   barreRepartition,
   ouvrirFormulaireEnsemble,
   selectStatutMontage,
+  texteBudget,
   texteCout,
+  texteEcartBudget,
 } from "./ensembles_commun.js";
 
 const TYPES_INCOHERENCE = {
@@ -31,7 +34,18 @@ const TYPES_INCOHERENCE = {
   },
 };
 
+// Branches repliées, gardées le temps de la session.
+const branchesRepliees = new Set();
+
+// Chiffre d'une carte : cumulé pour un parent, avec la part propre en second.
+function chiffre(ensemble, cle) {
+  if (!ensemble.nb_sous_ensembles) return formatNombre(ensemble[cle]);
+  return [formatNombre(ensemble.cumul[cle]), el("span", { class: "carte__propre" }, `dont propre ${formatNombre(ensemble[cle])}`)];
+}
+
 function carte(ensemble, repartition, rangs, rafraichir) {
+  const parent = ensemble.nb_sous_ensembles > 0;
+  const chiffres = parent ? ensemble.cumul : ensemble;
   return el(
     "article",
     {
@@ -43,20 +57,165 @@ function carte(ensemble, repartition, rangs, rafraichir) {
       },
     },
     el("header", { class: "carte__entete" }, el("h2", {}, ensemble.nom), el("span", { class: "etiquette" }, ensemble.code)),
+    parent ? el("p", { class: "texte-doux texte-petit carte__mention" }, `Chiffres cumulés avec ${ensemble.nb_sous_ensembles} sous-ensemble(s)`) : null,
     el(
       "dl",
       { class: "carte__chiffres" },
       el("dt", {}, "Composants distincts"),
-      el("dd", {}, formatNombre(ensemble.nb_composants_distincts)),
+      el("dd", {}, chiffre(ensemble, "nb_composants_distincts")),
       el("dt", {}, "Pièces"),
-      el("dd", {}, formatNombre(ensemble.nb_pieces_total)),
+      el("dd", {}, chiffre(ensemble, "nb_pieces_total")),
       el("dt", {}, "Coût HT"),
-      el("dd", { class: "fort" }, texteCout(ensemble)),
+      el("dd", { class: "fort" }, texteCout(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.cout_ht)}`) : null),
+      el("dt", {}, "Budget HT"),
+      el("dd", {}, texteBudget(ensemble)),
+      ensemble.ecart_budget_ht !== null ? [el("dt", {}, "Écart au budget"), el("dd", {}, texteEcartBudget(ensemble.ecart_budget_ht))] : null,
     ),
+    alerteDepassement(ensemble.depassement_verrouille_ht),
     barreRepartition(repartition, rangs),
-    barreProgression("Appro : composants reçus", ensemble.nb_composants_recus, ensemble.nb_composants_a_acheter, "rien à acheter"),
-    barreProgression("Montage : pièces montées", ensemble.nb_pieces_montees, ensemble.nb_pieces_total, "aucune pièce"),
+    barreProgression("Appro : composants reçus", chiffres.nb_composants_recus, chiffres.nb_composants_a_acheter, "rien à acheter"),
+    barreProgression("Montage : pièces montées", chiffres.nb_pieces_montees, chiffres.nb_pieces_total, "aucune pièce"),
     el("footer", { class: "carte__pied carte__pied--espace" }, el("span", { class: "texte-doux" }, "Statut de montage"), selectStatutMontage(ensemble, rafraichir)),
+  );
+}
+
+// Sous-ensembles d'un nœud : une grille de cartes, puis, pour chaque enfant qui en a
+// lui-même, un bloc en retrait.
+function sousEnsembles(parent, contexte) {
+  const enfants = contexte.ensembles.filter((e) => e.parent_code === parent.code);
+  return el(
+    "div",
+    { class: "branche__enfants" },
+    el("p", { class: "branche__titre texte-petit" }, `Sous-ensembles de ${parent.nom}`),
+    el("div", { class: "grille-cartes" }, enfants.map((e) => contexte.carte(e))),
+    enfants.filter((e) => e.nb_sous_ensembles > 0).map((e) => sousEnsembles(e, contexte)),
+  );
+}
+
+// Un ensemble de premier niveau qui a des sous-ensembles occupe toute la largeur de la
+// grille : sa carte, puis sa descendance en retrait, repliable.
+function branche(ensemble, contexte) {
+  if (!ensemble.nb_sous_ensembles) return contexte.carte(ensemble);
+  const contenu = sousEnsembles(ensemble, contexte);
+  const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret" });
+  const majBranche = () => {
+    const repliee = branchesRepliees.has(ensemble.code);
+    contenu.hidden = repliee;
+    bouton.textContent = repliee ? `▸ Afficher les ${ensemble.nb_sous_ensembles} sous-ensemble(s)` : "▾ Replier la branche";
+    bouton.setAttribute("aria-expanded", repliee ? "false" : "true");
+  };
+  bouton.addEventListener("click", () => {
+    if (branchesRepliees.has(ensemble.code)) branchesRepliees.delete(ensemble.code);
+    else branchesRepliees.add(ensemble.code);
+    majBranche();
+  });
+  majBranche();
+  return el(
+    "section",
+    { class: "branche" },
+    el("div", { class: "branche__tete" }, contexte.carte(ensemble), el("div", { class: "branche__actions" }, bouton)),
+    contenu,
+  );
+}
+
+// --- Vue « Arbre » ----------------------------------------------------------------------------
+
+function celluleNom(texte, code, niveau) {
+  return el(
+    "td",
+    { class: `arbre__nom arbre__nom--${Math.min(niveau, 6)}` },
+    niveau > 0 ? el("span", { class: "arbre__trait", "aria-hidden": "true" }, "└ ") : null,
+    texte,
+    code ? el("span", { class: "etiquette etiquette--espace" }, code) : null,
+  );
+}
+
+function ligneArbre(e) {
+  const c = e.cumul;
+  const appro = c.nb_composants_a_acheter > 0 ? `${formatNombre(c.nb_composants_recus)} / ${formatNombre(c.nb_composants_a_acheter)}` : "—";
+  const nom = celluleNom(e.nom, e.code, e.niveau);
+  const alerte = alerteDepassement(e.depassement_verrouille_ht, "arbre__alerte");
+  if (alerte) nom.append(alerte);
+  const ouvrir = () => naviguer(`/ensembles/${e.code}`);
+  return el(
+    "tr",
+    { class: "ligne-cliquable", tabindex: "0", onclick: ouvrir, onkeydown: (ev) => ev.key === "Enter" && ouvrir() },
+    nom,
+    el("td", { class: "nombre" }, texteCout(c)),
+    el("td", { class: "nombre" }, e.nb_sous_ensembles ? formatMontant(e.cout_ht) : ""),
+    el("td", { class: "nombre" }, texteBudget(e)),
+    el("td", { class: "nombre" }, texteEcartBudget(e.ecart_budget_ht)),
+    el("td", { class: "nombre" }, appro),
+    el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
+  );
+}
+
+function ligneRacine(racine) {
+  const nom = celluleNom(racine.nom || "Projet", null, 0);
+  nom.append(el("span", { class: "texte-doux texte-petit" }, " (projet)"));
+  const alerte = alerteDepassement(racine.depassement_verrouille_ht, "arbre__alerte");
+  if (alerte) nom.append(alerte);
+  if (racine.budget_non_reparti_ht > 0.005 && racine.nb_ensembles) {
+    nom.append(el("p", { class: "texte-surveiller texte-petit arbre__alerte" }, `${formatMontant(racine.budget_non_reparti_ht)} de budget non réparti : tous les ensembles de premier niveau sont verrouillés.`));
+  }
+  return el(
+    "tr",
+    { class: "arbre__racine" },
+    nom,
+    el("td", { class: "nombre" }, formatMontant(racine.cout_ht)),
+    el("td"),
+    el("td", { class: "nombre" }, racine.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(racine.budget_ht)),
+    el("td", { class: "nombre" }, texteEcartBudget(racine.ecart_budget_ht)),
+    el("td"),
+    el("td"),
+  );
+}
+
+function vueArbre(arbre) {
+  const entetes = [["Ensemble"], ["Coût HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget HT", "nombre"], ["Écart", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
+  return el(
+    "section",
+    { class: "panneau" },
+    el(
+      "p",
+      { class: "texte-doux texte-petit" },
+      "Le budget du projet descend l'arbre : à chaque niveau, les ensembles verrouillés gardent leur montant, le reste est partagé entre les autres et les composants affectés directement au parent, au prorata du coût estimé cumulé (à parts égales si rien n'est chiffré). " +
+        "Ces budgets d'ensemble sont un axe parallèle aux budgets de bloc : les deux découpent le même budget total, l'un par partie physique, l'autre par fonction.",
+    ),
+    el(
+      "div",
+      { class: "table-defilante" },
+      el(
+        "table",
+        { class: "table table--dense table--arbre" },
+        el("thead", {}, el("tr", {}, entetes.map(([t, c]) => el("th", { class: c ?? "" }, t)))),
+        el("tbody", {}, ligneRacine(arbre.racine), arbre.ensembles.map(ligneArbre)),
+      ),
+    ),
+  );
+}
+
+function barreVues(courante, conteneur) {
+  const vues = [["cartes", "Cartes"], ["arbre", "Arbre"]];
+  return el(
+    "nav",
+    { class: "onglets", role: "tablist" },
+    vues.map(([code, titre]) =>
+      el(
+        "button",
+        {
+          type: "button",
+          role: "tab",
+          class: code === courante ? "onglet onglet--actif" : "onglet",
+          "aria-selected": code === courante ? "true" : "false",
+          onclick: () => {
+            remplacerRoute("/ensembles", { vue: code === "cartes" ? "" : code });
+            afficherEnsembles(conteneur, new URLSearchParams({ vue: code }));
+          },
+        },
+        titre,
+      ),
+    ),
   );
 }
 
@@ -112,16 +271,19 @@ function encadreCoherence(incoherences) {
   );
 }
 
-export async function afficherEnsembles(conteneur) {
-  const rafraichir = () => afficherEnsembles(conteneur);
-  const [ensembles, repartition, blocs, incoherences] = await Promise.all([
-    api.getEnsembles(),
+export async function afficherEnsembles(conteneur, parametres) {
+  const vue = parametres?.get("vue") === "arbre" ? "arbre" : "cartes";
+  const rafraichir = () => afficherEnsembles(conteneur, new URLSearchParams({ vue }));
+  const [arbre, repartition, repartitionCumul, blocs, incoherences] = await Promise.all([
+    api.getArbreEnsembles(),
     api.getRepartition(),
+    api.getRepartition(true),
     api.getBlocs(),
     api.getIncoherences(),
   ]);
+  const ensembles = arbre.ensembles;
   const rangs = rangsBlocs(blocs);
-  const ordreSuggere = ensembles.reduce((max, e) => Math.max(max, e.ordre), 0) + 1;
+  const ordreSuggere = ensembles.filter((e) => e.niveau === 1).reduce((max, e) => Math.max(max, e.ordre), 0) + 1;
   const creer = () =>
     ouvrirFormulaireEnsemble({ ordreSuggere, surEnregistre: (e) => naviguer(`/ensembles/${e.code}`) });
   const entete = el(
@@ -134,14 +296,23 @@ export async function afficherEnsembles(conteneur) {
     conteneur.replaceChildren(entete, etatVide(creer), encadreCoherence(incoherences));
     return;
   }
+  // Un parent affiche la répartition par bloc de toute sa branche.
+  const contexte = {
+    ensembles,
+    carte: (e) => {
+      const source = e.nb_sous_ensembles ? repartitionCumul : repartition;
+      return carte(e, source.filter((r) => r.ensemble_code === e.code), rangs, rafraichir);
+    },
+  };
+  const corps =
+    vue === "arbre"
+      ? vueArbre(arbre)
+      : el("div", { class: "grille-cartes" }, ensembles.filter((e) => e.niveau === 1).map((e) => branche(e, contexte)));
   conteneur.replaceChildren(
     entete,
-    el("p", { class: "texte-doux" }, "Un ensemble est une partie physique du système suivi. Cliquer sur une carte pour voir ce qu'elle contient et ce qu'il reste à monter."),
-    el(
-      "div",
-      { class: "grille-cartes" },
-      ensembles.map((e) => carte(e, repartition.filter((r) => r.ensemble_code === e.code), rangs, rafraichir)),
-    ),
+    el("p", { class: "texte-doux" }, "Un ensemble est une partie physique du système suivi ; il peut contenir des sous-ensembles. Cliquer sur un ensemble pour voir ce qu'il contient et ce qu'il reste à monter."),
+    barreVues(vue, conteneur),
+    corps,
     encadreCoherence(incoherences),
   );
 }

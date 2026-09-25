@@ -3,17 +3,20 @@
 
 import { api } from "../api.js";
 import { editerCellule } from "../edition.js";
-import { formatMontant, formatNombre, libelle } from "../format.js";
+import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
 import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import {
+  alerteDepassement,
   barreProgression,
   barreRepartition,
   ouvrirFormulaireEnsemble,
   selectStatutMontage,
+  texteBudget,
   texteCout,
+  texteEcartBudget,
 } from "./ensembles_commun.js";
 
 const EDITION_QTE = { champ: "qte_affectee", type: "entier" };
@@ -130,31 +133,94 @@ function listeMontage() {
   );
 }
 
+// Case du bandeau ; pour un parent, la valeur cumulée puis la part propre.
+function caseChiffre(titre, valeur, propre = null) {
+  return el(
+    "div",
+    {},
+    el("span", { class: "texte-doux" }, titre),
+    el("strong", {}, valeur),
+    propre !== null ? el("span", { class: "carte__propre" }, `dont propre ${propre}`) : null,
+  );
+}
+
 function bandeau() {
   const e = etat.ensemble;
+  const parent = e.nb_sous_ensembles > 0;
+  const c = parent ? e.cumul : e;
+  const propre = (valeur) => (parent ? valeur : null);
   return el(
     "section",
     { class: "panneau bandeau-ensemble" },
+    parent ? el("p", { class: "texte-doux texte-petit" }, `Chiffres cumulés : l'ensemble et ses ${e.nb_sous_ensembles} sous-ensemble(s). La part propre ne compte que ses affectations directes.`) : null,
     el(
       "div",
       { class: "bandeau-ensemble__chiffres" },
-      el("div", {}, el("span", { class: "texte-doux" }, "Composants distincts"), el("strong", {}, formatNombre(e.nb_composants_distincts))),
-      el("div", {}, el("span", { class: "texte-doux" }, "Pièces"), el("strong", {}, formatNombre(e.nb_pieces_total))),
-      el("div", {}, el("span", { class: "texte-doux" }, "Coût HT"), el("strong", {}, texteCout(e))),
-      el("div", {}, el("span", { class: "texte-doux" }, "Blocs représentés"), el("strong", {}, formatNombre(e.nb_blocs_representes))),
+      caseChiffre("Composants distincts", formatNombre(c.nb_composants_distincts), propre(formatNombre(e.nb_composants_distincts))),
+      caseChiffre("Pièces", formatNombre(c.nb_pieces_total), propre(formatNombre(e.nb_pieces_total))),
+      caseChiffre("Coût HT", texteCout(c), propre(formatMontant(e.cout_ht))),
+      caseChiffre("Budget HT", texteBudget(e), parent && e.budget_propre_ht !== null ? formatMontant(e.budget_propre_ht) : null),
+      e.ecart_budget_ht !== null ? caseChiffre("Écart au budget", texteEcartBudget(e.ecart_budget_ht)) : null,
+      caseChiffre("Blocs représentés", formatNombre(c.nb_blocs_representes)),
       el("div", {}, el("span", { class: "texte-doux" }, "Statut de montage"), selectStatutMontage(e, recharger)),
     ),
+    alerteDepassement(e.depassement_verrouille_ht),
     barreRepartition(etat.repartition, etat.rangs),
     el(
       "div",
       { class: "grille-2" },
-      barreProgression("Appro : composants reçus", e.nb_composants_recus, e.nb_composants_a_acheter, "rien à acheter"),
-      barreProgression("Montage : pièces montées", e.nb_pieces_montees, e.nb_pieces_total, "aucune pièce"),
+      barreProgression("Appro : composants reçus", c.nb_composants_recus, c.nb_composants_a_acheter, "rien à acheter"),
+      barreProgression("Montage : pièces montées", c.nb_pieces_montees, c.nb_pieces_total, "aucune pièce"),
     ),
     e.description || e.responsable
       ? el("p", { class: "texte-doux" }, [e.responsable ? `Responsable : ${e.responsable}. ` : "", e.description ?? ""].join(""))
       : null,
   );
+}
+
+function filAriane(e) {
+  const liens = [el("a", { href: "#/ensembles" }, "← Ensembles")];
+  for (const parent of e.chemin) {
+    liens.push(" / ", el("a", { href: `#/ensembles/${encodeURIComponent(parent.code)}` }, parent.nom));
+  }
+  return el("p", { class: "fil" }, liens);
+}
+
+function sectionSousEnsembles() {
+  const lignes = etat.ensemble.enfants.map((s) => {
+    const c = s.cumul;
+    const ouvrir = () => naviguer(`/ensembles/${s.code}`);
+    return el(
+      "tr",
+      { class: "ligne-cliquable", tabindex: "0", onclick: ouvrir, onkeydown: (ev) => ev.key === "Enter" && ouvrir() },
+      el("td", {}, s.nom, el("span", { class: "etiquette etiquette--espace" }, s.code), s.nb_sous_ensembles ? el("span", { class: "texte-doux texte-petit" }, ` + ${s.nb_sous_ensembles} sous-ensemble(s)`) : null),
+      el("td", { class: "nombre" }, formatNombre(c.nb_pieces_total)),
+      el("td", { class: "nombre" }, texteCout(c)),
+      el("td", { class: "nombre" }, texteBudget(s)),
+      el("td", { class: "nombre" }, texteEcartBudget(s.ecart_budget_ht)),
+      el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
+    );
+  });
+  const entetes = [["Sous-ensemble"], ["Pièces", "nombre"], ["Coût HT cumulé", "nombre"], ["Budget HT", "nombre"], ["Écart", "nombre"], ["Montage", "nombre"]];
+  return el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Sous-ensembles"),
+    el(
+      "table",
+      { class: "table table--dense" },
+      el("thead", {}, el("tr", {}, entetes.map(([t, c]) => el("th", { class: c ?? "" }, t)))),
+      el("tbody", {}, lignes),
+    ),
+  );
+}
+
+function creerSousEnsemble() {
+  ouvrirFormulaireEnsemble({
+    parentInitial: etat.code,
+    ordreSuggere: etat.ensemble.enfants.reduce((max, s) => Math.max(max, s.ordre), 0) + 1,
+    surEnregistre: (cree) => naviguer(`/ensembles/${cree.code}`),
+  });
 }
 
 function rendre() {
@@ -169,7 +235,7 @@ function rendre() {
     },
   }), "Grouper par bloc fonctionnel");
   etat.conteneur.replaceChildren(
-    el("p", { class: "fil" }, el("a", { href: "#/ensembles" }, "← Ensembles")),
+    filAriane(e),
     el(
       "div",
       { class: "titre-page" },
@@ -178,15 +244,17 @@ function rendre() {
         "div",
         { class: "actions" },
         el("button", { type: "button", class: "bouton", onclick: ouvrirSelecteur }, "+ Affecter un composant"),
+        el("button", { type: "button", class: "bouton bouton--discret", onclick: creerSousEnsemble }, "+ Sous-ensemble"),
         el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: recharger }) }, "Modifier"),
         el("button", { type: "button", class: "bouton bouton--danger", onclick: archiver }, "Archiver"),
       ),
     ),
     bandeau(),
+    e.enfants.length ? sectionSousEnsembles() : null,
     el(
       "section",
       { class: "panneau" },
-      el("div", { class: "titre-section" }, el("h2", {}, "Composants affectés"), etat.lignes.length ? grouper : null),
+      el("div", { class: "titre-section" }, el("h2", {}, e.enfants.length ? "Composants affectés directement" : "Composants affectés"), etat.lignes.length ? grouper : null),
       etat.lignes.length
         ? tableComposants()
         : el("p", { class: "texte-doux" }, "Aucun composant n'est encore affecté à cet ensemble. Utiliser « Affecter un composant »."),
@@ -210,7 +278,7 @@ async function recharger() {
   const [ensemble, lignes, repartition] = await Promise.all([
     api.getEnsemble(etat.code),
     api.getComposantsEnsemble(etat.code),
-    api.getRepartition(),
+    api.getRepartition(true),
   ]);
   Object.assign(etat, { ensemble, lignes, repartition: repartition.filter((r) => r.ensemble_code === etat.code) });
   rendre();

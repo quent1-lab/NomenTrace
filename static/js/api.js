@@ -133,7 +133,8 @@ export const api = {
   patchEnsemble: (code, modifs) => requete("PATCH", `/api/ensembles/${encodeURIComponent(code)}`, modifs),
   archiveEnsemble: (code) => requete("DELETE", `/api/ensembles/${encodeURIComponent(code)}`),
   getComposantsEnsemble: (code) => requete("GET", `/api/ensembles/${encodeURIComponent(code)}/composants`),
-  getRepartition: () => requete("GET", "/api/ensembles/repartition"),
+  getArbreEnsembles: () => requete("GET", "/api/ensembles/arbre"),
+  getRepartition: (cumul = false) => requete("GET", avecParametres("/api/ensembles/repartition", { cumul: cumul ? "true" : "" })),
   getIncoherences: () => requete("GET", "/api/ensembles/incoherences"),
 
   getComposants: (filtres) => requete("GET", avecParametres("/api/composants", filtres)),

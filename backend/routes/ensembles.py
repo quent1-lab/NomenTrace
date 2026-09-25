@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from backend.arrondi import round_output
 from backend.deps import get_conn
 from backend.models import AffectationCreation, AffectationModif, EnsembleCreation, EnsembleModif
-from backend.services import ensembles
+from backend.services import ensembles, ensembles_arbre
 
 router = APIRouter(prefix="/api", tags=["ensembles"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -16,12 +16,17 @@ Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 
 @router.get("/ensembles")
 def read_ensembles(conn: Conn) -> list[dict]:
-    return round_output(ensembles.list_ensembles(conn))
+    return round_output(ensembles_arbre.list_ensembles(conn))
+
+
+@router.get("/ensembles/arbre")
+def read_arbre(conn: Conn) -> dict:
+    return round_output(ensembles_arbre.get_arbre(conn))
 
 
 @router.get("/ensembles/repartition")
-def read_repartition(conn: Conn) -> list[dict]:
-    return round_output(ensembles.list_repartition(conn))
+def read_repartition(conn: Conn, cumul: bool = False) -> list[dict]:
+    return round_output(ensembles.list_repartition(conn, cumul))
 
 
 @router.get("/ensembles/incoherences")
@@ -31,7 +36,7 @@ def read_incoherences(conn: Conn) -> list[dict]:
 
 @router.get("/ensembles/{code}")
 def read_ensemble(code: str, conn: Conn) -> dict:
-    return round_output(ensembles.get_ensemble(conn, code))
+    return round_output(ensembles_arbre.get_ensemble(conn, code))
 
 
 @router.post("/ensembles", status_code=201)
