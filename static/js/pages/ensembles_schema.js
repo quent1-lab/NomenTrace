@@ -100,7 +100,6 @@ function dessinerNoeud(noeud) {
       { class: "schema__code", x: 12, y: 38 },
       noeud.racine ? "projet" : noeud.code,
       noeud.verrouille ? " · budget verrouillé" : "",
-      noeud.nbEnfants ? ` · ${noeud.nbEnfants} sous-ensemble(s)` : "",
     ),
     svg("text", { class: "schema__montants", x: 12, y: 55 }, `${formatMontant(noeud.cout)} / ${budget}`),
     jauge(noeud),
@@ -133,7 +132,6 @@ export function vueSchema(arbre) {
     if (!enfantsDe.has(parent)) enfantsDe.set(parent, []);
     enfantsDe.get(parent).push(n);
   }
-  for (const n of [racine, ...noeuds]) n.nbEnfants = (enfantsDe.get(n.code) ?? []).length;
   const nbLignes = placer(racine, enfantsDe);
   const profondeur = Math.max(0, ...arbre.ensembles.map((e) => e.niveau));
   const largeur = 2 * MARGE + (profondeur + 1) * LARGEUR + profondeur * ECART_COLONNES;
