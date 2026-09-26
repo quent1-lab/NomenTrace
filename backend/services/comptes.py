@@ -284,7 +284,7 @@ def get_invitation(conn: sqlite3.Connection, jeton: str) -> dict:
 def accept_invitation(conn: sqlite3.Connection, jeton: str, mot_de_passe: str) -> int:
     """Enregistre le mot de passe choisi et consomme l'invitation ; renvoie l'utilisateur."""
     ligne = _invitation_valide(conn, jeton)
-    auth.check_mot_de_passe(mot_de_passe, ligne["identifiant"])
+    auth.check_mot_de_passe(mot_de_passe, ligne["identifiant"], ligne["nom"])
     with db.transaction(conn):
         # Consommée sous verrou d'écriture : deux envois simultanés du même lien ne passent pas.
         consommee = conn.execute(

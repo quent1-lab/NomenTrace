@@ -14,6 +14,8 @@ import sqlite3
 import threading
 import time
 from collections import deque
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -30,6 +32,36 @@ SCRYPT_P: int = 1
 TAILLE_SEL: int = 16
 # Deux calculs à la fois au plus : une rafale de tentatives ne peut pas épuiser la mémoire.
 _calculs = threading.BoundedSemaphore(2)
+
+# Un mot de passe est haché dans un fil du serveur, et l'opération est lente à dessein
+# (scrypt). Sans limite, une rafale de connexions occuperait tous les fils et bloquerait le
+# reste de l'application. On borne donc le nombre de connexions et d'invitations traitées en
+# même temps : au-delà, la requête est refusée aussitôt (503) sans occuper un fil, plutôt que
+# de faire attendre tout le monde. La borne dépasse le nombre de calculs simultanés pour
+# absorber quelques connexions légitimes en même temps.
+CONNEXIONS_SIMULTANEES: int = 6
+_places = threading.BoundedSemaphore(CONNEXIONS_SIMULTANEES)
+
+
+class ServeurOccupe(ErreurMetier):
+    """Trop de connexions en cours en même temps ; réessayer suffit."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Trop de connexions au même moment. Patienter quelques secondes et réessayer.", 503
+        )
+
+
+@contextmanager
+def limiter_connexions() -> Iterator[None]:
+    """Réserve une place de traitement d'authentification, ou refuse tout de suite."""
+    if not _places.acquire(blocking=False):
+        raise ServeurOccupe()
+    try:
+        yield
+    finally:
+        _places.release()
+
 
 LONGUEUR_MIN: int = 12
 LONGUEUR_MAX: int = 128
@@ -114,14 +146,70 @@ def _leurre() -> str:
     return _EMPREINTE_LEURRE
 
 
-def check_mot_de_passe(mot_de_passe: str, identifiant: str) -> None:
-    """Refuse un mot de passe trop court, trop long ou égal à l'identifiant."""
-    if len(mot_de_passe) < LONGUEUR_MIN:
-        raise ErreurMetier(f"Le mot de passe doit compter au moins {LONGUEUR_MIN} caractères.")
+# Exigences du mot de passe choisi par le lien d'invitation. La page de connexion les
+# affiche et les coche pendant la saisie (static/js/connexion.js), mais c'est ce contrôle
+# qui fait foi. Une phrase de passe d'au moins LONGUEUR_PHRASE caractères est dispensée des
+# règles de composition : sa longueur la protège mieux qu'un mélange de symboles.
+LONGUEUR_PHRASE: int = 20
+CARACTERES_DISTINCTS_MIN: int = 6
+# Mots de passe parmi les plus essayés : refusés tels quels, même assez longs.
+COURANTS: frozenset[str] = frozenset(
+    {
+        "motdepasse", "password", "azerty", "qwerty", "123456789", "1234567890",
+        "abcdefghijkl", "nomentrace", "bonjour", "soleil", "doudou", "loveyou",
+        "iloveyou", "admin", "administrateur", "azertyuiop", "qwertyuiop",
+    }
+)  # fmt: skip
+
+
+def _simplifie(texte: str) -> str:
+    return "".join(c for c in texte.lower() if c.isalnum())
+
+
+def exigences_mot_de_passe(
+    mot_de_passe: str, identifiant: str, nom: str = ""
+) -> list[tuple[str, bool]]:
+    """Chaque exigence avec son libellé et si elle est remplie."""
+    phrase = len(mot_de_passe) >= LONGUEUR_PHRASE
+    compose = phrase or (
+        any(c.islower() for c in mot_de_passe)
+        and any(c.isupper() for c in mot_de_passe)
+        and any(c.isdigit() for c in mot_de_passe)
+        and any(not c.isalnum() for c in mot_de_passe)
+    )
+    simple = _simplifie(mot_de_passe)
+    personnels = [
+        p for p in (_simplifie(identifiant.split("@")[0]), _simplifie(nom)) if len(p) >= 3
+    ]
+    # « Motdepasse2026! » est courant : une fois le mot connu retiré, il reste trop peu.
+    courant = any(m in simple and len(simple.replace(m, "", 1)) < 6 for m in COURANTS)
+    return [
+        (f"{LONGUEUR_MIN} caractères au moins", LONGUEUR_MIN <= len(mot_de_passe) <= LONGUEUR_MAX),
+        (
+            "une minuscule, une majuscule, un chiffre et un caractère spécial, "
+            f"ou une phrase de {LONGUEUR_PHRASE} caractères au moins",
+            compose,
+        ),
+        ("ni l'adresse mail ni le nom", not any(p in simple for p in personnels)),
+        (
+            f"{CARACTERES_DISTINCTS_MIN} caractères différents au moins,"
+            " pas un mot de passe courant",
+            len(set(mot_de_passe)) >= CARACTERES_DISTINCTS_MIN and not courant,
+        ),
+    ]
+
+
+def check_mot_de_passe(mot_de_passe: str, identifiant: str, nom: str = "") -> None:
+    """Refuse un mot de passe qui ne remplit pas toutes les exigences, en les citant."""
     if len(mot_de_passe) > LONGUEUR_MAX:
         raise ErreurMetier(f"Le mot de passe ne doit pas dépasser {LONGUEUR_MAX} caractères.")
-    if mot_de_passe.strip().lower() == identifiant.strip().lower():
-        raise ErreurMetier("Le mot de passe ne doit pas reprendre l'identifiant.")
+    manquantes = [
+        libelle
+        for libelle, remplie in exigences_mot_de_passe(mot_de_passe, identifiant, nom)
+        if not remplie
+    ]
+    if manquantes:
+        raise ErreurMetier("Mot de passe refusé. Il faut : " + " ; ".join(manquantes) + ".")
 
 
 def set_mot_de_passe(conn: sqlite3.Connection, utilisateur_id: int, mot_de_passe: str) -> None:

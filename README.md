@@ -64,7 +64,8 @@ puis Paramètres › Blocs fonctionnels. On peut ensuite saisir les composants.
 Pour partager l'outil avec une équipe, on le lance sans mode local : chacun entre alors
 avec un compte, créé par un administrateur, et un rôle (lecteur, contributeur de certains
 blocs, administrateur). La création du premier administrateur et les règles de sécurité
-sont dans [docs/EXPLOITATION.md](docs/EXPLOITATION.md). Exposé au-delà du poste, l'outil
+sont dans [docs/EXPLOITATION.md](docs/EXPLOITATION.md) et
+[docs/SECURITE.md](docs/SECURITE.md). Exposé au-delà du poste, l'outil
 doit être servi en HTTPS.
 
 ## Documentation
@@ -77,6 +78,7 @@ doit être servi en HTTPS.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Comment le code est construit, et comment y ajouter une fonctionnalité |
 | [docs/API.md](docs/API.md) | Les routes de l'API JSON |
 | [docs/CONTRIBUER.md](docs/CONTRIBUER.md) | Les règles de code, de tests et de documentation |
+| [docs/SECURITE.md](docs/SECURITE.md) | Les protections, l'audit de sécurité et les points qui restent à régler |
 | [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md) | Ce qui est prévu : hébergement, rapports, multi-projet |
 
 ## Licence

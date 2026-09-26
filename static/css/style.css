@@ -2401,3 +2401,31 @@ body:not(.peut-ensembles) .si-ensembles {
   align-items: stretch;
   gap: var(--espace-1);
 }
+
+/* Exigences du mot de passe, cochées pendant la saisie. */
+.exigences {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--taille-petit);
+}
+
+.exigence {
+  padding-left: var(--espace-4);
+  color: var(--couleur-texte-doux);
+  position: relative;
+}
+
+.exigence::before {
+  content: "○";
+  position: absolute;
+  left: 0;
+}
+
+.exigence--ok {
+  color: var(--couleur-conforme);
+}
+
+.exigence--ok::before {
+  content: "✓";
+}

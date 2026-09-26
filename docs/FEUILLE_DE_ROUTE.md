@@ -21,7 +21,8 @@ ses blocs, avec en plus, au cas par cas, les achats ou l'arborescence des ensemb
 l'administrateur a le reste. Chaque modification porte son auteur dans le journal, et une
 modification faite sur un composant changé entre-temps est signalée au lieu d'écraser
 l'autre. Le mode local, sans connexion, reste celui du double-clic sur `lancer.bat`. Le
-détail est dans [UTILISATION.md](UTILISATION.md) et [EXPLOITATION.md](EXPLOITATION.md).
+détail est dans [UTILISATION.md](UTILISATION.md) et [EXPLOITATION.md](EXPLOITATION.md) ;
+un audit de sécurité a suivi, consigné dans [SECURITE.md](SECURITE.md).
 
 ## Hébergement
 
@@ -34,8 +35,8 @@ Une sauvegarde quotidienne enverra l'archive complète (base et documents, corbe
 comprise) et la base des comptes hors de la machine, dans un stockage objet, avec trente
 jours de rétention. Caddy limitera aussi la taille des requêtes, et Uvicorn ne fera
 confiance qu'à lui pour l'adresse IP des visiteurs, dont dépend la limite des tentatives de
-connexion. Un
-script de mise à jour sauvegardera, installera la nouvelle version, contrôlera qu'elle
+connexion. Il appliquera aussi une limite de débit sur la connexion, et Uvicorn une
+limite de concurrence. Un script de mise à jour sauvegardera, installera la nouvelle version, contrôlera qu'elle
 répond, et reviendra à la précédente sinon. Le tout sera décrit dans un guide pas à pas,
 dans un dossier `deploiement/`.
 
@@ -66,6 +67,10 @@ chaque table : aucune donnée ne peut alors passer d'un projet à l'autre. Les c
 vivraient dans une base commune, avec des rôles attribués projet par projet ; un
 utilisateur ne verrait ni n'atteindrait, même par une adresse tapée à la main, les projets
 où il n'a pas de rôle. La phase des comptes rangera déjà les rôles de cette façon.
+
+Le verrouillage d'un compte après cinq échecs pourra s'adoucir, en comptant les échecs
+par couple compte et adresse, pour qu'un tiers ne puisse plus bloquer quelqu'un en
+connaissant seulement son adresse mail.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles

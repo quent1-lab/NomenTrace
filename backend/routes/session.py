@@ -47,14 +47,17 @@ def _ouvrir(
 def create_session(
     corps: Connexion, request: Request, reponse: Response, conn: ConnComptes
 ) -> dict:
-    utilisateur_id = authentification.login(
-        conn,
-        request.app.state.limiteurs,
-        corps.identifiant,
-        corps.mot_de_passe,
-        _adresse(request),
-    )
-    return _ouvrir(request, reponse, conn, utilisateur_id)
+    # La place est réservée avant le hachage (lent) : au-delà de quelques connexions à la
+    # fois, la requête est refusée aussitôt, sans bloquer le reste de l'application.
+    with authentification.limiter_connexions():
+        utilisateur_id = authentification.login(
+            conn,
+            request.app.state.limiteurs,
+            corps.identifiant,
+            corps.mot_de_passe,
+            _adresse(request),
+        )
+        return _ouvrir(request, reponse, conn, utilisateur_id)
 
 
 @router.get("/session")
@@ -85,5 +88,6 @@ def read_invitation(corps: InvitationVerification, conn: ConnComptes) -> dict:
 def accept_invitation(
     corps: InvitationAcceptation, request: Request, reponse: Response, conn: ConnComptes
 ) -> dict:
-    utilisateur_id = comptes.accept_invitation(conn, corps.jeton, corps.mot_de_passe)
-    return _ouvrir(request, reponse, conn, utilisateur_id)
+    with authentification.limiter_connexions():
+        utilisateur_id = comptes.accept_invitation(conn, corps.jeton, corps.mot_de_passe)
+        return _ouvrir(request, reponse, conn, utilisateur_id)

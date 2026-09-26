@@ -48,7 +48,11 @@ la mettre en favori ou l'envoyer à quelqu'un qui a accès au même serveur.
 
 Sur un serveur partagé, on entre avec son adresse mail et son mot de passe. Le premier
 accès passe par le lien d'invitation reçu d'un administrateur : il ouvre une page où l'on
-choisit son mot de passe, puis l'outil s'ouvre directement. Le lien ne sert qu'une fois et
+choisit son mot de passe, puis l'outil s'ouvre directement. Sous le champ, les exigences se
+cochent au fil de la saisie : douze caractères au moins, avec minuscule, majuscule, chiffre
+et caractère spécial, ou bien une phrase de vingt caractères ou plus ; ni son nom ni son
+adresse ; pas un mot de passe courant. Si plusieurs personnes se connectent au même
+instant, l'outil peut demander de patienter quelques secondes. Le lien ne sert qu'une fois et
 expire au bout de trois jours. Un mot de passe oublié se règle de la même manière, en
 demandant un nouveau lien.
 

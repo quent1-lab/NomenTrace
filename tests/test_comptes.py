@@ -202,6 +202,47 @@ def test_blocage_par_adresse() -> None:
     assert not limiteur.bloque("10.0.0.2")
 
 
+def test_connexion_refusee_quand_toutes_les_places_sont_prises(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Une rafale de connexions ne doit pas bloquer l'application : les places en trop sont
+    refusées tout de suite (503), sans occuper un fil de traitement.
+    """
+    creer_compte(app, "admin@ecole.test", "administrateur")
+    # Toutes les places sont occupées : une connexion de plus est refusée aussitôt.
+    pris = [
+        authentification._places.acquire() for _ in range(authentification.CONNEXIONS_SIMULTANEES)
+    ]
+    try:
+        reponse = navigateur(app).post(
+            "/api/session", json={"identifiant": "admin@ecole.test", "mot_de_passe": MOT_DE_PASSE}
+        )
+        assert reponse.status_code == 503
+    finally:
+        for _ in pris:
+            authentification._places.release()
+    # Une fois les places libérées, la connexion repasse normalement.
+    assert connecter(app, "admin@ecole.test").get("/api/composants").status_code == 200
+
+
+def test_places_liberees_meme_en_cas_d_echec(app: FastAPI) -> None:
+    """La place réservée est rendue quel que soit le résultat, sinon elles s'épuiseraient."""
+    creer_compte(app, "admin@ecole.test", "administrateur")
+    client = navigateur(app)
+    for _ in range(authentification.CONNEXIONS_SIMULTANEES + 3):
+        client.post(
+            "/api/session", json={"identifiant": "admin@ecole.test", "mot_de_passe": "faux"}
+        )
+    libres = [
+        authentification._places.acquire(blocking=False)
+        for _ in range(authentification.CONNEXIONS_SIMULTANEES)
+    ]
+    assert all(libres), "des places n'ont pas été rendues après un échec de connexion"
+    for ok in libres:
+        if ok:
+            authentification._places.release()
+
+
 def test_deconnexion_ferme_la_session(app: FastAPI, admin: TestClient) -> None:
     jeton = admin.cookies.get("nomentrace_session")
     assert admin.delete("/api/session").status_code == 200
@@ -260,6 +301,40 @@ def test_invitation_choisit_le_mot_de_passe_et_connecte(app: FastAPI) -> None:
         "/api/invitation", json={"jeton": jeton, "mot_de_passe": MOT_DE_PASSE + "!"}
     )
     assert rejoue.status_code == 410
+
+
+@pytest.mark.parametrize(
+    ("mot_de_passe", "accepte"),
+    [
+        ("Court1!", False),  # trop court
+        ("toutenminuscule", False),  # ni majuscule, ni chiffre, ni symbole, pas une phrase
+        ("Robot-Chassis-7", True),  # composé
+        ("le robot monte ses roues avant", True),  # phrase de passe
+        ("Motdepasse2026!", False),  # mot de passe courant à peine décoré
+        ("Aaaaaaaaaaa1!", False),  # trop peu de caractères différents
+        ("Marie.Dupont-26", False),  # reprend le nom
+        ("Mdupont#Robot42", False),  # reprend l'adresse mail
+    ],
+)
+def test_exigences_du_mot_de_passe(mot_de_passe: str, accepte: bool) -> None:
+    exigences = authentification.exigences_mot_de_passe(
+        mot_de_passe, "mdupont@ecole.fr", "Marie Dupont"
+    )
+    assert all(remplie for _, remplie in exigences) is accepte, exigences
+
+
+def test_invitation_refuse_un_mot_de_passe_faible_en_citant_les_exigences(app: FastAPI) -> None:
+    _, jeton = _invitation(app, "faible@ecole.test")
+    reponse = navigateur(app).post(
+        "/api/invitation", json={"jeton": jeton, "mot_de_passe": "Motdepasse2026!"}
+    )
+    assert reponse.status_code == 400
+    assert "mot de passe courant" in reponse.json()["erreur"]
+    # Le lien reste utilisable après un refus : rien n'a été consommé.
+    ok = navigateur(app).post(
+        "/api/invitation", json={"jeton": jeton, "mot_de_passe": MOT_DE_PASSE}
+    )
+    assert ok.status_code == 200
 
 
 def test_invitation_expiree_refusee(app: FastAPI) -> None:

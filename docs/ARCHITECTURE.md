@@ -89,7 +89,11 @@ comptes et les invitations dans `services/comptes.py`. Les sessions vivent dans 
 des comptes plutôt que dans un cookie signé : la déconnexion, la désactivation d'un compte
 ou un nouveau lien les ferment vraiment, et aucun secret de signature n'est à gérer. Les
 échecs de connexion sont comptés en mémoire, par identifiant et par adresse IP, ce qui
-suppose un seul processus.
+suppose un seul processus. Comme toutes les routes tournent dans un pool de fils fixe et
+que scrypt est lent à dessein, la connexion et l'invitation passent par
+`authentification.limiter_connexions()` : au-delà de six traitements simultanés, la requête
+est refusée aussitôt au lieu d'occuper un fil, sans quoi une rafale gèlerait l'application
+(voir [SECURITE.md](SECURITE.md)).
 
 `securite.py` installe un middleware qui s'exécute avant tous les autres. Il refuse une
 écriture dont l'en-tête `Origin` ne désigne pas le serveur lui-même, et, en mode local,

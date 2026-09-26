@@ -54,11 +54,11 @@ l'auteur de la dernière modification.
 
 | Méthode | Chemin | Rôle |
 |---|---|---|
-| POST | `/api/session` | Connexion : `identifiant`, `mot_de_passe` ; 401 si refusée, 429 après trop d'échecs |
+| POST | `/api/session` | Connexion : `identifiant`, `mot_de_passe` ; 401 si refusée, 429 après trop d'échecs, 503 si trop de connexions sont en cours |
 | GET | `/api/session` | Utilisateur connecté, son rôle, ses blocs et permissions, nom du projet, mode local |
 | DELETE | `/api/session` | Déconnexion : la session est supprimée côté serveur |
 | POST | `/api/invitation/verifier` | Validité d'un jeton d'invitation (`jeton`) : compte concerné, ou 410 |
-| POST | `/api/invitation` | Choix du mot de passe (`jeton`, `mot_de_passe`), puis session ouverte |
+| POST | `/api/invitation` | Choix du mot de passe (`jeton`, `mot_de_passe`), puis session ouverte ; 400 qui cite les exigences non remplies |
 | GET, POST | `/api/utilisateurs` | Comptes du projet ; création (renvoie le jeton d'invitation, une seule fois) |
 | PATCH | `/api/utilisateurs/{id}` | Nom, rôle, blocs, permissions, actif |
 | POST | `/api/utilisateurs/{id}/invitation` | Nouveau lien : efface le mot de passe et ferme les sessions |
