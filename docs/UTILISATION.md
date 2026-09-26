@@ -179,11 +179,11 @@ et du montage, statut de montage modifiable directement. La carte d'un ensemble 
 sous-ensembles donne des chiffres cumulés, avec sa part propre en second.
 
 L'onglet Arbre donne la hiérarchie complète dans un tableau, depuis la ligne du projet :
-coût cumulé, part propre, budget cible, budget calculé, écart, avancement. C'est l'endroit
+coût cumulé, part propre, budget cible, budget calculé, marge, avancement. C'est l'endroit
 où l'on arbitre les budgets (voir plus bas).
 
 L'onglet Schéma dessine le même arbre de gauche à droite, un cadre par ensemble relié à son
-parent. Un sélecteur change ce que racontent les couleurs : l'écart au budget, l'avancement
+parent. Un sélecteur change ce que racontent les couleurs : la marge sur budget, l'avancement
 de l'approvisionnement, celui du montage ou le statut de montage. Un cadre rouge signale un
 parent dont le budget est dépassé par ce qu'on y a verrouillé. Un clic ouvre l'ensemble.
 
@@ -310,14 +310,23 @@ libellés qui ne diffèrent que par un nombre (« convertisseur 12 V » et « co
 
 ## Suivre le projet
 
-Le tableau de bord ne se saisit pas, il se lit : coût estimé, écart au budget, lignes à
+Le tableau de bord ne se saisit pas, il se lit : coût estimé, marge sur budget, lignes à
 chiffrer, montant engagé et reste à engager, une jauge de consommation du budget, le coût
 par bloc, les dix composants les plus coûteux, la répartition par mode d'approvisionnement
 et une série d'alertes cliquables (commandes en retard, composants bloquants non commandés,
 écarts d'affectation, fournisseurs à valider…).
 
+La marge sur budget compare le budget au coût estimé de toute la nomenclature : elle dit si
+tout rentrera, une fois tout acheté. Son titre change avec la situation. « Marge
+restante », en vert, donne ce qui reste sous le budget ; « Dépassement », en rouge, ce qui
+le dépasse ; le montant est toujours positif, suivi de sa part du budget. Une marge nulle
+est en orange, comme, sur les cartes de bloc, une marge inférieure à 10 % du budget cible.
+Dans les tableaux, où la colonne garde un titre fixe, « Marge » est signée : positive en
+vert, négative en rouge quand le budget est dépassé. Le reste à engager, lui, compare le
+budget aux seules commandes passées : il dit combien on peut encore commander.
+
 L'écran Blocs donne une carte par bloc fonctionnel avec son coût, son budget cible
-modifiable sur place, le montant engagé et l'avancement des achats.
+modifiable sur place, sa marge restante ou son dépassement, et l'avancement des achats.
 
 Paramètres › Historique lit tout le journal du projet, cent lignes par page, les plus
 récentes en haut. La colonne « Par » donne l'auteur de chaque modification (les lignes

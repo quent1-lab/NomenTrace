@@ -1,7 +1,7 @@
 // Éléments partagés par la vue d'ensemble et le détail d'un ensemble.
 
 import { api } from "../api.js";
-import { formatEcart, formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
+import { formatMarge, formatMontant, formatNombre, formatPourcent, libelle, niveauMarge, situationBudget } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { aPermission, estAdmin } from "../session.js";
@@ -119,10 +119,17 @@ export function texteBudget(ensemble) {
   ];
 }
 
-// Écart entre le coût estimé cumulé et le budget : positif = dépassement.
-export function texteEcartBudget(ecart) {
+// Colonne « Marge » : budget − coût cumulé, négative en cas de dépassement.
+export function texteMarge(ecart) {
   if (ecart === null || ecart === undefined) return "";
-  return el("span", { class: ecart > 0 ? "texte-alerte" : "texte-conforme" }, formatEcart(ecart));
+  return el("span", { class: `ecart--${niveauMarge(ecart)}` }, formatMarge(ecart));
+}
+
+// Marge restante ou dépassement d'un ensemble, avec son titre : [titre, valeur].
+export function situationEnsemble(ensemble) {
+  const s = situationBudget(ensemble.ecart_budget_ht, ensemble.budget_ht);
+  const texte = s.pourcent ? `${s.montant} (${s.pourcent})` : s.montant;
+  return [s.titre, el("span", { class: `ecart--${s.niveau}` }, texte)];
 }
 
 // Alerte portée par un parent dont les sous-ensembles verrouillés dépassent le budget.

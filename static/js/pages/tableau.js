@@ -1,7 +1,7 @@
 // Tableau de bord (#/) : lecture de la traçabilité, sans saisie.
 
 import { api } from "../api.js";
-import { formatEcart, formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
+import { formatMontant, formatNombre, formatPourcent, libelle, situationBudget } from "../format.js";
 import { anneau, histogrammeHorizontal } from "../graphiques.js";
 import { lienRoute } from "../router.js";
 import { couleurBloc, couleurCss, el, largeur, lienProduit, rangsBlocs } from "../ui.js";
@@ -28,15 +28,17 @@ function etatConsommation(pourcent) {
 
 function tuiles(p) {
   const aBudget = p.budget_ht !== null;
+  const situation = situationBudget(p.ecart_budget_ht, p.budget_ht);
+  const precisionMarge = [situation.pourcent ? `${situation.pourcent} du budget` : "", "budget − coût estimé"];
   return el(
     "section",
     { class: "tuiles" },
     tuile("Coût estimé HT", formatMontant(p.cout_ht), "neutre", `TTC ${formatMontant(p.cout_ttc)}`),
     tuile(
-      "Écart au budget",
-      aBudget ? formatEcart(p.ecart_budget_ht) : "Budget non défini",
-      !aBudget ? "neutre" : p.ecart_budget_ht > 0 ? "alerte" : "conforme",
-      aBudget ? formatPourcent(p.ecart_budget_pct) : "",
+      situation.titre,
+      aBudget ? situation.montant : "Budget non défini",
+      situation.niveau,
+      aBudget ? precisionMarge.filter(Boolean).join(" · ") : "",
     ),
     tuile(
       "Budget consommé",
@@ -55,7 +57,7 @@ function tuiles(p) {
       "Reste à engager HT",
       aBudget ? formatMontant(p.reste_a_engager_ht) : "—",
       aBudget && p.reste_a_engager_ht < 0 ? "alerte" : "neutre",
-      "budget − engagé",
+      "budget − commandes passées",
     ),
   );
 }
@@ -81,7 +83,7 @@ function jauge(p) {
       el("span", {}, `Estimé : ${formatMontant(p.cout_ht)}`),
       el("span", {}, `Budget (100 %) : ${formatMontant(p.budget_ht)}`),
       p.cout_ht > p.budget_ht
-        ? el("span", { class: "texte-alerte" }, `Dépassement : ${formatEcart(p.ecart_budget_ht)}`)
+        ? el("span", { class: "texte-alerte" }, `Dépassement : ${formatMontant(p.ecart_budget_ht)}`)
         : null,
     ),
   );

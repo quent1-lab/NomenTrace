@@ -4,7 +4,7 @@
 import { api } from "../api.js";
 import { OPERATIONS, PREFIXE, attribut, attributsActifs, chargerAttributs, ecrireFiltre, formatAttribut, libelleFiltre, lireFiltre, optionsListe, titreAttribut } from "../attributs.js";
 import { editerCellule } from "../edition.js";
-import { formatEcart, formatMontant, formatNombre, libelle } from "../format.js";
+import { formatMontant, formatNombre, libelle, situationBudget } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
 import { ecritBloc } from "../session.js";
@@ -400,10 +400,10 @@ function rendrePied() {
 
 async function rendreIndicateurs() {
   const p = await api.getPilotage();
-  const ecartClasse = p.ecart_budget_ht > 0 ? "texte-alerte" : "texte-conforme";
+  const situation = situationBudget(p.ecart_budget_ht, p.budget_ht);
   etat.indicateurs.replaceChildren(
     el("span", {}, "Coût estimé HT ", el("strong", {}, formatMontant(p.cout_ht))),
-    p.budget_ht !== null ? el("span", {}, "Écart au budget ", el("strong", { class: ecartClasse }, formatEcart(p.ecart_budget_ht))) : null,
+    p.budget_ht !== null ? el("span", {}, `${situation.titre} `, el("strong", { class: `ecart--${situation.niveau}` }, situation.montant)) : null,
     el("span", {}, "À chiffrer ", el("strong", { class: p.nb_a_chiffrer ? "texte-surveiller" : "" }, formatNombre(p.nb_a_chiffrer))),
     el("span", {}, "Composants ", el("strong", {}, formatNombre(p.nb_composants))),
   );

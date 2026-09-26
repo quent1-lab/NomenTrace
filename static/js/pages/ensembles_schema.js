@@ -64,7 +64,7 @@ function lien(parent, enfant) {
 // Modes de couleur : ce que la jauge et la bande de gauche de chaque nœud racontent.
 const MODES = {
   budget: {
-    titre: "Écart au budget",
+    titre: "Marge sur budget",
     legende: [["conforme", "dans le budget"], ["alerte", "au-delà du budget"], ["neutre", "sans budget"]],
     etat: (n) => (n.budget ? { part: n.cout / n.budget, niveau: n.cout > n.budget ? "alerte" : "conforme" } : { part: 0, niveau: "neutre" }),
     texte: (n) => `${formatMontant(n.cout)} / ${n.budget === null ? "budget non défini" : formatMontant(n.budget)}`,

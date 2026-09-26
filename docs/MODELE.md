@@ -190,6 +190,8 @@ reste_a_engager_ht   = budget_ht - montant_engage_ht       (peut être négatif)
 consommation_pct     = cout_ht / budget_ht * 100           (estimé, pas engagé)
 ecart_budget_ht      = cout_ht - budget_ht                 (positif = dépassement)
 ecart_budget_pct     = ecart_budget_ht / budget_ht * 100
+                       (l'interface affiche la marge, budget - coût = -ecart_budget_ht :
+                        « Marge restante » ou « Dépassement », marge signée en tableau)
 bloquant ouvert      = criticite 'Bloquant' et avancement 'A commander' ou 'Commande'
 valeur_stock         = somme de MAX(stock_actuel, 0) * pu_ht
 avancement_appro_pct = nb 'Recu' / nb dont avancement <> 'Hors achat' * 100

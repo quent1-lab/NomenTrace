@@ -20,10 +20,37 @@ export function formatMontant(valeur) {
   return texte === "" ? "" : `${texte}${ESPACE_FINE}€`;
 }
 
-// Montant signé explicitement : « +184,98 € » pour un dépassement.
-export function formatEcart(valeur) {
-  if (valeur === null || valeur === undefined) return "";
-  return (valeur > 0 ? "+" : "") + formatMontant(valeur);
+// Coût estimé face au budget. L'API donne l'écart (coût − budget, positif = dépassement) ;
+// l'interface ne montre jamais ce signe. Là où la place le permet, le titre dit la
+// situation et le montant reste positif : « Marge restante 500 € » ou « Dépassement 185 € ».
+// Dans une colonne de tableau, au titre fixe, on affiche la marge signée (formatMarge).
+// Écart nul au centime près : ni marge ni dépassement, à surveiller.
+const CENTIME = 0.005;
+
+// seuil : part du budget sous laquelle une marge est à surveiller (0.1 pour les blocs).
+export function situationBudget(ecart, budget, seuil = null) {
+  if (ecart === null || ecart === undefined || budget === null || budget === undefined) {
+    return { titre: "Marge sur budget", montant: "budget non défini", pourcent: "", niveau: "neutre" };
+  }
+  const pourcent = budget > 0 ? formatPourcent((Math.abs(ecart) / budget) * 100) : "";
+  if (ecart > CENTIME) {
+    return { titre: "Dépassement", montant: formatMontant(ecart), pourcent, niveau: "alerte" };
+  }
+  const marge = Math.abs(ecart) < CENTIME ? 0 : -ecart;
+  const faible = marge === 0 || (seuil !== null && marge < seuil * budget);
+  return { titre: "Marge restante", montant: formatMontant(marge), pourcent, niveau: faible ? "surveiller" : "conforme" };
+}
+
+// Marge signée (budget − coût) : négative en cas de dépassement.
+export function formatMarge(ecart) {
+  if (ecart === null || ecart === undefined) return "";
+  return formatMontant(Math.abs(ecart) < CENTIME ? 0 : -ecart);
+}
+
+export function niveauMarge(ecart) {
+  if (ecart === null || ecart === undefined) return "neutre";
+  if (ecart > CENTIME) return "alerte";
+  return ecart > -CENTIME ? "surveiller" : "conforme";
 }
 
 export function formatPourcent(valeur, decimales = 1) {

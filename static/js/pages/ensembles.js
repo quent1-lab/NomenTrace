@@ -16,7 +16,8 @@ import {
   selectStatutMontage,
   texteBudget,
   texteCout,
-  texteEcartBudget,
+  situationEnsemble,
+  texteMarge,
 } from "./ensembles_commun.js";
 
 const TYPES_INCOHERENCE = {
@@ -75,7 +76,7 @@ function carte(ensemble, repartition, rangs, rafraichir, noms) {
       el("dd", { class: "fort" }, texteCout(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.cout_ht)}`) : null),
       el("dt", {}, "Budget HT"),
       el("dd", {}, texteBudget(ensemble)),
-      ensemble.ecart_budget_ht !== null ? [el("dt", {}, "Écart au budget"), el("dd", {}, texteEcartBudget(ensemble.ecart_budget_ht))] : null,
+      ensemble.ecart_budget_ht !== null ? situationEnsemble(ensemble).map((partie, rang) => el(rang ? "dd" : "dt", {}, partie)) : null,
     ),
     alerteDepassement(ensemble.depassement_verrouille_ht),
     barreRepartition(repartition, rangs),
@@ -140,7 +141,7 @@ function ligneArbre(e, rafraichir) {
     el("td", { class: "nombre" }, e.nb_sous_ensembles ? formatMontant(e.cout_ht) : ""),
     budgetCibleEnsemble(e, rafraichir),
     el("td", { class: "nombre" }, e.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(e.budget_ht)),
-    el("td", { class: "nombre" }, texteEcartBudget(e.ecart_budget_ht)),
+    el("td", { class: "nombre" }, texteMarge(e.ecart_budget_ht)),
     el("td", { class: "nombre" }, appro),
     el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
   );
@@ -162,14 +163,14 @@ function ligneRacine(racine) {
     el("td"),
     el("td", { class: "nombre texte-doux texte-petit", title: "Le budget du projet se modifie dans Paramètres › Projet" }, "Paramètres"),
     el("td", { class: "nombre" }, racine.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(racine.budget_ht)),
-    el("td", { class: "nombre" }, texteEcartBudget(racine.ecart_budget_ht)),
+    el("td", { class: "nombre" }, texteMarge(racine.ecart_budget_ht)),
     el("td"),
     el("td"),
   );
 }
 
 function vueArbre(arbre, rafraichir) {
-  const entetes = [["Ensemble"], ["Coût HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget cible HT", "nombre"], ["Budget HT", "nombre"], ["Écart", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
+  const entetes = [["Ensemble"], ["Coût HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget cible HT", "nombre"], ["Budget HT", "nombre"], ["Marge", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
   return el(
     "section",
     { class: "panneau" },

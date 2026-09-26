@@ -18,7 +18,8 @@ import {
   selectStatutMontage,
   texteBudget,
   texteCout,
-  texteEcartBudget,
+  situationEnsemble,
+  texteMarge,
 } from "./ensembles_commun.js";
 
 const EDITION_QTE = { champ: "qte_affectee", type: "entier" };
@@ -166,7 +167,7 @@ function bandeau() {
       caseChiffre("Pièces", formatNombre(c.nb_pieces_total), propre(formatNombre(e.nb_pieces_total))),
       caseChiffre("Coût HT", texteCout(c), propre(formatMontant(e.cout_ht))),
       caseChiffre("Budget HT", texteBudget(e), parent && e.budget_propre_ht !== null ? formatMontant(e.budget_propre_ht) : null),
-      e.ecart_budget_ht !== null ? caseChiffre("Écart au budget", texteEcartBudget(e.ecart_budget_ht)) : null,
+      e.ecart_budget_ht !== null ? caseChiffre(...situationEnsemble(e)) : null,
       caseChiffre("Blocs représentés", formatNombre(c.nb_blocs_representes)),
       el("div", {}, el("span", { class: "texte-doux" }, "Statut de montage"), selectStatutMontage(e, recharger)),
     ),
@@ -203,11 +204,11 @@ function sectionSousEnsembles() {
       el("td", { class: "nombre" }, formatNombre(c.nb_pieces_total)),
       el("td", { class: "nombre" }, texteCout(c)),
       el("td", { class: "nombre" }, texteBudget(s)),
-      el("td", { class: "nombre" }, texteEcartBudget(s.ecart_budget_ht)),
+      el("td", { class: "nombre" }, texteMarge(s.ecart_budget_ht)),
       el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
     );
   });
-  const entetes = [["Sous-ensemble"], ["Pièces", "nombre"], ["Coût HT cumulé", "nombre"], ["Budget HT", "nombre"], ["Écart", "nombre"], ["Montage", "nombre"]];
+  const entetes = [["Sous-ensemble"], ["Pièces", "nombre"], ["Coût HT cumulé", "nombre"], ["Budget HT", "nombre"], ["Marge", "nombre"], ["Montage", "nombre"]];
   return el(
     "section",
     { class: "panneau" },

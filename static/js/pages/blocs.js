@@ -1,20 +1,18 @@
 // Vue par bloc fonctionnel (#/blocs) : une carte par bloc, budget cible modifiable sur place.
 
 import { api } from "../api.js";
-import { formatEcart, formatMontant, formatNombre, formatPourcent, lireNombre } from "../format.js";
+import { formatMontant, formatNombre, formatPourcent, lireNombre, situationBudget } from "../format.js";
 import { naviguer } from "../router.js";
 import { ecritBloc, estAdmin } from "../session.js";
 import { afficherErreur, classeBloc, el, largeur, masquerErreur, rangsBlocs } from "../ui.js";
 
-function etatEcart(bloc) {
-  if (bloc.budget_cible_ht === null) return "neutre";
-  if (bloc.ecart_budget > 0.005) return "alerte";
-  return bloc.ecart_budget > -0.1 * bloc.budget_cible_ht ? "surveiller" : "conforme";
-}
+// Une marge de moins de 10 % du budget cible est à surveiller.
+const SEUIL_MARGE_BLOC = 0.1;
 
-function texteEcart(bloc) {
-  if (bloc.budget_cible_ht === null) return "budget non défini";
-  return `${formatEcart(bloc.ecart_budget)} (${formatPourcent(bloc.ecart_pct)})`;
+function situationBloc(bloc) {
+  const s = situationBudget(bloc.ecart_budget, bloc.budget_cible_ht, SEUIL_MARGE_BLOC);
+  const texte = s.pourcent ? `${s.montant} (${s.pourcent})` : s.montant;
+  return [el("dt", {}, s.titre), el("dd", { class: `ecart ecart--${s.niveau}` }, texte)];
 }
 
 // Champ de budget : envoi au flou ou à Entrée, Échap annule, ancienne valeur rétablie en cas d'échec.
@@ -96,8 +94,7 @@ function carte(bloc, rang, rafraichir) {
       el("dd", { class: "fort" }, formatMontant(bloc.cout_ht)),
       el("dt", {}, "Budget cible HT"),
       el("dd", {}, champBudget(bloc, rafraichir)),
-      el("dt", {}, "Écart"),
-      el("dd", { class: `ecart ecart--${etatEcart(bloc)}` }, texteEcart(bloc)),
+      situationBloc(bloc),
       el("dt", {}, "À chiffrer"),
       el("dd", { class: bloc.nb_a_chiffrer > 0 ? "texte-surveiller" : "" }, formatNombre(bloc.nb_a_chiffrer)),
     ),
