@@ -135,7 +135,11 @@ ecrire_reglages() {
 	fi
 	sed -e "s|__DOMAINE__|$domaine|g" -e "s|__PORT__|$PORT|g" -e "s|__COURRIEL__|$contact|g" \
 		"$APP/deploiement/Caddyfile.modele" >/etc/caddy/Caddyfile
-	caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+	# La validation ouvre le journal d'accès : lancée par root, elle le créerait au nom de
+	# root, et le service caddy ne pourrait plus l'ouvrir. Elle tourne donc sous caddy.
+	install -d -o caddy -g caddy -m 755 /var/log/caddy
+	chown -R caddy:caddy /var/log/caddy
+	runuser -u caddy -- caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 	systemctl reload-or-restart caddy
 }
 
