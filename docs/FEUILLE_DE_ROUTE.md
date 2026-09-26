@@ -68,10 +68,6 @@ vivraient dans une base commune, avec des rôles attribués projet par projet ; 
 utilisateur ne verrait ni n'atteindrait, même par une adresse tapée à la main, les projets
 où il n'a pas de rôle. La phase des comptes rangera déjà les rôles de cette façon.
 
-Le verrouillage d'un compte après cinq échecs pourra s'adoucir, en comptant les échecs
-par couple compte et adresse, pour qu'un tiers ne puisse plus bloquer quelqu'un en
-connaissant seulement son adresse mail.
-
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles
 réutilisables, montés plusieurs fois avec multiplication des quantités.

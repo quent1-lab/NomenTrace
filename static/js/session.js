@@ -26,6 +26,11 @@ export function modeLocal() {
   return Boolean(courante?.mode_local);
 }
 
+// Nom qui signe une action (« demandée par », « par qui ») ; vide en mode local, sans compte.
+export function nomAuteur() {
+  return modeLocal() ? "" : (utilisateur()?.nom ?? "");
+}
+
 export function libelleRole(role) {
   return ROLES[role] ?? role;
 }

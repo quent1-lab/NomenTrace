@@ -67,7 +67,11 @@ LONGUEUR_MIN: int = 12
 LONGUEUR_MAX: int = 128
 
 DUREE_SESSION = timedelta(days=14)
-ECHECS_MAX_COMPTE: int = 5
+# Cinq échecs bloquent le couple compte + adresse IP : un tiers qui tape de mauvais mots de
+# passe sur le compte de quelqu'un d'autre ne bloque que lui-même. Une limite bien plus large
+# par compte seul arrête une attaque répartie sur de nombreuses adresses.
+ECHECS_MAX_COMPTE_ADRESSE: int = 5
+ECHECS_MAX_COMPTE: int = 50
 DUREE_BLOCAGE = timedelta(minutes=15)
 # Une école sort souvent par une seule adresse IP : la limite par adresse est plus large que
 # celle par compte, pour qu'une personne qui se trompe ne bloque pas toute l'équipe.
@@ -265,9 +269,10 @@ class Limiteur:
 
 @dataclass
 class Limiteurs:
-    """Les deux limites d'une instance : par adresse IP et par identifiant."""
+    """Les limites d'une instance : par adresse IP, par couple compte + adresse, par compte."""
 
     adresses: Limiteur = field(default_factory=lambda: Limiteur(ECHECS_MAX_ADRESSE))
+    couples: Limiteur = field(default_factory=lambda: Limiteur(ECHECS_MAX_COMPTE_ADRESSE))
     identifiants: Limiteur = field(default_factory=lambda: Limiteur(ECHECS_MAX_COMPTE))
 
 
@@ -294,7 +299,12 @@ def login(
     aussi : un calcul scrypt est fait dans tous les cas.
     """
     cle = identifiant.strip().lower()
-    if limiteurs.adresses.bloque(adresse) or limiteurs.identifiants.bloque(cle):
+    couple = f"{cle}|{adresse}"
+    if (
+        limiteurs.adresses.bloque(adresse)
+        or limiteurs.couples.bloque(couple)
+        or limiteurs.identifiants.bloque(cle)
+    ):
         raise TropDeTentatives()
     utilisateur = db.fetch_one(
         conn,
@@ -307,10 +317,11 @@ def login(
     valide = verify_mot_de_passe(mot_de_passe, secret or _leurre()) and secret is not None
     if not valide:
         limiteurs.adresses.noter_echec(adresse)
+        limiteurs.couples.noter_echec(couple)
         limiteurs.identifiants.noter_echec(cle)
-        journal_log.info("Connexion refusée pour « %s » depuis %s.", cle, adresse)
+        journal_log.info("Connexion refusée pour %r depuis %s.", cle, adresse)
         raise ErreurMetier(MESSAGE_ECHEC, 401)
-    limiteurs.identifiants.oublier(cle)
+    limiteurs.couples.oublier(couple)
     if not utilisateur["actif"]:
         raise ErreurMetier("Ce compte est désactivé. S'adresser à un administrateur.", 403)
     return int(utilisateur["id"])

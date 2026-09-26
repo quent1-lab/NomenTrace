@@ -5,6 +5,7 @@ import { aujourdhui, formatDate, formatMontant, formatNombre, libelle, lireNombr
 import { champChoix, champComposant, champTexte, ligneChamp, lireComposant } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, remplacerRoute } from "../router.js";
+import { nomAuteur } from "../session.js";
 import { afficherAvertissements, afficherErreur, el, masquerErreur } from "../ui.js";
 import { sensImpose, TYPES_MONTAGE, valeursListe } from "../valeurs.js";
 
@@ -127,7 +128,7 @@ function ouvrirSaisie() {
     ligneEnsemble,
     ligneChamp("Quantité", el("input", { class: "champ champ--nombre", type: "text", inputmode: "numeric", name: "qte" }), { requis: true }),
     ligneChamp("Emplacement", champTexte("emplacement")),
-    ligneChamp("Par qui", champTexte("par_qui")),
+    ligneChamp("Par qui", champTexte("par_qui", nomAuteur())),
     ligneChamp("Commentaire", champTexte("commentaire")),
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),

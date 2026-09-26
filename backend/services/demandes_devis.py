@@ -73,8 +73,13 @@ def _choisis(conn: sqlite3.Connection, identifiants: list[str]) -> dict[str, lis
     return groupes
 
 
-def create_demandes(conn: sqlite3.Connection, identifiants: list[str]) -> list[dict]:
-    """Crée une demande de devis par fournisseur ; renvoie les commandes créées."""
+def create_demandes(
+    conn: sqlite3.Connection, identifiants: list[str], demande_par: str | None = None
+) -> list[dict]:
+    """Crée une demande de devis par fournisseur ; renvoie les commandes créées.
+
+    `demande_par` : qui prépare les demandes (l'utilisateur connecté), reporté sur chacune.
+    """
     if not identifiants:
         raise ErreurMetier("Aucun composant choisi.")
     numeros: list[str] = []
@@ -91,6 +96,7 @@ def create_demandes(conn: sqlite3.Connection, identifiants: list[str]) -> list[d
                     "statut": "A demander",
                     "fournisseur_nom": fournisseur,
                     "taux_tva": taux_tva,
+                    "demande_par": demande_par,
                 },
             )
             journal.write_journal(conn, "commande", numero, "creation", None, "créée")

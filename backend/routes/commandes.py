@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from backend.arrondi import round_output
-from backend.deps import get_conn
+from backend.deps import Auteur, get_conn
 from backend.models import (
     CommandeCreation,
     CommandeModif,
@@ -35,13 +35,15 @@ def read_candidats_devis(conn: Conn) -> dict:
 
 
 @router.post("/demandes-devis", status_code=201)
-def create_demandes_devis(corps: DemandesDevis, conn: Conn) -> list[dict]:
-    return round_output(demandes_devis.create_demandes(conn, corps.composants))
+def create_demandes_devis(corps: DemandesDevis, conn: Conn, auteur: Auteur) -> list[dict]:
+    return round_output(demandes_devis.create_demandes(conn, corps.composants, auteur))
 
 
 @router.post("/commandes", status_code=201)
-def create_commande(corps: CommandeCreation, conn: Conn) -> dict:
-    return round_output(commandes.create_commande(conn, corps.model_dump()))
+def create_commande(corps: CommandeCreation, conn: Conn, auteur: Auteur) -> dict:
+    valeurs = corps.model_dump()
+    valeurs["demande_par"] = valeurs["demande_par"] or auteur
+    return round_output(commandes.create_commande(conn, valeurs))
 
 
 @router.get("/commandes/{numero}")
@@ -84,8 +86,10 @@ def delete_ligne(numero: str, identifiant: int, conn: Conn) -> dict:
 
 
 @router.post("/commandes/{numero}/reception")
-def create_reception(numero: str, corps: Reception, conn: Conn) -> dict:
-    return round_output(receptions.receive_commande(conn, numero, corps.model_dump()))
+def create_reception(numero: str, corps: Reception, conn: Conn, auteur: Auteur) -> dict:
+    valeurs = corps.model_dump()
+    valeurs["par_qui"] = valeurs["par_qui"] or auteur
+    return round_output(receptions.receive_commande(conn, numero, valeurs))
 
 
 @router.get("/stock")
@@ -104,5 +108,7 @@ def read_mouvements(
 
 
 @router.post("/mouvements", status_code=201)
-def create_mouvement(corps: MouvementCreation, conn: Conn) -> dict:
-    return mouvements.create_mouvement(conn, corps.model_dump())
+def create_mouvement(corps: MouvementCreation, conn: Conn, auteur: Auteur) -> dict:
+    valeurs = corps.model_dump()
+    valeurs["par_qui"] = valeurs["par_qui"] or auteur
+    return mouvements.create_mouvement(conn, valeurs)

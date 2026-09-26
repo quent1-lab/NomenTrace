@@ -81,3 +81,17 @@ def get_connecte(utilisateur: UtilisateurRequete) -> Utilisateur:
 
 
 Connecte = Annotated[Utilisateur, Depends(get_connecte)]
+
+
+def get_auteur(utilisateur: UtilisateurRequete) -> str | None:
+    """Nom de l'utilisateur connecté, qui signe une action ; None en mode local (sans compte).
+
+    Sert de valeur par défaut aux champs « déposé par », « demandée par », « par qui » : en
+    mode connecté, on sait qui agit, il n'y a plus à le saisir.
+    """
+    if utilisateur is None or utilisateur.local:
+        return None
+    return utilisateur.nom
+
+
+Auteur = Annotated[str | None, Depends(get_auteur)]

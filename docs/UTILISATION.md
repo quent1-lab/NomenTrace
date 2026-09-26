@@ -73,6 +73,13 @@ fournisseurs, nettoyage, sauvegardes et comptes.
 Ce qui n'est pas permis n'apparaît pas : la fiche d'un composant d'un autre bloc s'ouvre
 en lecture seule, les boutons de commande disparaissent sans la permission « achats ».
 
+Sur un serveur partagé, l'outil sait qui agit. Le dépôt d'un fichier Excel est signé du
+nom de la personne connectée, sans case « Déposé par » à remplir. Les champs « Demandée
+par » d'une commande et « Par qui » d'une réception ou d'un mouvement de stock sont
+préremplis avec son nom ; on peut les changer quand on agit pour quelqu'un d'autre, par
+exemple un colis reçu par un encadrant. En mode local, sans compte, ces champs restent à
+saisir. Dans tous les cas, l'historique garde l'auteur réel de chaque modification.
+
 Deux personnes peuvent travailler en même temps. Si quelqu'un modifie un composant pendant
 que vous remplissez sa fiche, votre enregistrement est refusé avec le nom de l'autre
 personne et l'heure de sa modification : recharger la fiche, puis refaire la vôtre. Rien

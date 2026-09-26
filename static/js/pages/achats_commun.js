@@ -3,6 +3,7 @@
 import { api } from "../api.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
+import { nomAuteur } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, TYPES_COMMANDE } from "../valeurs.js";
 
@@ -42,7 +43,8 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
       ligneChamp("Type", champChoix("type", TYPES_COMMANDE, c.type ?? "Commande")),
       ligneChamp("Statut", champChoix("statut", STATUTS_COMMANDE, c.statut ?? "A demander")),
       ligneChamp("Fournisseur", champChoix("fournisseur_nom", fournisseurs.map((f) => [f.nom, f.nom]), c.fournisseur_nom ?? null, { vide: "—" })),
-      ligneChamp("Demandée par", champTexte("demande_par", c.demande_par)),
+      // Par défaut, la personne connectée ; modifiable pour une demande faite au nom d'un autre.
+      ligneChamp("Demandée par", champTexte("demande_par", creation ? nomAuteur() : c.demande_par)),
       ligneChamp("Référence externe", champTexte("reference_externe", c.reference_externe), { aide: "Numéro de devis ou de bon de commande du fournisseur." }),
     ),
     el("fieldset", {}, el("legend", {}, "Dates"),

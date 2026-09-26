@@ -46,6 +46,10 @@ du serveur, comme le fait un navigateur ; un script qui appelle l'API l'ajoute l
 Sinon la requête est refusée en 403. En mode local, seules les requêtes émises depuis le
 poste et adressées à `127.0.0.1` ou `localhost` sont servies.
 
+En mode connecté, le déposant d'un import est l'utilisateur, quoi que dise le champ
+`depose_par` ; `demande_par` (commande, demandes de devis) et `par_qui` (réception,
+mouvement) valent l'utilisateur quand ils sont absents.
+
 Le PATCH d'un composant accepte `modifie_le`, la date de modification lue avant l'édition :
 si le composant a changé depuis, rien n'est écrit et la réponse est un 409 qui nomme
 l'auteur de la dernière modification.

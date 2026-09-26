@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from backend import __main__ as lancement
 from backend import comptes as ligne_de_commande
@@ -191,6 +191,34 @@ def test_blocage_apres_cinq_echecs(app: FastAPI) -> None:
         client.post("/api/session", json={"identifiant": "x@ecole.test", "mot_de_passe": "m"})
     inconnu = client.post("/api/session", json={"identifiant": "x@ecole.test", "mot_de_passe": "m"})
     assert inconnu.status_code == 429
+
+
+def _depuis(app: FastAPI, adresse: str) -> TestClient:
+    """Un navigateur situé à une autre adresse IP."""
+    return TestClient(app, base_url=ADRESSE, headers={"Origin": ADRESSE}, client=(adresse, 5000))
+
+
+def test_un_tiers_ne_bloque_pas_le_titulaire(app: FastAPI) -> None:
+    """Cinq échecs depuis la machine d'un tiers ne bloquent que lui, pas le vrai titulaire."""
+    creer_compte(app, "victime@ecole.test", "lecteur")
+    geneur = _depuis(app, "203.0.113.5")
+    corps_faux = {"identifiant": "victime@ecole.test", "mot_de_passe": "n'importe quoi"}
+    for _ in range(5):
+        assert geneur.post("/api/session", json=corps_faux).status_code == 401
+    corps_bon = {"identifiant": "victime@ecole.test", "mot_de_passe": MOT_DE_PASSE}
+    assert geneur.post("/api/session", json=corps_bon).status_code == 429
+    assert _depuis(app, "198.51.100.7").post("/api/session", json=corps_bon).status_code == 200
+
+
+def test_limite_par_compte_contre_une_attaque_repartie(app: FastAPI) -> None:
+    """Au-delà de la limite par compte, même une nouvelle adresse est refusée."""
+    creer_compte(app, "cible@ecole.test", "lecteur")
+    app.state.limiteurs.identifiants.maximum = 3
+    corps_faux = {"identifiant": "cible@ecole.test", "mot_de_passe": "faux"}
+    for i in range(3):
+        _depuis(app, f"192.0.2.{i}").post("/api/session", json=corps_faux)
+    corps_bon = {"identifiant": "cible@ecole.test", "mot_de_passe": MOT_DE_PASSE}
+    assert _depuis(app, "192.0.2.99").post("/api/session", json=corps_bon).status_code == 429
 
 
 def test_blocage_par_adresse() -> None:
@@ -610,6 +638,49 @@ def test_journal_et_historique_portent_l_utilisateur(contributeur: TestClient) -
     feuille = load_workbook(BytesIO(export.content)).active
     entetes = [c.value for c in feuille[1]]
     assert feuille.cell(2, entetes.index("Utilisateur") + 1).value == "ihm"
+
+
+def test_actions_signees_par_l_utilisateur_connecte(admin: TestClient) -> None:
+    """En mode connecté, « demandée par » et « par qui » valent par défaut l'utilisateur."""
+    commande = admin.post("/api/commandes", json={"fournisseur_nom": "Mouser"}).json()
+    assert commande["demande_par"] == "admin"
+    autre = admin.post("/api/commandes", json={"fournisseur_nom": "Mouser", "demande_par": "Prof"})
+    assert autre.json()["demande_par"] == "Prof"  # une demande faite au nom d'un autre
+    mouvement = {
+        "date": "2026-02-01",
+        "composant_id": "ESSAI-ALI-001",
+        "type_mouvement": "Inventaire",
+        "sens": "Entree",
+        "qte": 1,
+    }
+    assert admin.post("/api/mouvements", json=mouvement).json()["mouvement"]["par_qui"] == "admin"
+    devis = admin.post("/api/demandes-devis", json={"composants": ["ESSAI-ALI-001"]}).json()
+    assert all(d["demande_par"] == "admin" for d in devis)
+
+
+def test_depot_d_import_signe_par_l_utilisateur(contributeur: TestClient) -> None:
+    """Le déposant d'un fichier est l'utilisateur connecté, quoi que dise le formulaire."""
+    classeur = Workbook()
+    classeur.active.title = "Composants"
+    flux = BytesIO()
+    classeur.save(flux)
+    reponse = contributeur.post(
+        "/api/imports",
+        files={"fichiers": ("equipe.xlsx", flux.getvalue())},
+        data={"depose_par": "Quelqu'un d'autre"},
+    )
+    assert reponse.status_code == 201, reponse.text
+    depots = contributeur.get("/api/imports").json()
+    assert depots[0]["depose_par"] == "ihm"
+
+
+def test_mode_local_garde_la_saisie_libre(client: TestClient) -> None:
+    """Sans compte, rien n'est rempli d'office : la saisie reste libre."""
+    client.post("/api/fournisseurs", json={"nom": "Mouser"})
+    assert (
+        client.post("/api/commandes", json={"fournisseur_nom": "Mouser"}).json()["demande_par"]
+        is None
+    )
 
 
 def test_modification_concurrente_signalee(app: FastAPI, admin: TestClient) -> None:

@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
-import { aPermission } from "../session.js";
+import { aPermission, nomAuteur } from "../session.js";
 import { afficherAvertissements, afficherErreur, el, lienExterne, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
@@ -154,7 +154,8 @@ function modeReception() {
   });
   const date = el("input", { class: "champ champ--date", type: "date", value: aujourdhui() });
   const emplacement = el("input", { class: "champ", type: "text", placeholder: "ex. Armoire A - bac 3" });
-  const parQui = el("input", { class: "champ", type: "text" });
+  // Par défaut, la personne connectée ; modifiable si quelqu'un d'autre a reçu le colis.
+  const parQui = el("input", { class: "champ", type: "text", value: nomAuteur() });
   const valider = async () => {
     const detail = [];
     for (const [id, champ] of champs) {

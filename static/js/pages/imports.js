@@ -3,7 +3,7 @@
 import { api, lienModele } from "../api.js";
 import { formatDate } from "../format.js";
 import { naviguer } from "../router.js";
-import { peutEcrire } from "../session.js";
+import { modeLocal, peutEcrire } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 
 export const LIBELLES_CATEGORIES = {
@@ -55,14 +55,15 @@ function sectionModeles(blocs, ensembles) {
 
 function sectionDepot() {
   const fichiers = el("input", { type: "file", multiple: true, accept: ".xlsx,.xlsm", class: "champ-fichier", "aria-label": "Fichiers à analyser" });
-  const auteur = el("input", { class: "champ", type: "text", placeholder: "Déposé par (facultatif)" });
+  // En mode connecté, le serveur sait qui dépose : la case ne sert qu'en mode local.
+  const auteur = modeLocal() ? el("input", { class: "champ", type: "text", placeholder: "Déposé par (facultatif)" }) : null;
   const formulaire = el("form", { class: "formulaire-ligne formulaire-depot" }, fichiers, auteur, el("button", { type: "submit", class: "bouton" }, "Analyser"));
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!fichiers.files.length) return afficherErreur("Choisir au moins un fichier Excel à analyser.");
     const donnees = new FormData();
     for (const fichier of fichiers.files) donnees.append("fichiers", fichier);
-    if (auteur.value.trim()) donnees.append("depose_par", auteur.value.trim());
+    if (auteur?.value.trim()) donnees.append("depose_par", auteur.value.trim());
     const bouton = formulaire.querySelector("button");
     bouton.disabled = true;
     bouton.textContent = "Analyse en cours…";

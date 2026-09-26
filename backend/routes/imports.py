@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from backend.deps import Connecte, get_conn
+from backend.deps import Auteur, Connecte, get_conn
 from backend.models import ApplicationImport
 from backend.services import import_analyse, import_application, import_depots, modeles
 
@@ -41,12 +41,13 @@ async def create_depot(
     request: Request,
     conn: Conn,
     fichiers: Annotated[list[UploadFile], File()],
+    auteur: Auteur,
     depose_par: Annotated[str | None, Form()] = None,
 ) -> dict:
     contenus = [(f.filename or "fichier.xlsx", await f.read()) for f in fichiers]
     dossier = request.app.state.dossier_echange / "imports"
     depot = import_analyse.analyse_depot(
-        conn, dossier, contenus, (depose_par or "").strip() or None
+        conn, dossier, contenus, auteur or (depose_par or "").strip() or None
     )
     return {"depot": depot}
 

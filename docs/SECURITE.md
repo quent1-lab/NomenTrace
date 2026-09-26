@@ -63,11 +63,12 @@ seconde.
 
 ## Points restants
 
-Le verrouillage d'un compte peut servir à nuire. Cinq mauvais mots de passe bloquent un
-compte quinze minutes, y compris pour son titulaire muni du bon mot de passe ; il suffit de
-connaître une adresse pour bloquer quelqu'un à répétition. C'est le prix d'une protection
-simple contre la force brute. Compter les échecs par couple compte et adresse IP, avec une
-limite plus large par compte seul, l'adoucirait.
+Le verrouillage d'un compte pouvait servir à nuire : cinq mauvais mots de passe, tapés par
+n'importe qui, bloquaient le titulaire lui-même. Il est corrigé depuis l'audit. Les cinq
+échecs sont comptés par couple compte et adresse IP, si bien qu'un tiers ne bloque que sa
+propre adresse ; une limite de cinquante échecs par compte, toutes adresses confondues,
+arrête une attaque répartie. Reste un cas : un tiers qui partage l'adresse du titulaire,
+comme deux élèves derrière le réseau de l'école, peut encore le bloquer quinze minutes.
 
 L'adresse IP d'un visiteur est lue dans l'en-tête `X-Forwarded-For` quand la requête vient
 d'un proxy de confiance, ce qu'Uvicorn accorde par défaut à `127.0.0.1`. Derrière Caddy,
