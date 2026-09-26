@@ -66,8 +66,12 @@ ssh-keygen -t ed25519 -f $HOME\.ssh\nomentrace
 ```
 
 L'outil `age`, sur son poste, qui fabrique la clé des sauvegardes et les déchiffre. Sous
-Windows : `winget install FiloSottile.age` ; sous Linux : `sudo apt install age` ; sous
-macOS : `brew install age`.
+Linux : `sudo apt install age` ; sous macOS : `brew install age`. Sous Windows,
+`winget install FiloSottile.age` quand `winget` est présent ; sinon, télécharger
+l'archive `age-vX.Y.Z-windows-amd64.zip` de la
+[dernière version](https://github.com/FiloSottile/age/releases/latest) et l'extraire, par
+exemple dans `Documents\age` : `age.exe` et `age-keygen.exe` s'y lancent sans
+installation.
 
 ## 2. Le compte Oracle : éviter la récupération et la facture
 
@@ -102,14 +106,26 @@ Menu › Compute › Instances › Créer une instance.
 
 1. Nom : `nomentrace`.
 2. Placement : la région d'origine du compte (les instances A1 gratuites n'existent que
-   là). Si Oracle répond « Out of capacity », réessayer plus tard ou dans un autre domaine
-   de disponibilité ; c'est fréquent pour les formes A1.
-3. Image : Canonical Ubuntu 24.04 (pas la variante « Minimal »).
+   là), sans domaine de pannes imposé. Capacité à la demande, jamais préemptive.
+3. Image : Canonical Ubuntu 24.04 (pas la variante « Minimal »), dans sa version ARM,
+   dont le nom contient `aarch64`. Avec l'image x86 proposée par défaut, la console
+   répond que la forme A1 n'est pas compatible.
 4. Forme : Ampere, `VM.Standard.A1.Flex`, 1 OCPU, 6 Go de mémoire.
-5. Réseau : créer un nouveau réseau cloud virtuel (VCN) et un sous-réseau public, avec une
-   adresse IPv4 publique attribuée.
-6. Clés SSH : coller la clé publique `nomentrace.pub` créée à l'étape 1.
-7. Volume de démarrage : la taille par défaut suffit.
+5. Sécurité : ni instance protégée ni calcul confidentiel, inutiles ici.
+6. Réseau : un réseau cloud virtuel (VCN) avec un sous-réseau public, et « Affecter
+   automatiquement une adresse IPv4 publique » coché ; pas d'IPv6. Si cette case reste
+   grisée, créer d'abord le réseau par Réseau › Réseaux cloud virtuels › Démarrer
+   l'assistant VCN › « Créer un VCN avec connectivité Internet », puis sélectionner ce VCN
+   et son sous-réseau public existants. Choisir un sous-réseau existant évite aussi
+   l'erreur de plage d'adresses (CIDR) qui se chevauche.
+7. Clés SSH : coller la clé publique `nomentrace.pub` créée à l'étape 1.
+8. Volume de démarrage : la taille par défaut suffit ; garder le cryptage en transit, sans
+   clé gérée par soi-même.
+
+Oracle répond souvent « Manque de capacité » (Out of capacity) pour les formes A1 : ce
+n'est pas une erreur de réglage. Le passage en paiement à l'usage aide beaucoup ; sinon,
+réessayer à d'autres heures. « Enregistrer en tant que pile », en bas du formulaire,
+permet de relancer la création sans tout ressaisir.
 
 Une fois l'instance active, noter son adresse IP publique. Elle ne change pas tant que
 l'instance existe ; pour qu'elle survive à une instance recréée, on peut la transformer en
@@ -253,7 +269,9 @@ Menu › Stockage › Buckets (Storage › Buckets) › Créer un bucket.
 3. Politiques de cycle de vie (Lifecycle Policy Rules) › Créer une règle : action
    « Supprimer », 31 jours. Les sauvegardes plus anciennes disparaissent d'elles-mêmes.
 
-Le cycle de vie exige qu'Oracle ait le droit d'agir sur le bucket. Menu › Identité et
+Le cycle de vie exige qu'Oracle ait le droit d'agir sur le bucket. En créant la règle, la
+console le signale et propose d'« essayer d'ajouter les instructions » : accepter, en
+nommant la stratégie par exemple `nomentrace-cycle-de-vie`. À défaut, Menu › Identité et
 sécurité › Stratégies (Policies) › Créer une stratégie, dans le compartiment racine, avec
 cette instruction (remplacer `eu-paris-1` par l'identifiant de sa région, visible dans
 l'adresse de la console) :
@@ -277,10 +295,16 @@ permet d'écrire dans le bucket et rien d'autre.
 ### Sur la VM
 
 ```
-sudo nano /etc/nomentrace/sauvegarde.env        # coller l'adresse après NOMENTRACE_SAUVEGARDE_URL=
-sudo nano /etc/nomentrace/cles_sauvegarde.txt   # coller la ou les clés publiques age1…
+echo "age1…" | sudo tee -a /etc/nomentrace/cles_sauvegarde.txt
+sudo tee /etc/nomentrace/sauvegarde.env >/dev/null <<'FIN'
+NOMENTRACE_SAUVEGARDE_URL=https://objectstorage.REGION.oraclecloud.com/p/…/b/nomentrace-sauvegardes/o/
+NOMENTRACE_SAUVEGARDE_CLES=/etc/nomentrace/cles_sauvegarde.txt
+FIN
 sudo systemctl enable --now nomentrace-sauvegarde.timer
 ```
+
+`sauvegarde.env` garde ses droits (`-rw-------`, root) : l'application ne voit pas
+l'adresse d'envoi.
 
 Lancer une première sauvegarde tout de suite pour vérifier :
 
@@ -305,23 +329,27 @@ Une sauvegarde qui échoue ne prévient personne : l'outil n'envoie aucun courri
 Faire l'exercice une fois, avant d'en avoir besoin, pour vérifier que la clé privée relit
 bien les archives.
 
-1. Dans la console Oracle, bucket › l'archive voulue › Télécharger.
-2. La copier sur la VM, avec la clé privée :
+Pour vérifier qu'elle a vraiment lieu, changer quelque chose dans l'outil après la
+sauvegarde, le nom du projet par exemple : la restauration doit l'annuler.
+
+1. Dans la console Oracle, bucket › Objets › l'archive voulue › Télécharger.
+2. Sur son poste, la déchiffrer, la clé privée ne quittant pas le poste, puis copier
+   l'archive en clair sur la VM :
 
    ```
-   scp -i ~/.ssh/nomentrace nomentrace_principal_AAAAMMJJ_HHMMSS.zip.age nomentrace-sauvegarde.key ubuntu@IP_DE_LA_VM:
+   age -d -i nomentrace-sauvegarde.key -o archive.zip nomentrace_principal_AAAAMMJJ_HHMMSS.zip.age
+   scp -i ~/.ssh/nomentrace archive.zip ubuntu@IP_DE_LA_VM:
    ```
 
-3. Sur la VM, restaurer puis effacer la clé privée :
+3. Sur la VM, restaurer, puis effacer les copies en clair, sur la VM et sur le poste :
 
    ```
-   sudo bash /opt/nomentrace/deploiement/restaurer.sh nomentrace_principal_AAAAMMJJ_HHMMSS.zip.age --cle nomentrace-sauvegarde.key
-   shred -u nomentrace-sauvegarde.key
+   sudo bash /opt/nomentrace/deploiement/restaurer.sh archive.zip
+   rm archive.zip
    ```
 
-Pour ne jamais poser la clé privée sur le serveur, déchiffrer plutôt sur son poste
-(`age -d -i nomentrace-sauvegarde.key -o archive.zip ARCHIVE.zip.age`), copier
-`archive.zip` sur la VM et le passer à `restaurer.sh` sans `--cle`.
+Le script accepte aussi l'archive chiffrée avec `--cle CLE_PRIVEE`, si l'on préfère
+déchiffrer sur le serveur ; la clé y est alors à effacer aussitôt (`shred -u`).
 
 Le script arrête le service, vérifie l'archive (une base endommagée, venue d'une version
 plus récente ou un chemin suspect sont refusés avant toute modification), sauvegarde les
@@ -381,6 +409,26 @@ n'est jamais défaite par elle. Son journal : `journalctl -u nomentrace-maj`.
 Le serveur tire les versions du dépôt ; GitHub n'a aucun accès à la VM, et aucune clé du
 serveur n'est confiée à GitHub.
 
+### Éprouver le retour arrière
+
+Une fois, pour savoir qu'il fonctionne, fabriquer sur le serveur seul une version dont le
+contrôle de santé échoue, sans rien publier :
+
+```
+cd /opt/nomentrace
+version="$(sudo git describe --tags)"
+sudo git checkout -q -b essai-retour-arriere
+sudo sed -i 's/"statut": "ok"/"statut": "casse"/' backend/services/sante.py
+sudo git -c user.name=essai -c user.email=essai@localhost commit -qam "Version cassée"
+sudo git checkout -q --detach "$version"
+cd ~
+sudo bash /opt/nomentrace/deploiement/mettre_a_jour.sh essai-retour-arriere
+sudo git -C /opt/nomentrace branch -D essai-retour-arriere
+```
+
+Après une minute, le script doit annoncer « Version précédente rétablie », et le site
+répondre comme avant.
+
 ### Revenir en arrière plus tard
 
 Le retour automatique couvre la version qui ne démarre pas. Une régression découverte des
@@ -398,6 +446,7 @@ sauvegarde prise avant la mise à jour, et de perdre ce qui a été saisi depuis
 | Redémarrer | `sudo systemctl restart nomentrace` |
 | Minuteries | `systemctl list-timers 'nomentrace*'` |
 | Place disque | `df -h /` |
+| Version installée | `sudo git -C /opt/nomentrace describe --tags` |
 
 Ubuntu installe seul ses mises à jour de sécurité (unattended-upgrades). Quand
 `/var/run/reboot-required` existe, redémarrer la VM à une heure creuse avec
@@ -419,9 +468,14 @@ Erreur de certificat : le nom ne pointe pas encore vers la VM, ou le port 80 est
 Réponse « 502 » : Caddy répond mais Nomentrace est arrêté. `systemctl status nomentrace`
 et `journalctl -u nomentrace -n 50`.
 
-Le service ne démarre pas après une restauration manuelle de fichiers : vérifier qu'ils
-appartiennent à l'utilisateur `nomentrace`
-(`sudo chown -R nomentrace:nomentrace /var/lib/nomentrace`).
+Le service ne démarre pas après une manipulation manuelle de fichiers (« attempt to write a
+readonly database », « unable to open database file ») : le dossier des données et ses
+fichiers doivent appartenir à l'utilisateur `nomentrace`
+(`sudo chown -R nomentrace:nomentrace /var/lib/nomentrace`), puis
+`sudo systemctl reset-failed nomentrace && sudo systemctl start nomentrace`.
+
+`git` répond « dubious ownership » : le code appartient à root, les commandes `git` sur
+`/opt/nomentrace` se lancent avec `sudo`. Ne pas ajouter l'exception proposée.
 
 ## Sécurité
 

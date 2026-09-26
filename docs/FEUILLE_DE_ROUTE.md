@@ -1,8 +1,8 @@
 # Feuille de route
 
 Nomentrace est né comme un outil local, pour une personne qui tient la nomenclature d'un
-projet sur son poste. L'étape suivante est de le partager avec l'équipe du projet, sur un
-serveur. Ce document dit où en est l'outil, ce qui est prévu ensuite, et dans quel ordre ;
+projet sur son poste. Il se partage désormais avec l'équipe du projet, sur un serveur.
+Ce document dit où en est l'outil, ce qui est prévu ensuite, et dans quel ordre ;
 les choix techniques qui en découpent déjà la forme sont dans la dernière partie
 d'[ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -24,24 +24,15 @@ l'autre. Le mode local, sans connexion, reste celui du double-clic sur `lancer.b
 détail est dans [UTILISATION.md](UTILISATION.md) et [EXPLOITATION.md](EXPLOITATION.md) ;
 un audit de sécurité a suivi, consigné dans [SECURITE.md](SECURITE.md).
 
-## Hébergement
-
-C'est l'étape en cours. Tout ce qui ne demande pas de machine est prêt dans le dossier
-[deploiement/](../deploiement/README.md) : un guide pas à pas pour une petite machine
-virtuelle de l'offre gratuite d'Oracle Cloud, suffisante pour une quinzaine
-d'utilisateurs, et les scripts qu'il emploie. Pas de Docker : un service systemd fait
-tourner Uvicorn, Caddy le sert en HTTPS avec un certificat automatique. Un projet par
-serveur.
-
-Chaque nuit, l'archive complète (base, documents et corbeille, base des comptes) est
+Et l'hébergement. Le dossier [deploiement/](../deploiement/README.md) installe l'outil sur
+une petite machine virtuelle, éprouvée sur l'offre gratuite d'Oracle Cloud : un service
+systemd fait tourner Uvicorn, Caddy le sert en HTTPS avec un certificat automatique, un
+projet par serveur. Chaque nuit, l'archive complète, base des comptes comprise, est
 chiffrée pour une clé que seul l'administrateur détient, puis envoyée dans un stockage
 objet hors de la machine, gardée trente jours. Les mises à jour suivent les versions
 publiées par étiquette, après le passage de l'intégration continue ; une version qui ne
-répond pas est défaite d'elle-même, bases comprises.
-
-Reste à suivre le guide sur une vraie machine : connexion en HTTPS, rôles appliqués,
-sauvegarde nocturne présente dans le stockage, restauration, mise à jour et retour arrière
-éprouvés en conditions réelles.
+répond pas est défaite d'elle-même, bases comprises. Installation, rôles, sauvegarde,
+restauration, mise à jour et retour arrière ont été vérifiés sur une vraie machine.
 
 ## Plus tard
 
@@ -69,7 +60,8 @@ dossier de documents, d'exports et de sauvegardes, plutôt qu'une colonne de pro
 chaque table : aucune donnée ne peut alors passer d'un projet à l'autre. Les comptes
 vivraient dans une base commune, avec des rôles attribués projet par projet ; un
 utilisateur ne verrait ni n'atteindrait, même par une adresse tapée à la main, les projets
-où il n'a pas de rôle. La phase des comptes rangera déjà les rôles de cette façon.
+où il n'a pas de rôle. Les rôles sont déjà rangés projet par projet dans la base des
+comptes.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles
