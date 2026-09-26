@@ -26,19 +26,22 @@ un audit de sécurité a suivi, consigné dans [SECURITE.md](SECURITE.md).
 
 ## Hébergement
 
-C'est la prochaine étape. L'outil sera hébergé sur une petite machine virtuelle de l'offre gratuite d'Oracle
-Cloud, suffisante pour une quinzaine d'utilisateurs. Pas de Docker : un service systemd
-fait tourner Uvicorn, Caddy le sert en HTTPS avec un certificat automatique. Un projet par
+C'est l'étape en cours. Tout ce qui ne demande pas de machine est prêt dans le dossier
+[deploiement/](../deploiement/README.md) : un guide pas à pas pour une petite machine
+virtuelle de l'offre gratuite d'Oracle Cloud, suffisante pour une quinzaine
+d'utilisateurs, et les scripts qu'il emploie. Pas de Docker : un service systemd fait
+tourner Uvicorn, Caddy le sert en HTTPS avec un certificat automatique. Un projet par
 serveur.
 
-Une sauvegarde quotidienne enverra l'archive complète (base et documents, corbeille
-comprise) et la base des comptes hors de la machine, dans un stockage objet, avec trente
-jours de rétention. Caddy limitera aussi la taille des requêtes, et Uvicorn ne fera
-confiance qu'à lui pour l'adresse IP des visiteurs, dont dépend la limite des tentatives de
-connexion. Il appliquera aussi une limite de débit sur la connexion, et Uvicorn une
-limite de concurrence. Un script de mise à jour sauvegardera, installera la nouvelle version, contrôlera qu'elle
-répond, et reviendra à la précédente sinon. Le tout sera décrit dans un guide pas à pas,
-dans un dossier `deploiement/`.
+Chaque nuit, l'archive complète (base, documents et corbeille, base des comptes) est
+chiffrée pour une clé que seul l'administrateur détient, puis envoyée dans un stockage
+objet hors de la machine, gardée trente jours. Les mises à jour suivent les versions
+publiées par étiquette, après le passage de l'intégration continue ; une version qui ne
+répond pas est défaite d'elle-même, bases comprises.
+
+Reste à suivre le guide sur une vraie machine : connexion en HTTPS, rôles appliqués,
+sauvegarde nocturne présente dans le stockage, restauration, mise à jour et retour arrière
+éprouvés en conditions réelles.
 
 ## Plus tard
 

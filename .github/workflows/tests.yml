@@ -1,0 +1,28 @@
+# Contrôles à chaque envoi : lint, format, tests, scripts de déploiement.
+# Une version n'est publiée (étiquette v*) qu'après un passage au vert : les serveurs qui
+# suivent les étiquettes (deploiement/mettre_a_jour.sh --auto) ne reçoivent que celles-là.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m ruff check .
+      - run: python -m ruff format --check .
+      - run: python -m pytest -q
+      - run: shellcheck deploiement/*.sh

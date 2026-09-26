@@ -1,0 +1,41 @@
+[Unit]
+Description=Nomentrace, nomenclature et traçabilité
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=nomentrace
+Group=nomentrace
+WorkingDirectory=/opt/nomentrace
+EnvironmentFile=/etc/nomentrace/nomentrace.env
+ExecStart=/opt/nomentrace/.venv/bin/python -m backend
+Restart=on-failure
+RestartSec=5
+UMask=0027
+
+# Durcissement : le service n'écrit que dans ses données.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nomentrace
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

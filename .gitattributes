@@ -3,3 +3,6 @@
 *.xlsx binary
 *.db binary
 static/vendor/** -text
+# Fichiers du serveur Linux : fins de ligne Unix quel que soit le poste qui les écrit.
+deploiement/** text eol=lf
+.github/** text eol=lf

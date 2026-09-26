@@ -1,8 +1,9 @@
 """Protections HTTP communes à toutes les réponses.
 
 - Toute écriture sur l'API doit venir d'une page de Nomentrace : l'en-tête Origin, que les
-  navigateurs envoient avec chaque requête d'écriture, doit désigner l'hôte même du serveur.
-  Un site tiers ne peut donc pas faire écrire le navigateur d'un utilisateur connecté.
+  navigateurs envoient avec chaque requête d'écriture, doit désigner le serveur lui-même,
+  schéma compris. Un site tiers ne peut donc pas faire écrire le navigateur d'un
+  utilisateur connecté.
 - En mode local, seules les requêtes venues de la machine elle-même et adressées à
   127.0.0.1 ou localhost sont servies : un autre poste du réseau ne peut pas s'en servir,
   et une page piégée ne peut pas l'atteindre par un nom de domaine détourné vers 127.0.0.1.
@@ -54,12 +55,17 @@ def _hote(valeur: str) -> str:
 
 
 def origine_admise(request: Request) -> bool:
-    """L'origine de la requête désigne le serveur lui-même (hôte et port)."""
+    """L'origine de la requête désigne le serveur lui-même (schéma, hôte et port).
+
+    Derrière le proxy, le schéma est celui que le visiteur a employé (X-Forwarded-Proto,
+    cru seulement du proxy local) : une page servie en http n'écrit pas sur l'instance https.
+    """
     origine = request.headers.get("origin")
     hote = request.headers.get("host")
     if not origine or not hote or origine == "null":
         return False
-    return urlsplit(origine).netloc.lower() == hote.lower()
+    parties = urlsplit(origine)
+    return parties.scheme == request.url.scheme and parties.netloc.lower() == hote.lower()
 
 
 def requete_locale(request: Request) -> bool:

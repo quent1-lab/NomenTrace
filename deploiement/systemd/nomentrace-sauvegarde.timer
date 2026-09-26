@@ -1,0 +1,11 @@
+[Unit]
+Description=Nomentrace, sauvegarde nocturne hors du serveur
+
+[Timer]
+OnCalendar=*-*-* 02:30
+RandomizedDelaySec=15min
+# Machine éteinte à l'heure prévue : la sauvegarde part au démarrage suivant.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

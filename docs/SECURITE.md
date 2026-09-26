@@ -70,29 +70,48 @@ propre adresse ; une limite de cinquante échecs par compte, toutes adresses con
 arrête une attaque répartie. Reste un cas : un tiers qui partage l'adresse du titulaire,
 comme deux élèves derrière le réseau de l'école, peut encore le bloquer quinze minutes.
 
-L'adresse IP d'un visiteur est lue dans l'en-tête `X-Forwarded-For` quand la requête vient
-d'un proxy de confiance, ce qu'Uvicorn accorde par défaut à `127.0.0.1`. Derrière Caddy,
-c'est juste à deux conditions : Caddy réécrit cet en-tête au lieu de relayer celui du
-visiteur, et Uvicorn ne fait confiance qu'à Caddy. Sinon la limite par adresse et l'adresse
-enregistrée dans les sessions se falsifient. Cette limite reste de toute façon secondaire :
-derrière le réseau d'une école, tout le monde sort par la même adresse.
-
 Sous Windows, un fichier statique se lit aussi sous un nom détourné (`/js/api.js::$DATA`,
 flux de données NTFS). Seuls des fichiers déjà publics sont concernés et le phénomène
 n'existe pas sous Linux, où tournera le serveur.
 
-Le contrôle d'origine compare l'hôte et le port, pas le schéma : une page `https` et une
-page `http` du même hôte et du même port sont traitées pareil. Sans effet pratique, puisque
-les deux ne partagent jamais un port ; à resserrer quand l'outil ne sera plus servi qu'en
-HTTPS.
+Caddy, tel qu'il est distribué, ne sait pas limiter le débit des requêtes : il faudrait
+une version recompilée avec un module tiers. La connexion n'a donc pas de limite de débit
+au niveau du proxy. Elle reste protégée par l'application : six traitements simultanés au
+plus, verrouillages par compte et par adresse.
 
-## Ce que l'hébergement devra apporter
+Une sauvegarde nocturne qui échoue ne prévient personne, et l'adresse d'envoi vers le
+bucket expire à la date choisie à sa création : à surveiller, comme l'indique le guide de
+déploiement.
 
-L'outil ne chiffre pas lui-même les échanges : exposé au-delà du poste, il doit être servi
-en HTTPS. Le proxy devra limiter la taille des requêtes et le débit sur `/api/session`,
-Uvicorn tourner avec `--limit-concurrency` et ne faire confiance qu'au proxy pour l'adresse
-des visiteurs. La base des comptes, absente de l'archive complète, devra être sauvegardée à
-part et protégée comme elle.
+## L'hébergement
+
+Le dossier `deploiement/` sert l'outil derrière Caddy, qui chiffre les échanges en HTTPS
+avec un certificat Let's Encrypt et redirige http vers https. Nomentrace n'écoute que sur
+`127.0.0.1` ; seul Caddy est exposé, et le pare-feu de la machine n'ouvre que les ports 22,
+80 et 443. SSH n'accepte que les clés.
+
+L'adresse IP d'un visiteur, dont dépendent la limite par adresse et l'adresse enregistrée
+dans les sessions, est lue dans l'en-tête `X-Forwarded-For`. En mode connecté, Uvicorn ne
+croit cet en-tête, et `X-Forwarded-Proto`, que s'ils viennent de `127.0.0.1`, donc de
+Caddy, qui remplace celui qu'envoie le visiteur par sa vraie adresse. En mode local, ces
+en-têtes sont ignorés. La limite par adresse reste secondaire : derrière le réseau d'une
+école, tout le monde sort par la même adresse.
+
+Le contrôle d'origine compare désormais le schéma en plus de l'hôte et du port : une page
+servie en `http` ne peut pas écrire sur l'instance servie en `https`. Uvicorn refuse
+aussitôt (503) les connexions au-delà de `NOMENTRACE_CONCURRENCE`, cent par défaut, et
+Caddy les requêtes de plus de 100 Mo (413), sans rien transmettre.
+
+Le service tourne sous un utilisateur système sans shell et, par les protections de
+systemd, ne peut écrire que dans ses données ; le code appartient à root. Chaque nuit,
+l'archive complète, base des comptes comprise, est chiffrée par `age` pour une clé publique
+avant de quitter la machine ; la clé privée n'est jamais sur le serveur. L'adresse d'envoi
+vers le bucket ne permet que d'écrire, et une règle de conservation interdit d'écraser ou
+de supprimer une sauvegarde pendant trente jours : un intrus sur la machine ne peut ni lire
+ni détruire les sauvegardes déjà envoyées.
+
+Une mise à jour ratée revient d'elle-même à la version précédente, bases comprises. Une
+version antérieure refuse de démarrer sur une base migrée par une version plus récente.
 
 ## Signaler une faille
 

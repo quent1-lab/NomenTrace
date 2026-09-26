@@ -116,6 +116,8 @@ def test_archive_complete_relisible(
 
     extrait = tmp_path / "extrait"
     with zipfile.ZipFile(io.BytesIO(reponse.content)) as archive:
+        # La base des comptes ne sort jamais par l'interface, seulement par le serveur.
+        assert "comptes.db" not in archive.namelist()
         archive.extractall(extrait)
     documents = [p for p in (extrait / "documents").rglob("*") if p.is_file()]
     assert [p.read_bytes() for p in documents] == [PDF]

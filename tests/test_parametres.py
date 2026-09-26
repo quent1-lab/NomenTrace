@@ -192,7 +192,7 @@ def test_restauration_de_la_plus_ancienne_malgre_la_rotation(tmp_path: Path) -> 
     for rang in range(sauvegardes.NB_CONSERVEES):
         cible = dossier / f"nomentrace_2024010{rang // 10}_12{rang % 10:02d}00.db"
         copie = sqlite3.connect(cible)
-        sauvegardes._copier(base, copie)
+        sauvegardes.copier_base(base, copie)
         copie.close()
     plus_ancienne = sauvegardes.list_sauvegardes(dossier)[-1].name
 

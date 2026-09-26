@@ -35,9 +35,20 @@ def lire_port(valeur: str | None, defaut: int = 8000) -> int:
     return int(valeur)
 
 
+def lire_concurrence(valeur: str | None, defaut: int = 100) -> int:
+    """Nombre maximal de connexions simultanées ; refuse clairement une valeur illisible."""
+    if not valeur:
+        return defaut
+    if not valeur.strip().isdigit() or int(valeur) < 1:
+        raise ValueError(f"NOMENTRACE_CONCURRENCE doit être un entier positif (lu : « {valeur} »).")
+    return int(valeur)
+
+
 # Adresse et port d'écoute, lus par `python -m backend` (backend/__main__.py).
 HOTE: str = os.environ.get("NOMENTRACE_HOTE") or "127.0.0.1"
 PORT: int = lire_port(os.environ.get("NOMENTRACE_PORT"))
+# Au-delà, Uvicorn répond 503 aussitôt plutôt que d'empiler les requêtes.
+CONCURRENCE_MAX: int = lire_concurrence(os.environ.get("NOMENTRACE_CONCURRENCE"))
 
 # Comptes : base distincte de celle du projet, partagée un jour par plusieurs projets. Chaque
 # instance sert un projet, désigné par un code stable (le nom du projet, lui, peut changer).

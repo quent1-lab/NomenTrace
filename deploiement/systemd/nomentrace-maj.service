@@ -1,0 +1,8 @@
+[Unit]
+Description=Nomentrace, mise à jour vers la dernière version publiée
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/nomentrace/deploiement/mettre_a_jour.sh --auto

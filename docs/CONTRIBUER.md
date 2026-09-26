@@ -40,6 +40,11 @@ Les trois doivent passer. Ruff est réglé dans `pyproject.toml` : lignes de 100
 cible Python 3.14. Il n'y a pas d'outil de lint pour le JavaScript ; le code suit le style
 des modules existants.
 
+L'intégration continue de GitHub (`.github/workflows/tests.yml`) refait ces contrôles sous
+Linux à chaque envoi, et passe les scripts de `deploiement/` à `shellcheck`. Une version
+ne se publie, par une étiquette `v…`, qu'une fois ce passage au vert : les serveurs qui
+suivent les étiquettes l'installent d'eux-mêmes.
+
 ## Langue et nommage
 
 Le code parle français, sans accents ni caractères spéciaux : tables, colonnes, fonctions

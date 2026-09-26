@@ -66,20 +66,22 @@ avec un compte, créé par un administrateur, et un rôle (lecteur, contributeur
 blocs, administrateur). La création du premier administrateur et les règles de sécurité
 sont dans [docs/EXPLOITATION.md](docs/EXPLOITATION.md) et
 [docs/SECURITE.md](docs/SECURITE.md). Exposé au-delà du poste, l'outil
-doit être servi en HTTPS.
+doit être servi en HTTPS : [deploiement/README.md](deploiement/README.md) explique pas à pas
+comment l'installer sur un serveur, avec HTTPS, sauvegardes chiffrées et mises à jour.
 
 ## Documentation
 
 | Document | Pour qui, pour quoi |
 |---|---|
 | [docs/UTILISATION.md](docs/UTILISATION.md) | Le guide d'utilisation, écran par écran |
+| [deploiement/README.md](deploiement/README.md) | L'hébergement sur un serveur : installation, HTTPS, sauvegarde nocturne, restauration, mises à jour |
 | [docs/EXPLOITATION.md](docs/EXPLOITATION.md) | Installation, emplacement des données, export Excel, sauvegardes et restauration, mises à jour, problèmes courants |
 | [docs/MODELE.md](docs/MODELE.md) | Le modèle de données, les vues, les valeurs autorisées et toutes les formules de calcul |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Comment le code est construit, et comment y ajouter une fonctionnalité |
 | [docs/API.md](docs/API.md) | Les routes de l'API JSON |
 | [docs/CONTRIBUER.md](docs/CONTRIBUER.md) | Les règles de code, de tests et de documentation |
 | [docs/SECURITE.md](docs/SECURITE.md) | Les protections, l'audit de sécurité et les points qui restent à régler |
-| [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md) | Ce qui est prévu : hébergement, rapports, multi-projet |
+| [docs/FEUILLE_DE_ROUTE.md](docs/FEUILLE_DE_ROUTE.md) | Ce qui est prévu : rapports, jalons, multi-projet |
 
 ## Licence
 

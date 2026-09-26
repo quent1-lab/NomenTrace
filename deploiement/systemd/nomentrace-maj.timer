@@ -1,0 +1,9 @@
+[Unit]
+Description=Nomentrace, recherche d'une nouvelle version publiée
+
+[Timer]
+OnCalendar=*:0/15
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

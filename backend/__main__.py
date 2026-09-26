@@ -26,13 +26,32 @@ def check_configuration(hote: str, mode_local: bool) -> str | None:
     return None
 
 
+def options_uvicorn(hote: str, port: int, mode_local: bool, concurrence: int) -> dict:
+    """Options de lancement d'Uvicorn.
+
+    En mode connecté, l'outil est servi derrière un proxy (Caddy) sur la même machine :
+    l'adresse du visiteur et le schéma (https) ne sont lus dans les en-têtes X-Forwarded-*
+    que si la requête vient de 127.0.0.1, jamais d'ailleurs. En mode local, aucun proxy
+    n'est attendu et ces en-têtes sont ignorés.
+    """
+    return {
+        "host": hote,
+        "port": port,
+        # Pas d'en-tête « server » : inutile de dire à un visiteur quel serveur répond.
+        "server_header": False,
+        "proxy_headers": not mode_local,
+        "forwarded_allow_ips": "127.0.0.1",
+        "limit_concurrency": concurrence,
+    }
+
+
 def main() -> None:
     """Démarre Uvicorn sur l'adresse et le port configurés, en un seul processus."""
     refus = check_configuration(config.HOTE, config.MODE_LOCAL)
     if refus:
         sys.exit(refus)
-    # Pas d'en-tête « server » : inutile de dire à un visiteur quel serveur répond.
-    uvicorn.run("backend.main:app", host=config.HOTE, port=config.PORT, server_header=False)
+    options = options_uvicorn(config.HOTE, config.PORT, config.MODE_LOCAL, config.CONCURRENCE_MAX)
+    uvicorn.run("backend.main:app", **options)
 
 
 if __name__ == "__main__":

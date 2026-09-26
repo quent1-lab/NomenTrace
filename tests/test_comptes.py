@@ -716,7 +716,8 @@ def test_connexion_attend_un_verrou_d_ecriture(tmp_path: Path) -> None:
 
 def test_ecriture_d_une_autre_origine_refusee(app: FastAPI, admin: TestClient) -> None:
     jeton = admin.cookies.get("nomentrace_session")
-    for origine in ("https://site-piege.test", None):
+    # Même hôte en http : une page non chiffrée n'écrit pas sur l'instance servie en https.
+    for origine in ("https://site-piege.test", None, "http://nomentrace.test"):
         piege = navigateur(app, origine)
         piege.cookies.set("nomentrace_session", jeton)
         reponse = piege.patch("/api/parametres", json={"nom_projet": "Piraté"})

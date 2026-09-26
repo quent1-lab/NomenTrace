@@ -43,7 +43,9 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 | `backend/db.py` | Connexion, transactions, helpers de requête, migrations |
 | `backend/deps.py` | Dépendances FastAPI : utilisateur de la requête, connexions SQLite, contrôle des droits |
 | `backend/securite.py` | Contrôle d'origine des écritures, restriction du mode local, en-têtes de sécurité |
+| `backend/__main__.py` | Lancement par `python -m backend` : adresse, port, options d'Uvicorn |
 | `backend/comptes.py` | Ligne de commande : premier administrateur et secours |
+| `backend/sauvegarde.py` | Ligne de commande du serveur : archive complète et restauration |
 | `backend/models.py` | Modèles Pydantic des corps de requête |
 | `backend/arrondi.py` | Arrondi des montants à la sortie de l'API |
 | `backend/erreurs.py` | Exceptions métier (`ErreurMetier`, `Introuvable`, `Conflit`) |
@@ -56,6 +58,8 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 | `static/css/style.css` | Toute la feuille de style, écrite à la main |
 | `tests/` | Tests pytest et jeu d'essai fictif |
 | `lancer.bat` | Lancement Windows en double-clic |
+| `deploiement/` | Hébergement sur une VM Ubuntu : scripts, unités systemd, Caddy, guide |
+| `.github/workflows/` | Intégration continue : lint, format, tests, scripts de déploiement |
 
 ## Le serveur
 
@@ -65,6 +69,14 @@ connecté), ce qui permet aux tests de tout faire tourner sur des fichiers tempo
 Sans mode local explicite, la connexion est exigée. Au démarrage, la fonction `lifespan`
 sauvegarde la base, applique les migrations manquantes, fait de même pour la base des
 comptes en mode connecté, puis lance le fil d'export Excel.
+
+`python -m backend` (`backend/__main__.py`) lance Uvicorn avec les réglages de
+l'environnement. En mode connecté, il ne croit les en-têtes `X-Forwarded-*` que de
+`127.0.0.1`, où tourne le proxy HTTPS ; en mode local, il les ignore. Il limite le nombre de
+connexions simultanées (`NOMENTRACE_CONCURRENCE`). Les migrations refusent une base dont le
+schéma est plus récent que le code (`db.SchemaTropRecent`) : une version antérieure ne
+démarre pas sur une base migrée par une plus récente, ce qui déclenche le retour arrière
+du script de mise à jour.
 
 ## Comptes et droits
 
@@ -219,6 +231,13 @@ commande supprime des fiches de document ; leurs fichiers partent alors dans
 `corbeille.verifier_documents()` compare la base et le disque, remet en place ce qui
 manque et range ce qui est de trop.
 
+`sauvegardes.build_archive()` construit l'archive complète : copie cohérente de la base
+par l'API de sauvegarde de SQLite, documents et corbeille, et la base des comptes quand on
+la demande, ce que fait seule la ligne de commande du serveur. `restauration.restore_archive()`
+la remet en place, application arrêtée : elle refuse une archive au chemin suspect, sans
+base ou à la base illisible avant de rien toucher, sauvegarde les deux bases en place et
+met de côté le dossier des documents au lieu de l'effacer.
+
 L'export Excel complet est confié à `PlanificateurExport`, un fil unique qui attend deux
 secondes de calme après la dernière écriture avant d'exporter, pour ne pas réécrire le
 classeur à chaque frappe. Si le fichier est verrouillé par Excel, il réessaie toutes les
@@ -283,6 +302,11 @@ en-têtes d'un navigateur du poste. `tests/test_comptes.py` la lance en mode con
 éprouver la connexion, les invitations, chaque rôle sur chaque famille de routes, le
 contrôle d'origine et les en-têtes ; le coût de scrypt y est abaissé pour la vitesse.
 
+Les scripts de `deploiement/` ne sont pas couverts par pytest. L'intégration continue les
+passe à `shellcheck` ; leur comportement (mise à jour, retour arrière, sauvegarde chiffrée,
+restauration) a été éprouvé dans un conteneur Linux, et le guide se valide sur une vraie
+machine.
+
 Les tests qui ont besoin d'une base remplie utilisent `tests/jeu_essai.py` : un projet de
 robot fictif de soixante composants répartis en neuf blocs, dont le total estimé vaut
 3 184,98 € HT pour un budget de 3 000 €. Les fixtures `conn_essai` et `client_essai`
@@ -306,8 +330,8 @@ Le chemin habituel, du bas vers le haut :
 
 ## Pour les évolutions prévues
 
-L'hébergement et le multi-projet sont décrits dans
-[FEUILLE_DE_ROUTE.md](FEUILLE_DE_ROUTE.md).
+Le multi-projet est décrit dans [FEUILLE_DE_ROUTE.md](FEUILLE_DE_ROUTE.md), l'hébergement
+dans [deploiement/README.md](../deploiement/README.md).
 
 Une connexion par un compte externe (Microsoft, GitHub) s'ajoutera comme un fournisseur de
 plus dans la table `identite`, rattaché à un utilisateur existant : le reste des comptes

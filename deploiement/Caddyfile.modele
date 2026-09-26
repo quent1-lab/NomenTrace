@@ -1,0 +1,26 @@
+# Nomentrace : proxy inverse HTTPS. Écrit par installer.sh dans /etc/caddy/Caddyfile.
+# Caddy obtient et renouvelle seul le certificat Let's Encrypt, et redirige http vers https.
+# Il remplace l'en-tête X-Forwarded-For envoyé par le visiteur par sa vraie adresse, et
+# transmet X-Forwarded-Proto : Uvicorn ne croit ces en-têtes que de 127.0.0.1.
+{
+	__COURRIEL__
+}
+
+__DOMAINE__ {
+	encode zstd gzip
+
+	# Au-delà, réponse 413 sans rien transmettre. L'application limite chaque document
+	# joint à 20 Mo ; un envoi peut en compter plusieurs.
+	request_body {
+		max_size 100MB
+	}
+
+	reverse_proxy 127.0.0.1:__PORT__
+
+	log {
+		output file /var/log/caddy/nomentrace.log {
+			roll_size 10MiB
+			roll_keep 10
+		}
+	}
+}

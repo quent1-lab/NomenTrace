@@ -101,6 +101,10 @@ def get_version_schema(conn: sqlite3.Connection) -> int:
     return int(ligne[0]) if ligne[0] is not None else 0
 
 
+class SchemaTropRecent(RuntimeError):
+    """La base a reçu des migrations que ce code ne connaît pas."""
+
+
 def list_migrations(dossier: Path | None = None) -> list[tuple[int, Path]]:
     """Liste les fichiers de migration triés par numéro."""
     source = dossier or config.DOSSIER_MIGRATIONS
@@ -141,10 +145,19 @@ def apply_migrations(conn: sqlite3.Connection, dossier: Path | None = None) -> i
     """Applique dans l'ordre les migrations non encore appliquées.
 
     Chaque migration et l'enregistrement de son numéro forment une seule transaction.
-    Renvoie la version du schéma après application.
+    Renvoie la version du schéma après application. Refuse une base dont le schéma est
+    plus récent que ce code : une version antérieure de l'outil la lirait de travers.
     """
     version = get_version_schema(conn)
-    for numero, fichier in list_migrations(dossier):
+    migrations = list_migrations(dossier)
+    derniere = max((numero for numero, _ in migrations), default=0)
+    if version > derniere:
+        raise SchemaTropRecent(
+            f"La base est au schéma {version}, plus récent que cette version de Nomentrace"
+            f" (schéma {derniere}) : installer une version plus récente, ou restaurer une"
+            " sauvegarde antérieure à la mise à jour."
+        )
+    for numero, fichier in migrations:
         if numero <= version:
             continue
         script = fichier.read_text(encoding="utf-8")
