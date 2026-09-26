@@ -66,15 +66,25 @@ copier_bases() {
 	done
 }
 
+# Fichier par fichier : copier « dossier/. » donnerait au dossier des données le propriétaire
+# et les droits du dossier de copie (root), et SQLite, sous nomentrace, ne pourrait plus y
+# créer ses fichiers -wal et -shm.
 remettre_bases() {
-	local source="$1" nom chemin
+	local source="$1" nom chemin fichier
 	for nom in base comptes; do
 		chemin="$(chemin_base "$nom")"
 		rm -f "$chemin" "$chemin-wal" "$chemin-shm"
-		if compgen -G "$source/$nom/*" >/dev/null; then
-			cp -a "$source/$nom/." "$(dirname "$chemin")/"
-		fi
+		for fichier in "$source/$nom"/*; do
+			if [[ -f $fichier ]]; then cp -a "$fichier" "$(dirname "$chemin")/"; fi
+		done
 	done
+}
+
+# Remet à zéro le compteur de démarrages : après une version qui plantait en boucle, systemd
+# refuserait sinon de relancer le service (« Start request repeated too quickly »).
+demarrer() {
+	systemctl reset-failed nomentrace 2>/dev/null || true
+	systemctl start nomentrace
 }
 
 choisir_version() {
@@ -133,7 +143,7 @@ main() {
 	echo "$actuel" >"$instantane/commit"
 	journal "Bases copiées dans $instantane."
 
-	if installer_code "$cible" && systemctl start nomentrace && verifier; then
+	if installer_code "$cible" && demarrer && verifier; then
 		journal "Nomentrace répond en version $version."
 		find "$INSTANTANES" -mindepth 1 -maxdepth 1 -type d | sort | head -n "-$NB_INSTANTANES" |
 			xargs --no-run-if-empty rm -rf
@@ -145,7 +155,7 @@ main() {
 	systemctl stop nomentrace || true
 	installer_code "$actuel"
 	remettre_bases "$instantane"
-	systemctl start nomentrace
+	demarrer
 	if verifier; then
 		journal "Version précédente rétablie, bases remises à l'état d'avant la mise à jour."
 		exit 1
@@ -154,4 +164,7 @@ main() {
 	exit 2
 }
 
-main "$@"
+# Chargé par un test (source), le script ne fait que définir ses fonctions.
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi
