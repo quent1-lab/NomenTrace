@@ -75,7 +75,7 @@ async function ouvrirReclassement(c, zone, surReclasse) {
     zone.replaceChildren(el("p", { class: "texte-doux" }, "Aucun autre bloc fonctionnel ouvert."));
     return;
   }
-  const choix = champChoix("bloc_code", blocs.map((b) => [b.code, `${b.code} — ${b.nom}`]), null, { vide: "— bloc cible —" });
+  const choix = champChoix("bloc_code", blocs.map((b) => [b.code, `${b.code} · ${b.nom}`]), null, { vide: "Bloc cible…" });
   const formulaire = el(
     "form",
     { class: "panneau panneau--encart" },
@@ -257,7 +257,7 @@ function sectionAffectations(fiche, ensembles, surChangement, modifiable) {
   );
   const dejaAffectes = new Set(fiche.affectations.map((a) => a.ensemble_code));
   const disponibles = ensembles.filter((e) => !dejaAffectes.has(e.code));
-  const resume = el("p", { class: "texte-doux" }, `Besoin : ${c.qte_besoin} — affecté : ${c.qte_affectee}` + (c.nb_ensembles > 0 && c.ecart_affectation !== 0 ? ` (écart ${c.ecart_affectation > 0 ? "+" : ""}${c.ecart_affectation})` : ""));
+  const resume = el("p", { class: "texte-doux" }, `Besoin ${c.qte_besoin}, affecté ${c.qte_affectee}` + (c.nb_ensembles > 0 && c.ecart_affectation !== 0 ? ` (écart ${c.ecart_affectation > 0 ? "+" : ""}${c.ecart_affectation})` : ""));
   return section(
     "Ensembles où il est monté",
     resume,
@@ -271,7 +271,7 @@ function formulaireAffectation(c, disponibles, nbEnsembles, surChangement) {
     return el("p", { class: "texte-doux" }, "Aucun ensemble n'existe encore : ils se créent depuis l'écran Ensembles.");
   }
   if (disponibles.length === 0) return el("p", { class: "texte-doux" }, "Affecté à tous les ensembles existants.");
-  const choix = champChoix("ensemble", disponibles.map((e) => [e.code, `${e.code} — ${e.nom}`]), null, { vide: "— ensemble —" });
+  const choix = champChoix("ensemble", disponibles.map((e) => [e.code, `${e.code} · ${e.nom}`]), null, { vide: "Ensemble…" });
   const qte = champNombre("qte", Math.max(1, c.ecart_affectation), 0);
   const formulaire = el("form", { class: "formulaire-ligne" }, choix, qte, el("button", { type: "submit", class: "bouton" }, "Affecter"));
   formulaire.addEventListener("submit", async (e) => {
@@ -362,7 +362,7 @@ function sectionCommandes(lignes) {
     "Lignes de commande",
     tableSimple(
       [["Commande"], ["Statut"], ["Qté", "nombre"], ["PU HT devis", "nombre"], ["Reçu", "nombre"]],
-      lignes.map((l) => el("tr", {}, el("td", {}, l.commande_numero), el("td", {}, `${libelle(l.statut)} — ${libelle(l.statut_ligne)}`), el("td", { class: "nombre" }, formatNombre(l.qte_commandee)), el("td", { class: "nombre" }, formatMontant(l.pu_ht_devis)), el("td", { class: "nombre" }, formatNombre(l.qte_recue)))),
+      lignes.map((l) => el("tr", {}, el("td", {}, l.commande_numero), el("td", {}, `${libelle(l.statut)}, ${libelle(l.statut_ligne)}`), el("td", { class: "nombre" }, formatNombre(l.qte_commandee)), el("td", { class: "nombre" }, formatMontant(l.pu_ht_devis)), el("td", { class: "nombre" }, formatNombre(l.qte_recue)))),
       "Aucune ligne de commande.",
     ),
   );
@@ -389,7 +389,7 @@ function ouvrirFicheArchivee(fiche, documents, surFermeture) {
   const c = fiche.composant;
   const lien = c.lien_produit ? lienExterne(c.lien_produit, "ouvrir la page produit") : null;
   ouvrirPanneau(
-    `${c.id} — ${c.designation}`,
+    `${c.id} · ${c.designation}`,
     [
       el(
         "p",
@@ -460,7 +460,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
     type: "button",
     class: "bouton bouton--danger",
     onclick: async () => {
-      if (!confirm(`Archiver ${c.id} — ${c.designation} ?\nIl disparaîtra des listes mais restera en base, avec son historique.`)) return;
+      if (!confirm(`Archiver ${c.id} (${c.designation}) ?\nIl disparaîtra des listes mais restera en base, avec son historique.`)) return;
       try {
         await api.archiveComposant(c.id);
         fermerPanneau();
@@ -482,7 +482,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
       }),
   }, "Reclasser…");
   ouvrirPanneau(
-    `${c.id} — ${c.designation}`,
+    `${c.id} · ${c.designation}`,
     [
       modifiable
         ? el("div", { class: "fiche__actions" }, boutonModifier, estAdmin() ? boutonReclasser : null, boutonArchiver)
@@ -499,7 +499,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         documents,
         avecSource: true,
         typeParDefaut: "Fiche technique",
-        aide: "Documents propres au composant (fiche technique, plan, photo) et documents des commandes où il figure.",
+        aide: "Les documents des commandes où il figure s'affichent aussi ici.",
         deposer: (donnees) => api.deposerDocumentsComposant(id, donnees),
         depot: modifiable,
         surChangement: rafraichir,

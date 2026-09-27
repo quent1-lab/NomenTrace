@@ -119,12 +119,6 @@ export async function afficherBlocs(conteneur) {
   const rangs = rangsBlocs(blocs);
   conteneur.replaceChildren(
     el("h1", {}, "Blocs fonctionnels"),
-    el(
-      "p",
-      { class: "texte-doux" },
-      "Un bloc est un découpage fonctionnel : chaque composant appartient à un seul bloc, " +
-        "figé dans son identifiant. Cliquer sur une carte pour voir ses composants.",
-    ),
     el("div", { class: "grille-cartes" }, blocs.map((b) => carte(b, rangs.get(b.code), rafraichir))),
   );
 }

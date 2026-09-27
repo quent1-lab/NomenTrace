@@ -32,7 +32,7 @@ async function requete(methode, chemin, corps) {
   try {
     reponse = await fetch(chemin, options);
   } catch {
-    throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
+    throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
   }
   const donnees = await reponse.json().catch(() => null);
   if (!reponse.ok) {
@@ -50,7 +50,7 @@ async function requeteFormulaire(chemin, donnees) {
   try {
     reponse = await fetch(chemin, { method: "POST", body: donnees });
   } catch {
-    throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
+    throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
   }
   const resultat = await reponse.json().catch(() => null);
   if (!reponse.ok) {
@@ -67,7 +67,7 @@ async function requeteFichier(chemin) {
   try {
     reponse = await fetch(chemin);
   } catch {
-    throw new ErreurApi("Le serveur Nomentrace ne répond pas. Est-il toujours lancé ?", 0);
+    throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
   }
   if (!reponse.ok) {
     if (reponse.status === 401) allerConnexion();

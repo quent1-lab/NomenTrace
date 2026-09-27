@@ -94,10 +94,10 @@ export async function afficherOngletBlocs(cible) {
   const basculerArchive = async (b) => {
     const archiver = !b.archive;
     const message = archiver
-      ? `Archiver le bloc « ${b.code} — ${b.nom} » ?
+      ? `Archiver le bloc « ${b.nom} » (${b.code}) ?
 
 Il ne sera plus proposé à la création de composant. Il peut être réactivé ensuite.`
-      : `Réactiver le bloc « ${b.code} — ${b.nom} » ?`;
+      : `Réactiver le bloc « ${b.nom} » (${b.code}) ?`;
     if (!confirm(message)) return;
     try {
       await api.patchBloc(b.code, { archive: archiver ? 1 : 0 });
@@ -132,7 +132,7 @@ Il ne sera plus proposé à la création de composant. Il peut être réactivé 
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "Le bloc est le découpage fonctionnel : un seul par composant, figé dans son identifiant. Un bloc archivé n'accepte plus de composant ; un bloc qui n'a jamais porté de composant se supprime depuis l'écran Nettoyage."),
+      el("p", { class: "texte-doux" }, "Un bloc archivé n'accepte plus de composant ; un bloc qui n'a jamais porté de composant se supprime depuis l'écran Nettoyage."),
       el("button", { type: "button", class: "bouton si-admin", onclick: () => ouvrirFormulaireBloc(null, ordreSuggere, rafraichir) }, "Nouveau bloc"),
     ),
     table(
@@ -187,7 +187,6 @@ export async function afficherOngletEnsembles(cible) {
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "L'ensemble est le découpage physique : un composant peut entrer dans plusieurs ensembles, avec une quantité pour chacun. Un ensemble peut avoir un ensemble parent."),
       el("button", { type: "button", class: "bouton si-ensembles", onclick: () => ouvrirFormulaireEnsemble({ ordreSuggere, surEnregistre: rafraichir }) }, "Nouvel ensemble"),
     ),
     table(
@@ -271,7 +270,7 @@ export async function afficherOngletFournisseurs(cible, parametres = null) {
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "Cliquer sur un fournisseur ouvre sa fiche. Un fournisseur archivé n'est plus proposé, mais les composants et les commandes qui le citent le gardent."),
+      el("p", { class: "texte-doux" }, "Un fournisseur archivé n'est plus proposé, mais les composants et les commandes qui le citent le gardent."),
       el("span", { class: "actions" },
         champFichierListe(comparer),
         el("button", { type: "button", class: "bouton si-ecriture", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),

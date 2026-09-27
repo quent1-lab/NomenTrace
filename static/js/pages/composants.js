@@ -184,8 +184,8 @@ function barreFiltres() {
     "div",
     { class: "filtres" },
     recherche,
-    selectFiltre("bloc", "Tous les blocs", etat.blocs.map((b) => [b.code, `${b.code} — ${b.nom}`])),
-    selectFiltre("ensemble", "Tous les ensembles", etat.ensembles.map((e) => [e.code, `${" ".repeat(e.niveau - 1)}${e.code} — ${e.nom}`])),
+    selectFiltre("bloc", "Tous les blocs", etat.blocs.map((b) => [b.code, `${b.code} · ${b.nom}`])),
+    selectFiltre("ensemble", "Tous les ensembles", etat.ensembles.map((e) => [e.code, `${" ".repeat(e.niveau - 1)}${e.code} · ${e.nom}`])),
     caseSousEnsembles(),
     selectFiltre("mode_appro", "Tous les modes d'appro", tousLibelles("mode_appro")),
     selectFiltre("statut_appro", "Tous les statuts d'appro", tousLibelles("statut_appro")),
@@ -515,7 +515,7 @@ export async function afficherComposants(conteneur, parametres) {
     etat.indicateurs,
     etat.zoneFiltres,
     etat.zoneAttributs,
-    el("div", { class: "barre-resultats" }, etat.compteur, el("span", { class: "texte-doux" }, "Cliquer sur une ligne pour ouvrir la fiche ; les colonnes soulignées se modifient sur place.")),
+    el("div", { class: "barre-resultats" }, etat.compteur, el("span", { class: "texte-doux" }, "Les colonnes soulignées se modifient sur place.")),
     el("div", { class: "table-defilante" }, etat.table),
   );
   await Promise.all([rechargerListe(), rendreIndicateurs()]);

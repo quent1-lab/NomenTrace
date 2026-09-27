@@ -64,7 +64,7 @@ export async function ouvrirDemandesDevis() {
   const majBouton = () => {
     const choisis = candidats.fournisseurs.flatMap((g) => g.lignes.filter((l) => cases.get(l.id).checked).map(() => g.fournisseur_nom));
     const nbFournisseurs = new Set(choisis).size;
-    bouton.textContent = choisis.length ? `Créer ${nbFournisseurs} demande(s) de devis — ${choisis.length} composant(s)` : "Aucun composant coché";
+    bouton.textContent = choisis.length ? `Créer ${nbFournisseurs} demande(s) de devis (${choisis.length} composant(s))` : "Aucun composant coché";
     bouton.disabled = !choisis.length;
   };
   const groupes = candidats.fournisseurs.map((g) => tableGroupe(g, cases, majBouton));
@@ -80,7 +80,7 @@ export async function ouvrirDemandesDevis() {
   const formulaire = el(
     "form",
     { class: "formulaire", novalidate: true },
-    el("p", { class: "texte-doux" }, "Composants en mode Achat dont il reste des pièces à commander, regroupés par fournisseur. Chaque fournisseur coché reçoit une demande de devis « À demander » ; chaque ligne porte le reste à commander, le PU HT du devis restant à saisir à réception du devis."),
+    el("p", { class: "texte-doux" }, "Composants à acheter dont il reste des pièces à commander, par fournisseur. Chaque fournisseur coché reçoit une demande de devis ; le PU HT se saisit à réception du devis."),
     candidats.fournisseurs.length ? groupes : el("p", { class: "texte-doux" }, "Rien à commander chez un fournisseur connu."),
     sansFournisseur,
     el("div", { class: "actions-formulaire" }, el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"), bouton),

@@ -90,7 +90,7 @@ function formulaireAjout() {
     if (!choisi) return;
     qte.value = String(Math.max(1, choisi.reste_a_commander));
     pu.value = choisi.pu_ht === null ? "" : formatNombre(choisi.pu_ht, 2);
-    aide.textContent = `Reste à commander : ${choisi.reste_a_commander} — PU HT estimé : ${formatMontant(choisi.pu_ht) || "non chiffré"}`;
+    aide.textContent = `Reste à commander : ${choisi.reste_a_commander}, PU HT estimé : ${formatMontant(choisi.pu_ht) || "non chiffré"}`;
   });
   const formulaire = el("form", { class: "formulaire-ligne formulaire-ajout" }, composant, qte, pu, el("button", { type: "submit", class: "bouton" }, "Ajouter la ligne"), aide);
   formulaire.addEventListener("submit", async (e) => {
@@ -178,7 +178,7 @@ function modeReception() {
     "section",
     { class: "panneau panneau--reception" },
     el("h2", {}, "Réception de la livraison"),
-    el("p", { class: "texte-doux" }, "Saisir, ligne par ligne, la quantité reçue dans cette livraison (elle s'ajoute aux réceptions précédentes). La validation met à jour les lignes, crée les entrées en stock et recalcule le statut de la commande, en une seule opération."),
+    el("p", { class: "texte-doux" }, "Saisir la quantité reçue dans cette livraison ; elle s'ajoute aux réceptions précédentes. La validation met à jour les lignes, le stock et le statut de la commande."),
     el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date), el("label", { class: "ligne-compacte" }, "Emplacement ", emplacement), el("label", { class: "ligne-compacte" }, "Reçu par ", parQui)),
     el(
       "table",
@@ -262,7 +262,7 @@ function rendre() {
           etat.lignes.length ? tableLignes() : el("p", { class: "texte-doux" }, "Aucune ligne pour l'instant."),
           aPermission("achats") ? el("h3", { class: "sous-titre" }, "Ajouter une ligne") : null,
           aPermission("achats") ? formulaireAjout() : null,
-          el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %. « Attendu par » liste les ensembles où le composant est affecté.`),
+          el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %.`),
         ),
     el(
       "div",
@@ -270,7 +270,7 @@ function rendre() {
       sectionDocuments({
         documents: etat.documents,
         typeParDefaut: etat.commande.type === "Devis" ? "Devis" : "Bon de commande",
-        aide: "Devis, bon de commande, facture, bon de livraison… Ils apparaissent aussi dans la fiche de chaque composant de la commande.",
+        aide: "Ils apparaissent aussi dans la fiche de chaque composant de la commande.",
         deposer: (donnees) => api.deposerDocumentsCommande(etat.numero, donnees),
         depot: aPermission("achats"),
         surChangement: recharger,

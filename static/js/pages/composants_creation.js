@@ -53,7 +53,7 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
   // Un contributeur ne crée que dans ses blocs ; l'administrateur, dans tous.
   const permis = blocs.filter((b) => ecritBloc(b.code));
   const initial = permis.some((b) => b.code === blocInitial) ? blocInitial : null;
-  const bloc = champChoix("bloc_code", permis.map((b) => [b.code, `${b.code} — ${b.nom}`]), initial, { vide: "— choisir —", requis: true });
+  const bloc = champChoix("bloc_code", permis.map((b) => [b.code, `${b.code} · ${b.nom}`]), initial, { vide: "Choisir…", requis: true });
   const choixFournisseur = champFournisseur(fournisseurs, null);
   const fournisseur = choixFournisseur.select;
   const base = champChoix("base_prix_releve", BASES_PRIX, "HT");
@@ -96,7 +96,7 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       ligneChamp("Qté déjà disponible", champNombre("qte_disponible", 0), { aide: "Déjà en stock ou prêtée : réduit la quantité à acheter." }),
       ligneChamp("Fournisseur", choixFournisseur.element),
       ligneChamp("Lien produit", champTexte("lien_produit", "", { type: "url" })),
-      ligneChamp("PU relevé", champNombre("pu_releve", null, 2), { aide: "Laisser vide si le prix n'est pas encore connu." }),
+      ligneChamp("PU relevé", champNombre("pu_releve", null, 2)),
       ligneChamp("Base du prix", base),
       ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tauxDefaut, 1)),
     ),

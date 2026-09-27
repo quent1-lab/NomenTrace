@@ -30,12 +30,12 @@ export function resumeCategories(resume) {
 }
 
 function sectionModeles(blocs, ensembles) {
-  const choixBloc = el("select", { class: "filtre", "aria-label": "Bloc du modèle" }, blocs.map((b) => el("option", { value: b.code }, `${b.code} — ${b.nom}`)));
+  const choixBloc = el("select", { class: "filtre", "aria-label": "Bloc du modèle" }, blocs.map((b) => el("option", { value: b.code }, `${b.code} · ${b.nom}`)));
   const lienBloc = el("a", { class: "bouton bouton--discret", href: lienModele("bloc", blocs[0]?.code ?? ""), download: "" }, "Télécharger le modèle du bloc");
   choixBloc.addEventListener("change", () => (lienBloc.href = lienModele("bloc", choixBloc.value)));
   const ligneEnsemble = ensembles.length
     ? (() => {
-        const choix = el("select", { class: "filtre", "aria-label": "Ensemble du modèle" }, ensembles.map((e) => el("option", { value: e.code }, `${e.code} — ${e.nom}`)));
+        const choix = el("select", { class: "filtre", "aria-label": "Ensemble du modèle" }, ensembles.map((e) => el("option", { value: e.code }, `${e.code} · ${e.nom}`)));
         const lien = el("a", { class: "bouton bouton--discret", href: lienModele("ensemble", ensembles[0].code), download: "" }, "Télécharger le modèle de l'ensemble");
         choix.addEventListener("change", () => (lien.href = lienModele("ensemble", choix.value)));
         return el("div", { class: "formulaire-ligne" }, choix, lien);
@@ -45,9 +45,8 @@ function sectionModeles(blocs, ensembles) {
     "section",
     { class: "panneau" },
     el("h2", {}, "Modèles à remplir"),
-    el("p", { class: "texte-doux texte-petit" }, "Un modèle reprend les composants existants avec leurs valeurs actuelles, plus des lignes vides pour les ajouts. " +
-      "Le modèle d'ensemble ajoute la colonne « Qté dans cet ensemble » : c'est celui à donner à la personne qui monte cette partie. " +
-      "Une copie est gardée dans echange/modeles/."),
+    el("p", { class: "texte-doux texte-petit" }, "Un modèle reprend les composants existants, plus des lignes vides pour les ajouts. " +
+      "Celui d'un ensemble ajoute la colonne « Qté dans cet ensemble », pour la personne qui monte cette partie."),
     el("div", { class: "formulaire-ligne" }, choixBloc, lienBloc),
     ligneEnsemble,
   );
@@ -81,7 +80,7 @@ function sectionDepot() {
     "section",
     { class: "panneau" },
     el("h2", {}, "Déposer des fichiers de l'équipe"),
-    el("p", { class: "texte-doux texte-petit" }, "Un ou plusieurs fichiers à la fois. L'analyse ne modifie rien : elle produit des propositions à relire, puis à appliquer."),
+    el("p", { class: "texte-doux texte-petit" }, "L'analyse ne modifie rien : elle produit des propositions à relire, puis à appliquer."),
     formulaire,
   );
 }

@@ -177,13 +177,12 @@ function vueArbre(arbre, rafraichir) {
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Le budget du projet descend l'arbre : à chaque niveau, les ensembles verrouillés gardent leur montant, les composants affectés directement au parent prennent leur coût, et le reste est partagé à parts égales entre les autres sous-ensembles, même vides, pour voir ce qu'il reste à chacun. " +
-        "Ces budgets d'ensemble sont un axe parallèle aux budgets de bloc : les deux découpent le même budget total, l'un par partie physique, l'autre par fonction.",
+      "Le budget du projet descend l'arbre : les ensembles verrouillés gardent leur montant, les composants affectés directement au parent prennent leur coût, et le reste est partagé à parts égales entre les autres sous-ensembles.",
     ),
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Cliquer sur un budget cible pour le saisir : l'ensemble est alors verrouillé sur ce montant. Vider la case le déverrouille, son budget redevient calculé. Le budget du projet se modifie dans Paramètres.",
+      "Saisir un budget cible verrouille l'ensemble sur ce montant ; vider la case le déverrouille.",
     ),
     el(
       "div",
@@ -227,19 +226,7 @@ function etatVide(surCreer) {
     "section",
     { class: "panneau etat-vide" },
     el("h2", {}, "Aucun ensemble pour l'instant"),
-    el(
-      "p",
-      {},
-      "Un ensemble est une partie physique du système suivi : un sous-ensemble mécanique, un " +
-        "coffret, un poste de commande… Il dit où un composant est monté, et en quelle quantité.",
-    ),
-    el(
-      "p",
-      {},
-      "Il ne remplace pas le bloc fonctionnel : un composant appartient à un seul bloc, figé dans " +
-        "son identifiant, mais il peut être monté dans plusieurs ensembles, en quantités " +
-        "différentes. Un même connecteur peut ainsi se retrouver dans quatre ensembles.",
-    ),
+    el("p", {}, "Un ensemble est une partie physique du système : il dit où un composant est monté, et en quelle quantité."),
     el("button", { type: "button", class: "bouton si-ensembles", onclick: surCreer }, "+ Créer le premier ensemble"),
   );
 }
@@ -259,7 +246,7 @@ function encadreCoherence(incoherences) {
             "li",
             {},
             el("a", { href: lienRoute("/composants", { fiche: i.composant_id }) }, i.composant_id),
-            ` ${i.designation} — ${definition.texte(i)}`,
+            ` ${i.designation} : ${definition.texte(i)}`,
           ),
         ),
       ),
@@ -270,7 +257,7 @@ function encadreCoherence(incoherences) {
     { class: "panneau coherence" },
     el("h2", {}, "Cohérence"),
     contenu.length ? contenu : el("p", { class: "texte-doux" }, "Aucune incohérence entre affectations, commandes et montage."),
-    el("p", { class: "texte-doux texte-petit" }, "Les composants non affectés n'apparaissent pas ici : c'est un état normal tant que l'affectation n'est pas faite (filtre dédié sur l'écran Composants)."),
+    el("p", { class: "texte-doux texte-petit" }, "Les composants non affectés n'y figurent pas : l'écran Composants a un filtre pour eux."),
   );
 }
 
@@ -313,7 +300,6 @@ export async function afficherEnsembles(conteneur, parametres) {
   }[vue]();
   conteneur.replaceChildren(
     entete,
-    el("p", { class: "texte-doux" }, "Un ensemble est une partie physique du système suivi ; il peut contenir des sous-ensembles. Cliquer sur un ensemble pour voir ce qu'il contient et ce qu'il reste à monter."),
     barreVues(vue, conteneur),
     corps,
     encadreCoherence(incoherences),

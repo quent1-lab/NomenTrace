@@ -256,7 +256,7 @@ function tableEntites(lignes) {
       return el("tr", {},
         el("td", {}, coche),
         el("td", {}, type),
-        el("td", { class: "fort" }, e.nom ?? e.libelle, e.type === "fournisseur" ? el("span", { class: "texte-doux texte-petit" }, " — créé « à valider »") : null),
+        el("td", { class: "fort" }, e.nom ?? e.libelle, e.type === "fournisseur" ? el("span", { class: "texte-doux texte-petit" }, " (créé « à valider »)") : null),
         el("td", { class: "code texte-doux" }, e.code ?? ""),
         el("td", {}, origine(ligne)),
       );
@@ -292,7 +292,7 @@ function sections() {
       tableEntites(entites)));
   }
   const modifies = par("MODIFIE");
-  if (modifies.length) resultat.push(section("MODIFIE", `Composants modifiés (${modifies.length})`, "Seuls les champs qui changent sont listés. Décocher un champ le laisse tel quel.", modifies.map(carteModifie)));
+  if (modifies.length) resultat.push(section("MODIFIE", `Composants modifiés (${modifies.length})`, "Seuls les champs qui changent sont listés.", modifies.map(carteModifie)));
   const doublons = par("DOUBLON");
   if (doublons.length) resultat.push(section("DOUBLON", `Doublons probables (${doublons.length})`, "Par défaut, un doublon sûr est fusionné : la quantité s'ajoute au composant existant au lieu d'en créer un second.", doublons.map(carteDoublon)));
   const nouveaux = par("NOUVEAU");

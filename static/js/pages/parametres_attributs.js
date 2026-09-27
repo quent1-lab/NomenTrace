@@ -142,9 +142,8 @@ function rendre() {
     el(
       "p",
       { class: "texte-doux" },
-      "Les attributs sont les caractéristiques des composants propres au projet : tension, matériau, étanchéité… " +
-        "Chacun devient une colonne affichable, filtrable et triable de l'écran Composants, une colonne des exports et des modèles Excel. " +
-        "Le code et le type sont figés à la création ; le libellé et l'unité se modifient. Un attribut désactivé n'est plus proposé à la saisie.",
+      "Chaque attribut devient une colonne de l'écran Composants, des exports et des modèles Excel. " +
+        "Le code et le type sont figés à la création ; un attribut désactivé n'est plus proposé à la saisie.",
     ),
     el(
       "section",
@@ -156,7 +155,7 @@ function rendre() {
             el("thead", {}, el("tr", {}, ["", "Libellé", "Code", "Type", "Unité", "", ""].map((t) => el("th", {}, t)))),
             el("tbody", {}, attributs.map((_, i) => ligneAttribut(attributs, i))),
           )
-        : el("p", { class: "texte-doux" }, "Aucun attribut pour l'instant. La tension est un bon premier attribut : type Nombre, unité V."),
+        : el("p", { class: "texte-doux" }, "Aucun attribut pour l'instant."),
       formulaireAttribut(),
     ),
     ...attributs.filter((a) => a.type === "liste").map(sectionValeurs),

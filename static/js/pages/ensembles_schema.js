@@ -220,7 +220,7 @@ export function vueSchema(arbre) {
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Chiffres cumulés : chaque nœud compte ses sous-ensembles. Le cadre rouge signale un parent dont les sous-ensembles verrouillés et les composants propres dépassent le budget. Survoler un nœud pour le détail, cliquer pour ouvrir l'ensemble.",
+      "Chiffres cumulés avec les sous-ensembles. Un cadre rouge signale un parent dont les sous-ensembles verrouillés et les composants propres dépassent le budget.",
     ),
     el("div", { class: "filtres" }, el("label", { class: "filtre-case" }, "Couleur : ", choix), legende),
     zone,

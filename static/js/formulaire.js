@@ -73,7 +73,7 @@ let compteurListes = 0;
 
 export function champComposant(nom, composants, { requis = false } = {}) {
   const identifiantListe = `liste-composants-${++compteurListes}`;
-  const liste = el("datalist", { id: identifiantListe }, composants.map((c) => el("option", { value: `${c.id} — ${c.designation}` })));
+  const liste = el("datalist", { id: identifiantListe }, composants.map((c) => el("option", { value: `${c.id} · ${c.designation}` })));
   const input = el("input", { class: "champ", type: "text", name: nom, list: identifiantListe, required: requis, autocomplete: "off", placeholder: "Identifiant ou désignation…" });
   return el("span", { class: "champ-composant" }, input, liste);
 }
@@ -82,6 +82,6 @@ export function champComposant(nom, composants, { requis = false } = {}) {
 export function lireComposant(texte, composants) {
   const saisie = String(texte ?? "").trim();
   if (!saisie) return null;
-  const identifiant = saisie.split(" — ")[0].trim().toUpperCase();
+  const identifiant = saisie.split(" · ")[0].trim().toUpperCase();
   return composants.find((c) => c.id.toUpperCase() === identifiant) ?? null;
 }

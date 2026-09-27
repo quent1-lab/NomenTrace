@@ -218,12 +218,12 @@ async function sectionComposants(cible, blocs, apresLot) {
   retour.className = "retour-lot";
   cible.replaceChildren(
     el("h2", {}, "Composants"),
-    el("p", { class: "texte-doux" }, "Chaque contrôle est une étiquette sur la ligne. Un composant sans commande, sans mouvement de stock et sans document peut être supprimé ; les autres ne peuvent qu'être archivés."),
+    el("p", { class: "texte-doux" }, "Un composant sans commande, sans mouvement de stock et sans document peut être supprimé ; les autres ne peuvent qu'être archivés."),
     el(
       "div",
       { class: "filtres" },
       select(optionsControle, filtres.controle, (v) => changer("controle", v), "Contrôle"),
-      select([["", "Tous les blocs"], ...blocs.map((b) => [b.code, `${b.code} — ${b.nom}`])], filtres.bloc, (v) => changer("bloc", v), "Bloc fonctionnel"),
+      select([["", "Tous les blocs"], ...blocs.map((b) => [b.code, `${b.code} · ${b.nom}`])], filtres.bloc, (v) => changer("bloc", v), "Bloc fonctionnel"),
       el("label", { class: "filtre-case" }, caseACocher(false, (v) => changer("archives", v), "Inclure les archivés"), "Inclure les archivés"),
     ),
     actions.zone,

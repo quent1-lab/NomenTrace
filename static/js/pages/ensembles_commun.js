@@ -168,7 +168,7 @@ function choixParent(ensembles, ensemble, parentInitial) {
   const options = ensembles
     .filter((e) => !interdits.has(e.code))
     .map((e) => [e.code, `${"\u2003".repeat(e.niveau - 1)}${e.nom} (${e.code})`]);
-  return champChoix("parent_code", options, ensemble ? ensemble.parent_code : parentInitial, { vide: "— Aucun : premier niveau, sous le projet" });
+  return champChoix("parent_code", options, ensemble ? ensemble.parent_code : parentInitial, { vide: "Aucun (premier niveau)" });
 }
 
 /** Panneau de création (ensemble absent) ou de modification d'un ensemble. */
@@ -190,7 +190,7 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
     { class: "formulaire", novalidate: true },
     ligneChamp("Code", code, { requis: true, aide: creation ? "Majuscules, chiffres et tirets, sans espace. Il ne pourra plus être modifié." : "Le code d'un ensemble n'est pas modifiable." }),
     ligneChamp("Nom", champTexte("nom", ensemble?.nom ?? ""), { requis: true }),
-    ligneChamp("Ensemble parent", choixParent(ensembles, ensemble, parentInitial), { aide: "Un ensemble a au plus un parent. Sans parent, il se range directement sous le projet." }),
+    ligneChamp("Ensemble parent", choixParent(ensembles, ensemble, parentInitial)),
     ligneChamp("Ordre d'affichage", champNombre("ordre", ensemble?.ordre ?? ordreSuggere), { aide: "Ordre parmi les ensembles de même parent." }),
     ligneChamp("Responsable", champTexte("responsable", ensemble?.responsable ?? "")),
     ligneChamp("Description", champZone("description", ensemble?.description ?? "")),

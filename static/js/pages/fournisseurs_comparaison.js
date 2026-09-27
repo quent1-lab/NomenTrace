@@ -147,7 +147,7 @@ function sectionInfos(presents, absents) {
         {},
         el("strong", {}, `Dans l'outil mais absents de la liste (${absents.length}) : `),
         absents.join(", ") || "aucun",
-        absents.length ? el("span", { class: "texte-doux" }, " — rien n'est archivé automatiquement.") : null,
+        absents.length ? el("span", { class: "texte-doux" }, " Rien n'est archivé automatiquement.") : null,
       ),
     ],
   );
@@ -186,7 +186,7 @@ export function afficherComparaison(cible, resultat, nomFichier, surTermine) {
   const barre = el(
     "div",
     { class: "barre-application" },
-    el("span", { class: "texte-doux" }, `Comparaison avec « ${nomFichier} » — rien n'est enregistré avant « Appliquer ».`),
+    el("span", { class: "texte-doux" }, `Comparaison avec « ${nomFichier} ». Rien n'est enregistré avant « Appliquer ».`),
     el("span", { class: "actions" }, el("button", { type: "button", class: "bouton bouton--discret", onclick: () => surTermine() }, "Annuler"), appliquer),
   );
   cible.replaceChildren(

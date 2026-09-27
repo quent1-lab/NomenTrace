@@ -106,7 +106,7 @@ def _message_validation(exc: RequestValidationError) -> str:
         except KeyError:
             message = erreur.get("msg", "valeur invalide")
         details.append(f"{champ} : {message}")
-    return "Données invalides — " + " ; ".join(details)
+    return "Données invalides (" + " ; ".join(details) + ")."
 
 
 def _install_error_handlers(app: FastAPI) -> None:

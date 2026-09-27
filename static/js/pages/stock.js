@@ -57,7 +57,7 @@ function filtresMouvements() {
     { class: "filtres" },
     composant,
     el("select", { class: "filtre", onchange: (e) => changer("type_mouvement", e.target.value) }, el("option", { value: "" }, "Tous les types"), valeursListe("type_mouvement", { inclureInactives: true }).map(([code, texte]) => el("option", { value: code, selected: code === etat.filtres.type_mouvement }, texte))),
-    el("select", { class: "filtre", onchange: (e) => changer("ensemble", e.target.value) }, el("option", { value: "" }, "Tous les ensembles"), etat.ensembles.map((e) => el("option", { value: e.code, selected: e.code === etat.filtres.ensemble }, `${e.code} — ${e.nom}`))),
+    el("select", { class: "filtre", onchange: (e) => changer("ensemble", e.target.value) }, el("option", { value: "" }, "Tous les ensembles"), etat.ensembles.map((e) => el("option", { value: e.code, selected: e.code === etat.filtres.ensemble }, `${e.code} · ${e.nom}`))),
   );
 }
 
@@ -105,7 +105,7 @@ function ouvrirSaisie() {
   const type = champChoix("type_mouvement", types, types[0]?.[0] ?? null);
   const sens = champChoix("sens", [["Entree", "Entrée"], ["Sortie", "Sortie"]], "Entree");
   const texteSens = el("span", { class: "texte-doux" });
-  const ensemble = champChoix("ensemble_code", etat.ensembles.map((e) => [e.code, `${e.code} — ${e.nom}`]), null, { vide: "— choisir —" });
+  const ensemble = champChoix("ensemble_code", etat.ensembles.map((e) => [e.code, `${e.code} · ${e.nom}`]), null, { vide: "Choisir…" });
   const ligneSens = ligneChamp("Sens", el("span", {}, sens, texteSens));
   const ligneEnsemble = ligneChamp("Ensemble", ensemble, { requis: true });
   // Le sens est imposé par le type (sauf inventaire) ; l'ensemble n'existe que pour le montage.
@@ -120,7 +120,7 @@ function ouvrirSaisie() {
   const formulaire = el(
     "form",
     { class: "formulaire", novalidate: true },
-    el("p", { class: "note-formulaire" }, "Les réceptions d'achat se saisissent depuis la commande (mode réception). Ici : montage, prêts, retours, pertes et inventaires. Les types se gèrent dans Paramètres."),
+    el("p", { class: "note-formulaire" }, "Les réceptions d'achat se saisissent depuis la commande. Ici : montage, prêts, retours, pertes et inventaires."),
     ligneChamp("Date", el("input", { class: "champ champ--date", type: "date", name: "date", value: aujourdhui() }), { requis: true }),
     ligneChamp("Composant", composant, { requis: true }),
     ligneChamp("Type", type, { requis: true }),

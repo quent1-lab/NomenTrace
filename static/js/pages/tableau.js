@@ -29,7 +29,6 @@ function etatConsommation(pourcent) {
 function tuiles(p) {
   const aBudget = p.budget_ht !== null;
   const situation = situationBudget(p.ecart_budget_ht, p.budget_ht);
-  const precisionMarge = [situation.pourcent ? `${situation.pourcent} du budget` : "", "budget − coût estimé"];
   return el(
     "section",
     { class: "tuiles" },
@@ -38,7 +37,7 @@ function tuiles(p) {
       situation.titre,
       aBudget ? situation.montant : "Budget non défini",
       situation.niveau,
-      aBudget ? precisionMarge.filter(Boolean).join(" · ") : "",
+      situation.pourcent ? `${situation.pourcent} du budget` : "",
     ),
     tuile(
       "Budget consommé",
@@ -57,7 +56,6 @@ function tuiles(p) {
       "Reste à engager HT",
       aBudget ? formatMontant(p.reste_a_engager_ht) : "—",
       aBudget && p.reste_a_engager_ht < 0 ? "alerte" : "neutre",
-      "budget − commandes passées",
     ),
   );
 }
@@ -81,7 +79,7 @@ function jauge(p) {
       "div",
       { class: "jauge__legende" },
       el("span", {}, `Estimé : ${formatMontant(p.cout_ht)}`),
-      el("span", {}, `Budget (100 %) : ${formatMontant(p.budget_ht)}`),
+      el("span", {}, `Budget : ${formatMontant(p.budget_ht)}`),
       p.cout_ht > p.budget_ht
         ? el("span", { class: "texte-alerte" }, `Dépassement : ${formatMontant(p.ecart_budget_ht)}`)
         : null,

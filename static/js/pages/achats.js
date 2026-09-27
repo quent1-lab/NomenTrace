@@ -97,7 +97,7 @@ export async function afficherAchats(conteneur, parametres) {
           { class: "table-defilante" },
           el("table", { class: "table table--dense table--composants" }, el("thead", {}, el("tr", {}, entetes.map((t, i) => el("th", { class: [4, 5, 6].includes(i) ? "nombre" : "" }, t)))), etat.corps, etat.pied),
         )
-      : el("section", { class: "panneau" }, el("p", { class: "texte-doux" }, "Aucune commande enregistrée. Une commande regroupe les lignes d'un devis ou d'un bon de commande chez un fournisseur.")),
+      : el("section", { class: "panneau" }, el("p", { class: "texte-doux" }, "Aucune commande enregistrée.")),
   );
   if (commandes.length) rendreTable();
 }

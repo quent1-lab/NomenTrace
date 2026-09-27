@@ -295,7 +295,7 @@ def generate_modele_bloc(conn: sqlite3.Connection, dossier: Path, code: str) -> 
     lignes = db.fetch_all(
         conn, "SELECT * FROM composant WHERE bloc_code = ? AND archive = 0 ORDER BY id", (code,)
     )
-    titre = f"Modèle du bloc fonctionnel {code} — {bloc['nom']}"
+    titre = f"Modèle du bloc fonctionnel {code} · {bloc['nom']}"
     return _enregistrer(_construire(conn, lignes, "bloc", code, titre), dossier, "bloc", code)
 
 
@@ -310,7 +310,7 @@ def generate_modele_ensemble(conn: sqlite3.Connection, dossier: Path, code: str)
         " WHERE a.ensemble_code = ? AND c.archive = 0 ORDER BY c.id",
         (code,),
     )
-    titre = f"Modèle de l'ensemble {code} — {ensemble['nom']}"
+    titre = f"Modèle de l'ensemble {code} · {ensemble['nom']}"
     return _enregistrer(
         _construire(conn, lignes, "ensemble", code, titre), dossier, "ensemble", code
     )

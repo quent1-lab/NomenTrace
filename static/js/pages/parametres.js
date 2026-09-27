@@ -52,14 +52,14 @@ async function afficherOngletProjet(cible) {
   const formulaire = el(
     "form",
     { class: "formulaire formulaire--page", novalidate: true },
-    ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true, aide: "Affiché sous « Nomentrace » dans l'en-tête." }),
+    ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true }),
     ligneChamp("Préfixe des identifiants", prefixe, {
       requis: true,
       aide:
         "Lettres majuscules et chiffres. Il ne s'applique qu'aux composants créés ensuite : " +
         "les identifiants existants ne sont jamais renommés, car tout l'historique y est rattaché.",
     }),
-    ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2), { aide: "Budget global du projet, en euros hors taxes." }),
+    ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2)),
     ligneChamp("TVA par défaut (%)", champNombre("taux_tva_defaut", tva === null ? null : tva * 100, 1), {
       aide: "Sert à convertir en HT un prix relevé TTC quand le composant n'a pas de taux propre.",
     }),
@@ -185,9 +185,7 @@ function sectionArchive() {
     el(
       "p",
       { class: "texte-doux" },
-      "Un fichier .zip qui contient une copie cohérente de la base (nomentrace.db) et tous les documents joints " +
-        "(dossier documents). C'est la sauvegarde à conserver hors de la machine ; le guide docs/EXPLOITATION.md explique comment " +
-        "restaurer à partir de cette archive.",
+      "La base et tous les documents joints dans un fichier .zip, à conserver hors de la machine.",
     ),
     el(
       "div",
@@ -223,9 +221,8 @@ function sectionCorbeille(corbeille, rafraichir) {
     el(
       "p",
       { class: "texte-doux" },
-      "Un fichier joint n'est jamais effacé : quand sa commande est supprimée, il part dans echange/documents/_corbeille. " +
-        "Après une restauration, les fichiers que la base restaurée cite sont remis en place, ceux qu'elle ne connaît pas vont à la corbeille. " +
-        "L'archive complète contient aussi la corbeille.",
+      "Un fichier joint n'est jamais effacé : quand sa commande est supprimée, il part dans la corbeille, " +
+        "d'où une restauration le remet en place.",
     ),
     el("p", {}, corbeille.nb_fichiers ? `${corbeille.nb_fichiers} fichier(s), ${formatTaille(corbeille.taille)}.` : "La corbeille est vide."),
   );
@@ -256,8 +253,7 @@ function sectionExport(retour) {
     el(
       "p",
       { class: "texte-doux" },
-      "Le classeur d'export est réécrit automatiquement quelques secondes après chaque modification. " +
-        "C'est une copie de lecture : les changements faits dedans ne reviennent pas dans l'outil.",
+      "Réécrit quelques secondes après chaque modification. C'est une copie de lecture : ce qu'on y change ne revient pas dans l'outil.",
     ),
     el(
       "div",
@@ -310,9 +306,8 @@ async function afficherOngletSauvegardes(cible) {
       el(
         "p",
         { class: "texte-doux" },
-        "Une sauvegarde est prise à chaque démarrage et avant chaque restauration ; les 20 plus récentes sont gardées " +
-          "dans echange/sauvegardes. Elles ne contiennent que la base (historique compris) : pour y joindre les documents, télécharger une archive complète. " +
-          "À la restauration, les fichiers joints sont accordés à la base grâce à la corbeille.",
+        "Prises à chaque démarrage et avant chaque restauration ; les 20 plus récentes sont gardées. " +
+          "Elles ne contiennent que la base : l'archive complète y ajoute les documents.",
       ),
       retourSauvegarde,
       lignes.length

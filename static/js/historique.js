@@ -114,7 +114,7 @@ export function texteEvenement(e, composant = null) {
   if (e.champ === "suppression") return "Supprimé";
   if (e.table_cible === "affectation") return texteAffectation(e);
   if (e.table_cible === "commande") return texteCommande(e, composant);
-  if (e.table_cible === "ligne_commande") return `Ligne — ${changement(CHAMPS[e.champ] ?? e.champ, e)}`;
+  if (e.table_cible === "ligne_commande") return `Ligne : ${changement(CHAMPS[e.champ] ?? e.champ, e)}`;
   if (e.table_cible === "composant_attribut") return changement(`Caractéristique ${e.cle_cible.split(":").slice(1).join(":")}`, e);
   if (e.champ?.startsWith("document ")) return e.nouvelle_valeur ? `Document joint : ${e.nouvelle_valeur}` : "Document retiré";
   return changement(CHAMPS[e.champ] ?? e.champ ?? "", e);

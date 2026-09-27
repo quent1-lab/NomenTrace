@@ -89,7 +89,7 @@ function tableComposants() {
       const sousTotal = lignes.reduce((s, l) => s + (l.cout_ligne_ht ?? 0), 0);
       const nom = etat.blocs.find((b) => b.code === bloc)?.nom ?? bloc;
       corps.append(
-        el("tr", { class: "ligne-groupe" }, el("td", { colspan: 9 }, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(bloc) ?? 0)}` }, bloc), ` ${nom} — ${lignes.length} composant(s)`), el("td", { class: "nombre fort" }, formatMontant(sousTotal)), el("td")),
+        el("tr", { class: "ligne-groupe" }, el("td", { colspan: 9 }, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(bloc) ?? 0)}` }, bloc), ` ${nom} (${lignes.length} composant(s))`), el("td", { class: "nombre fort" }, formatMontant(sousTotal)), el("td")),
         ...lignes.map(ligneComposant),
       );
     }
@@ -264,10 +264,10 @@ function rendre() {
       { class: "panneau" },
       el("div", { class: "titre-section" }, el("h2", {}, e.enfants.length ? "Composants affectés directement" : "Composants affectés"), etat.lignes.length ? grouper : null),
       etat.lignes.length
-        ? [el("p", { class: "texte-doux texte-petit" }, "Cliquer sur une quantité affectée pour la modifier ; × retire le composant de l'ensemble."), tableComposants()]
-        : el("p", { class: "texte-doux" }, "Aucun composant n'est encore affecté à cet ensemble. Utiliser « Affecter un composant »."),
+        ? tableComposants()
+        : el("p", { class: "texte-doux" }, "Aucun composant affecté."),
     ),
-    el("section", { class: "panneau" }, el("h2", {}, "Liste de montage"), el("p", { class: "texte-doux texte-petit" }, "Composants qu'il reste à monter. Le stock est celui du composant, tous ensembles confondus."), listeMontage()),
+    el("section", { class: "panneau" }, el("h2", {}, "Liste de montage"), el("p", { class: "texte-doux texte-petit" }, "Le stock est celui du composant, tous ensembles confondus."), listeMontage()),
   );
 }
 
@@ -391,7 +391,7 @@ async function ouvrirSelecteur() {
     });
 
   ouvrirPanneau(`Affecter un composant à ${etat.code}`, [
-    el("p", { class: "texte-doux" }, "« Ailleurs » est la quantité déjà affectée aux autres ensembles : comparée au besoin, elle montre tout de suite une sur-affectation. Entrée ou « Affecter » valide la ligne. Les composants déjà affectés ici sont en tête : leur quantité s'enregistre dès qu'on quitte le champ (0 ou « Retirer » les enlève)."),
+    el("p", { class: "texte-doux" }, "« Ailleurs » : quantité déjà affectée aux autres ensembles. Les composants déjà affectés ici sont en tête ; leur quantité s'enregistre en quittant le champ."),
     recherche,
     compte,
     el(

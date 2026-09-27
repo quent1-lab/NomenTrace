@@ -94,7 +94,7 @@ export async function afficherOngletHistorique(cible) {
     el(
       "div",
       { class: "titre-section" },
-      el("p", { class: "texte-doux" }, "Toutes les modifications du projet, les plus récentes en haut : saisies dans l'interface ou appliquées par un import. Chaque clé mène à l'élément concerné."),
+      el("p", { class: "texte-doux" }, "Toutes les modifications du projet, saisies dans l'interface ou appliquées par un import."),
       exporter,
     ),
     el("div", { class: "filtres" }, texte, choixTable, choixOrigine, date("du", "Du "), date("au", "au ")),

@@ -106,9 +106,9 @@ async function rafraichirEntete() {
     const sante = await api.getSante();
     const projet = sante.nom_projet ?? "";
     document.getElementById("nom-projet").textContent = projet;
-    document.title = projet ? `Nomentrace — ${projet}` : "Nomentrace";
+    document.title = projet ? `Nomentrace · ${projet}` : "Nomentrace";
     etatExport.textContent = sante.export_en_attente
-      ? "Export Excel en attente (fichier ouvert ?)"
+      ? "Export Excel en attente : fichier ouvert dans Excel"
       : "Export Excel à jour";
     etatExport.classList.toggle("etat-export--attente", sante.export_en_attente);
   } catch (erreur) {

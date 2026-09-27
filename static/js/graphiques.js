@@ -95,7 +95,7 @@ export function anneau(canvas, { libelles, valeurs, couleurs, formater }) {
                 .generateLabels(g)
                 .map((etiquette, i) => ({
                   ...etiquette,
-                  text: `${etiquette.text} — ${formater(valeurs[i])}`,
+                  text: `${etiquette.text} · ${formater(valeurs[i])}`,
                 })),
           },
         },

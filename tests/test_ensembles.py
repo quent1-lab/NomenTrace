@@ -96,7 +96,7 @@ def test_message_de_validation_traduit(client_essai: TestClient) -> None:
         f"/api/affectations/{affectation['affectation_id']}", json={"qte": 0}
     )
     assert reponse.status_code == 422
-    assert reponse.json()["erreur"] == "Données invalides — qte : doit être supérieur à 0"
+    assert reponse.json()["erreur"] == "Données invalides (qte : doit être supérieur à 0)."
 
 
 def test_ensemble_vide(client_essai: TestClient) -> None:

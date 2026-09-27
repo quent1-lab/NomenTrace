@@ -113,7 +113,7 @@ async function rendreCalcul() {
       el(
         "p",
         { class: "resultat-calcul" },
-        `${CALCULS[etat.avance.calcul]} — ${a.libelle} : `,
+        `${CALCULS[etat.avance.calcul]} de ${a.libelle} : `,
         el("strong", {}, valeur === null ? "—" : formatAttribut(a, valeur)),
       ),
       el("p", { class: "texte-doux texte-petit" }, detail.join(" ; ") + "."),
@@ -146,7 +146,7 @@ async function rendreRepartition() {
       el("tbody", {}, lignes),
       el("tfoot", {}, el("tr", {}, el("td", { class: "fort" }, "Total"), el("td", { class: "nombre fort" }, formatNombre(total)), el("td"), el("td", { class: "nombre fort" }, formatNombre(somme("nb_pieces"))), el("td", { class: "nombre fort" }, formatMontant(somme("cout_ht"))))),
     ),
-    el("p", { class: "texte-doux texte-petit" }, "Composants non archivés. Cliquer une valeur ouvre la liste des composants filtrée sur elle, avec la caractéristique en colonne."),
+    el("p", { class: "texte-doux texte-petit" }, "Cliquer une valeur ouvre les composants qui la portent."),
   );
 }
 
@@ -181,8 +181,8 @@ export async function afficherAttributs(conteneur, parametres) {
       "div",
       { class: "filtres" },
       select("attribut", null, attributs.map((a) => [a.code, a.actif ? titreAttribut(a) : `${titreAttribut(a)} (désactivé)`]), (v) => changer("attribut", v)),
-      select("bloc", "Tous les blocs", blocs.map((b) => [b.code, `${b.code} — ${b.nom}`]), (v) => changer("bloc", v)),
-      select("ensemble", "Tous les ensembles", ensembles.map((e) => [e.code, `${e.code} — ${e.nom}`]), (v) => changer("ensemble", v)),
+      select("bloc", "Tous les blocs", blocs.map((b) => [b.code, `${b.code} · ${b.nom}`]), (v) => changer("bloc", v)),
+      select("ensemble", "Tous les ensembles", ensembles.map((e) => [e.code, `${e.code} · ${e.nom}`]), (v) => changer("ensemble", v)),
       select("mode_appro", "Tous les modes d'appro", valeursListe("mode_appro", { inclureInactives: true }), (v) => changer("mode_appro", v)),
     ),
     etat.zoneAvancee,

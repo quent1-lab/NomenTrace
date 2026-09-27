@@ -68,7 +68,7 @@ function ouvrirFormulaire(compte, blocs, { surEnregistre }) {
   const zoneContributeur = el(
     "div",
     {},
-    ligneChamp("Blocs fonctionnels", cases("blocs", blocs.map((b) => [b.code, `${b.code} — ${b.nom}`]), u.blocs), {
+    ligneChamp("Blocs fonctionnels", cases("blocs", blocs.map((b) => [b.code, `${b.code} · ${b.nom}`]), u.blocs), {
       aide: "Composants que ce contributeur peut créer et modifier.",
     }),
     ligneChamp("Permissions en plus", cases("permissions", PERMISSIONS, u.permissions)),
@@ -196,9 +196,8 @@ export async function afficherOngletUtilisateurs(cible) {
       el(
         "p",
         { class: "texte-doux" },
-        "Chaque compte entre par un lien d'invitation à usage unique, valable 72 heures, où la personne choisit son mot de passe. " +
-          "Un mot de passe oublié se règle par « Nouveau lien ». Un compte n'est jamais supprimé : le désactiver ferme ses sessions, " +
-          "et son nom reste dans l'historique.",
+        "Chaque compte entre par un lien d'invitation à usage unique, valable 72 heures ; un mot de passe oublié se règle par « Nouveau lien ». " +
+          "Un compte n'est jamais supprimé : désactivé, il ne peut plus entrer et son nom reste dans l'historique.",
       ),
       retour,
       el(
