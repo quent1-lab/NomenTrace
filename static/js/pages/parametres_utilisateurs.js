@@ -68,7 +68,7 @@ function ouvrirFormulaire(compte, blocs, { surEnregistre }) {
   const zoneContributeur = el(
     "div",
     {},
-    ligneChamp("Blocs fonctionnels", cases("blocs", blocs.map((b) => [b.code, `${b.code} · ${b.nom}`]), u.blocs), {
+    ligneChamp("Blocs", cases("blocs", blocs.map((b) => [b.code, `${b.code} · ${b.nom}`]), u.blocs), {
       aide: "Composants que ce contributeur peut créer et modifier.",
     }),
     ligneChamp("Permissions en plus", cases("permissions", PERMISSIONS, u.permissions)),

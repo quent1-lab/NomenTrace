@@ -1,4 +1,4 @@
-"""Reclassement d'un composant dans un autre bloc fonctionnel.
+"""Reclassement d'un composant dans un autre bloc.
 
 Le bloc est figé dans l'identifiant : reclasser crée un nouveau composant dans le bloc
 cible, avec un nouvel identifiant et les mêmes données. L'ancien est archivé et pointe

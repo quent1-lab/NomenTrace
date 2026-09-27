@@ -20,7 +20,7 @@ assembly. The interface and documentation are in French.*
 
 La nomenclature se tient dans un tableau filtrable, modifiable sur place, exportable en
 Excel, avec des caractéristiques libres (tension, matériau…) qu'on crée soi-même. Chaque
-composant appartient à un bloc fonctionnel, qui porte un budget, et peut être monté dans
+composant appartient à un bloc, qui porte un budget, et peut être monté dans
 plusieurs ensembles physiques, rangés en arbre sous le projet ; le budget du projet se
 répartit dans cet arbre, avec des montants verrouillables.
 
@@ -59,7 +59,7 @@ NOMENTRACE_MODE_LOCAL=1 .venv/bin/python -m backend
 ```
 
 Dans l'outil, commencer par Paramètres › Projet (nom, préfixe des identifiants, budget),
-puis Paramètres › Blocs fonctionnels. On peut ensuite saisir les composants.
+puis Paramètres › Blocs. On peut ensuite saisir les composants.
 
 Pour partager l'outil avec une équipe, on le lance sans mode local : chacun entre alors
 avec un compte, créé par un administrateur, et un rôle (lecteur, contributeur de certains

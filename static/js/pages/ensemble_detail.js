@@ -240,7 +240,7 @@ function rendre() {
       remplacerRoute(`/ensembles/${etat.code}`, etat.grouper ? { grouper: 1 } : {});
       rendre();
     },
-  }), "Grouper par bloc fonctionnel");
+  }), "Grouper par bloc");
   etat.conteneur.replaceChildren(
     filAriane(e),
     el(
@@ -378,7 +378,7 @@ async function ouvrirSelecteur() {
       blocs: etat.blocs,
       fournisseurs,
       blocInitial: "",
-      note: `Le composant créé sera affecté à l'ensemble ${etat.code} avec sa quantité besoin. Choisir son bloc fonctionnel : il est indépendant de l'ensemble.`,
+      note: `Le composant créé sera affecté à l'ensemble ${etat.code} avec sa quantité besoin. Choisir son bloc : il est indépendant de l'ensemble.`,
       surCree: async (cree) => {
         try {
           await api.createAffectation(etat.code, { composant_id: cree.id, qte: Math.max(1, cree.qte_besoin) });

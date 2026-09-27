@@ -72,7 +72,7 @@ async function ouvrirReclassement(c, zone, surReclasse) {
     return;
   }
   if (!blocs.length) {
-    zone.replaceChildren(el("p", { class: "texte-doux" }, "Aucun autre bloc fonctionnel ouvert."));
+    zone.replaceChildren(el("p", { class: "texte-doux" }, "Aucun autre bloc ouvert."));
     return;
   }
   const choix = champChoix("bloc_code", blocs.map((b) => [b.code, `${b.code} · ${b.nom}`]), null, { vide: "Bloc cible…" });
@@ -108,7 +108,7 @@ function vueChamps(c, statuts) {
   const lien = c.lien_produit ? lienExterne(c.lien_produit, "ouvrir la page produit") : null;
   return [
     definitions([
-      ["Bloc fonctionnel", c.bloc_code],
+      ["Bloc", c.bloc_code],
       ["Fonction", c.fonction],
       ["Désignation", c.designation],
       ["Réf fabricant", c.ref_fabricant],
@@ -399,7 +399,7 @@ function ouvrirFicheArchivee(fiche, documents, surFermeture) {
       section(
         "Composant",
         definitions([
-          ["Bloc fonctionnel", c.bloc_code],
+          ["Bloc", c.bloc_code],
           ["Fonction", c.fonction],
           ["Désignation", c.designation],
           ["Réf fabricant", c.ref_fabricant],
@@ -474,7 +474,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   const boutonReclasser = el("button", {
     type: "button",
     class: "bouton bouton--discret",
-    title: "Changer de bloc fonctionnel (nouvel identifiant)",
+    title: "Changer de bloc (nouvel identifiant)",
     onclick: () =>
       ouvrirReclassement(c, zoneReclassement, async (nouveau) => {
         await surChangement();

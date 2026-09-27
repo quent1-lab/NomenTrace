@@ -32,7 +32,7 @@ const DESCRIPTION = {
 };
 
 const LIBELLES = {
-  bloc_code: "Bloc fonctionnel",
+  bloc_code: "Bloc",
   fonction: "Fonction",
   designation: "Désignation",
   mode_appro: "Mode d'approvisionnement",
@@ -83,7 +83,7 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
     note ? el("p", { class: "note-formulaire" }, note) : null,
     el("p", { class: "apercu-id" }, "Identifiant attribué : ", apercu, el("span", { class: "texte-doux" }, " (aperçu, confirmé à l'enregistrement)")),
     el("fieldset", {}, el("legend", {}, "Identification"),
-      ligneChamp("Bloc fonctionnel", bloc, { requis: true }),
+      ligneChamp("Bloc", bloc, { requis: true }),
       ligneChamp("Fonction", champTexte("fonction"), { requis: true }),
       ligneChamp("Désignation", champTexte("designation"), { requis: true }),
       ligneChamp("Réf fabricant", champTexte("ref_fabricant")),

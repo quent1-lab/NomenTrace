@@ -8,7 +8,7 @@ d'[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Ce qui est fait
 
-La nomenclature, les deux découpages (blocs fonctionnels et ensembles en arbre), les
+La nomenclature, les deux découpages (blocs et ensembles en arbre), les
 budgets, les achats de la demande de devis à la réception, le stock et le montage, les
 attributs paramétrables, le travail en équipe par modèles Excel, le nettoyage de la base,
 l'historique complet, la recherche globale, les sauvegardes avec leur corbeille de

@@ -16,7 +16,7 @@ import { estAdmin, modeLocal } from "../session.js";
 // [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur.
 const ONGLETS = [
   ["projet", "Projet", afficherOngletProjet, () => true],
-  ["blocs", "Blocs fonctionnels", afficherOngletBlocs, () => true],
+  ["blocs", "Blocs", afficherOngletBlocs, () => true],
   ["ensembles", "Ensembles", afficherOngletEnsembles, () => true],
   ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, () => true],
   ["listes", "Listes de valeurs", afficherListes, estAdmin],

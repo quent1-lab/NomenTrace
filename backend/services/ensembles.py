@@ -23,7 +23,7 @@ CHAMPS_AFFECTATION: frozenset[str] = frozenset({"qte", "commentaire"})
 
 
 def list_repartition(conn: sqlite3.Connection, cumul: bool = False) -> list[dict]:
-    """Répartition de chaque ensemble par bloc fonctionnel (coût, pièces, composants).
+    """Répartition de chaque ensemble par bloc (coût, pièces, composants).
 
     `cumul` : l'ensemble et tous ses sous-ensembles, au lieu de ses affectations seules.
     """

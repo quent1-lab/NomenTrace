@@ -161,7 +161,7 @@ export async function afficherTableau(conteneur) {
   ]);
   const rangs = rangsBlocs(blocs);
   const blocsTries = [...blocs].sort((a, b) => b.cout_ht - a.cout_ht);
-  const histo = panneauGraphique("Coût HT par bloc fonctionnel", "graphique graphique--barres");
+  const histo = panneauGraphique("Coût HT par bloc", "graphique graphique--barres");
   const donut = panneauGraphique("Composants par mode d'approvisionnement", "graphique graphique--anneau");
   conteneur.replaceChildren(
     el("h1", {}, "Tableau de bord"),

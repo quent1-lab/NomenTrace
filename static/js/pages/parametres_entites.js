@@ -44,7 +44,7 @@ function surSoumission(formulaire, envoyer, rafraichir) {
   });
 }
 
-// --- Blocs fonctionnels ---------------------------------------------------------------------
+// --- Blocs ---------------------------------------------------------------------
 
 const DESCRIPTION_BLOC = { nom: "texte", ordre: "entier", budget_cible_ht: "montant", responsable: "texte", description: "texte" };
 const LIBELLES_BLOC = { ordre: "Ordre d'affichage", budget_cible_ht: "Budget cible HT" };
@@ -83,7 +83,7 @@ function ouvrirFormulaireBloc(bloc, ordreSuggere, rafraichir) {
     },
     rafraichir,
   );
-  ouvrirPanneau(creation ? "Nouveau bloc fonctionnel" : `Modifier le bloc ${bloc.code}`, formulaire);
+  ouvrirPanneau(creation ? "Nouveau bloc" : `Modifier le bloc ${bloc.code}`, formulaire);
   (creation ? code : formulaire.elements.namedItem("nom")).focus();
 }
 
@@ -138,7 +138,7 @@ Il ne sera plus proposé à la création de composant. Il peut être réactivé 
     table(
       [["Code"], ["Nom"], ["Ordre", "nombre"], ["Budget cible HT", "nombre"], ["Responsable"], ["Composants", "nombre"], [""]],
       lignes,
-      "Aucun bloc fonctionnel pour l'instant. Créer le premier pour pouvoir saisir des composants.",
+      "Aucun bloc pour l'instant. Créer le premier pour pouvoir saisir des composants.",
     ),
   );
 }

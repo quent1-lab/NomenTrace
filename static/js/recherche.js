@@ -11,7 +11,7 @@ const TYPES = {
   commande: ["Commandes", (cle) => lienRoute(`/achats/${encodeURIComponent(cle)}`)],
   fournisseur: ["Fournisseurs", (cle) => lienRoute(`/fournisseurs/${encodeURIComponent(cle)}`)],
   ensemble: ["Ensembles", (cle) => lienRoute(`/ensembles/${encodeURIComponent(cle)}`)],
-  bloc: ["Blocs fonctionnels", (cle) => lienRoute("/composants", { bloc: cle })],
+  bloc: ["Blocs", (cle) => lienRoute("/composants", { bloc: cle })],
 };
 const LONGUEUR_MIN = 2;
 

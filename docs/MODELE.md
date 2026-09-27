@@ -6,12 +6,12 @@ de `backend/migrations/` ; la table `schema_version` retient la dernière appliq
 L'usage des écrans est décrit dans [UTILISATION.md](UTILISATION.md), l'organisation du
 code dans [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Bloc fonctionnel et ensemble : deux découpages différents
+## Bloc et ensemble : deux découpages différents
 
 Un composant est rangé de deux façons indépendantes.
 
-- **Bloc fonctionnel** : à quoi sert le composant. Un seul bloc par composant, choisi à
-  la création et figé dans l'identifiant (`ROB-ALI-003` appartient au bloc `ALI`). Le
+- **Bloc** : le découpage de suivi du projet (par fonction, par métier, par lot, selon le
+  projet). Un seul bloc par composant, choisi à la création et figé dans l'identifiant (`ROB-ALI-003` appartient au bloc `ALI`). Le
   bloc porte un budget cible et sert au suivi budgétaire.
 - **Ensemble** : où le composant est monté physiquement. Un composant peut entrer dans
   plusieurs ensembles, ou dans aucun ; le lien, appelé **affectation**, porte une
@@ -36,7 +36,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 |---|---|---|
 | `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut` (stockés en texte). | `cle` |
 | `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
-| `bloc` | Blocs fonctionnels, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
+| `bloc` | Blocs, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage` ; `parent_code` désigne l'ensemble parent (un seul, ou aucun pour un ensemble de premier niveau) ; `budget_cible_ht` et `budget_verrouille` pour le budget d'ensemble. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
 | `composant` | Le cœur : quantités, prix relevé, statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
@@ -260,7 +260,7 @@ restauration de la base du projet de toucher aux comptes.
 | `utilisateur` | Identité interne : `identifiant` (adresse mail, jamais utilisée pour écrire), `nom` affiché, unique, `actif`, `derniere_connexion`. | `id` |
 | `identite` | Moyens de connexion d'un utilisateur. Seul `mot_de_passe` existe : `secret` est l'empreinte scrypt `scrypt$N$r$p$sel$hash`. Une connexion par un compte externe s'ajoutera ici. | `id` ; unique (`fournisseur`, `sujet`) |
 | `acces` | Rôle d'un utilisateur dans un projet (`lecteur`, `contributeur`, `administrateur`). Sans ligne, le projet lui est fermé. | `utilisateur_id`, `projet` |
-| `utilisateur_bloc` | Blocs fonctionnels dont un contributeur modifie les composants. | `utilisateur_id`, `projet`, `bloc_code` |
+| `utilisateur_bloc` | Blocs dont un contributeur modifie les composants. | `utilisateur_id`, `projet`, `bloc_code` |
 | `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`. | `utilisateur_id`, `projet`, `permission` |
 | `invitation` | Liens d'invitation : empreinte SHA-256 du jeton, `expire_le` (72 heures), `utilisee_le`. | `id` |
 | `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |

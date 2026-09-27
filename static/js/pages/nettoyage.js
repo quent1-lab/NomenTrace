@@ -11,7 +11,7 @@ import { lienRoute, naviguer } from "../router.js";
 import { estAdmin } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 
-const TYPES_ENTITE = { bloc: "Bloc fonctionnel", ensemble: "Ensemble", fournisseur: "Fournisseur" };
+const TYPES_ENTITE = { bloc: "Bloc", ensemble: "Ensemble", fournisseur: "Fournisseur" };
 const FILTRE_ANOMALIES = "__anomalies";
 const FILTRE_TOUS = "__tous";
 
@@ -223,7 +223,7 @@ async function sectionComposants(cible, blocs, apresLot) {
       "div",
       { class: "filtres" },
       select(optionsControle, filtres.controle, (v) => changer("controle", v), "Contrôle"),
-      select([["", "Tous les blocs"], ...blocs.map((b) => [b.code, `${b.code} · ${b.nom}`])], filtres.bloc, (v) => changer("bloc", v), "Bloc fonctionnel"),
+      select([["", "Tous les blocs"], ...blocs.map((b) => [b.code, `${b.code} · ${b.nom}`])], filtres.bloc, (v) => changer("bloc", v), "Bloc"),
       el("label", { class: "filtre-case" }, caseACocher(false, (v) => changer("archives", v), "Inclure les archivés"), "Inclure les archivés"),
     ),
     actions.zone,

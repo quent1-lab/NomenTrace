@@ -58,7 +58,7 @@ accentuées : par le libellé de `valeur_liste` pour les listes paramétrables, 
 de `static/js/format.js` pour les listes figées.
 
 Trois mots ne se remplacent jamais l'un par l'autre, ni dans le code ni dans l'interface.
-Le bloc est le découpage fonctionnel, un seul par composant, figé dans l'identifiant.
+Le bloc est le découpage de suivi du projet (fonction, métier, lot…), un seul par composant, figé dans l'identifiant.
 L'ensemble est le découpage physique. L'affectation est le lien entre un composant et un
 ensemble, avec sa quantité.
 

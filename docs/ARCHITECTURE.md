@@ -142,7 +142,7 @@ les services.
 |---|---|
 | `composants`, `reclassement` | Composants, identifiants, fiche, reclassement dans un autre bloc |
 | `attributs`, `attributs_requetes`, `attributs_analyse` | Caractéristiques paramétrables, filtres et tris sur attribut, écran d'analyse |
-| `blocs`, `parametres`, `listes` | Blocs fonctionnels, paramètres du projet, listes de valeurs |
+| `blocs`, `parametres`, `listes` | Blocs, paramètres du projet, listes de valeurs |
 | `ensembles`, `ensembles_arbre`, `ensembles_copie` | Ensembles et affectations, arborescence et budgets, duplication |
 | `commandes`, `receptions`, `mouvements`, `demandes_devis` | Achats, réceptions, stock, préparation des demandes de devis |
 | `fournisseurs`, `fournisseurs_liste` | Fournisseurs, comparaison avec une liste Excel |

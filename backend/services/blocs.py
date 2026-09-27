@@ -1,4 +1,4 @@
-"""Blocs fonctionnels."""
+"""Blocs."""
 
 import sqlite3
 from typing import Any

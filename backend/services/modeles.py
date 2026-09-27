@@ -1,4 +1,4 @@
-"""Modèles Excel à remplir par l'équipe : un par bloc fonctionnel ou par ensemble.
+"""Modèles Excel à remplir par l'équipe : un par bloc ou par ensemble.
 
 Le modèle reprend les composants existants avec leurs valeurs actuelles et laisse des lignes
 vides pour les ajouts. Une feuille cachée l'identifie (type, code, date) pour que l'import le
@@ -295,7 +295,7 @@ def generate_modele_bloc(conn: sqlite3.Connection, dossier: Path, code: str) -> 
     lignes = db.fetch_all(
         conn, "SELECT * FROM composant WHERE bloc_code = ? AND archive = 0 ORDER BY id", (code,)
     )
-    titre = f"Modèle du bloc fonctionnel {code} · {bloc['nom']}"
+    titre = f"Modèle du bloc {code} · {bloc['nom']}"
     return _enregistrer(_construire(conn, lignes, "bloc", code, titre), dossier, "bloc", code)
 
 

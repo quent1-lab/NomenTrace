@@ -1,4 +1,4 @@
-// Vue par bloc fonctionnel (#/blocs) : une carte par bloc, budget cible modifiable sur place.
+// Vue par bloc (#/blocs) : une carte par bloc, budget cible modifiable sur place.
 
 import { api } from "../api.js";
 import { formatMontant, formatNombre, formatPourcent, lireNombre, situationBudget } from "../format.js";
@@ -118,7 +118,7 @@ export async function afficherBlocs(conteneur) {
   const blocs = await api.getBlocs();
   const rangs = rangsBlocs(blocs);
   conteneur.replaceChildren(
-    el("h1", {}, "Blocs fonctionnels"),
+    el("h1", {}, "Blocs"),
     el("div", { class: "grille-cartes" }, blocs.map((b) => carte(b, rangs.get(b.code), rafraichir))),
   );
 }

@@ -1,4 +1,4 @@
-"""Routes des blocs fonctionnels."""
+"""Routes des blocs."""
 
 import sqlite3
 from typing import Annotated

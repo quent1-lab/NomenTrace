@@ -87,7 +87,7 @@ local, où il n'y a pas de comptes.
 
 | Méthode | Chemin | Rôle |
 |---|---|---|
-| GET, POST | `/api/blocs` | Blocs fonctionnels ; création avec un code de 2 à 4 lettres |
+| GET, POST | `/api/blocs` | Blocs ; création avec un code de 2 à 4 lettres |
 | PATCH | `/api/blocs/{code}` | Modification (nom, ordre, budget cible, archivage…) |
 | GET | `/api/blocs/{code}/prochain-id` | Identifiant que recevra le prochain composant du bloc |
 | GET | `/api/listes` | Toutes les listes de valeurs paramétrables |

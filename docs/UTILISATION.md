@@ -8,14 +8,14 @@ et les formules de calcul dans [MODELE.md](MODELE.md).
 ## L'idée de départ
 
 Chaque composant reçoit un identifiant qui ne change plus, par exemple `ROB-ALI-003` : le
-préfixe du projet, le code du bloc fonctionnel, un numéro. Tout ce qui arrive ensuite au
+préfixe du projet, le code du bloc, un numéro. Tout ce qui arrive ensuite au
 composant se rattache à cet identifiant : son prix relevé, le devis où il figure, la
 commande, la réception, le stock, l'ensemble où il est monté. Les écrans de l'outil ne
 sont que des lectures différentes de cette même histoire.
 
-Deux découpages coexistent et ne se remplacent pas. Le bloc fonctionnel dit à quoi sert
-un composant (alimentation, perception, mécanique…) ; il est unique et figé dans
-l'identifiant, il porte un budget. L'ensemble dit où le composant est monté physiquement
+Deux découpages coexistent et ne se remplacent pas. Le bloc range un composant dans le
+découpage de suivi du projet, qu'il soit fonctionnel (alimentation, perception…), par
+métier ou par lot ; il est unique et figé dans l'identifiant, il porte un budget. L'ensemble dit où le composant est monté physiquement
 (châssis, coffret, roue gauche) ; un même composant peut entrer dans plusieurs ensembles,
 avec une quantité pour chacun. Ce lien s'appelle une affectation.
 
@@ -61,7 +61,7 @@ un poste (`lancer.bat`), l'outil tourne en mode local : pas de connexion, l'en-t
 indique « Mode local » et tout est permis.
 
 Trois rôles se partagent le travail. Le lecteur consulte tout et télécharge les exports
-Excel, sans rien modifier. Le contributeur modifie les composants des blocs fonctionnels
+Excel, sans rien modifier. Le contributeur modifie les composants des blocs
 qui lui sont attribués (champs, caractéristiques, affectations, documents, imports), fait
 les mouvements de stock et peut proposer un nouveau fournisseur, qui restera « à valider ».
 Deux permissions s'ajoutent au cas par cas : « achats » ouvre les commandes, les
@@ -91,7 +91,7 @@ Paramètres › Projet reçoit le nom du projet, le préfixe des identifiants, l
 total et le taux de TVA par défaut. Le préfixe est obligatoire avant de créer le premier
 composant ; le changer plus tard ne renomme pas les composants existants.
 
-Paramètres › Blocs fonctionnels crée les blocs, chacun avec un code de deux à quatre
+Paramètres › Blocs crée les blocs, chacun avec un code de deux à quatre
 lettres majuscules, un nom, un ordre d'affichage et, si on le souhaite, un budget cible.
 Le code d'un bloc ne se modifie plus après sa création. Un bloc archivé n'accepte plus de
 nouveau composant.
@@ -174,7 +174,7 @@ l'ancien identifiant, qui garde ainsi son histoire.
 L'écran Ensembles présente les ensembles physiques de trois façons, par ses onglets.
 
 L'onglet Cartes montre une carte par ensemble et par sous-ensemble : composants, pièces,
-coût, budget, répartition du coût par bloc fonctionnel, avancement de l'approvisionnement
+coût, budget, répartition du coût par bloc, avancement de l'approvisionnement
 et du montage, statut de montage modifiable directement. La carte d'un ensemble qui a des
 sous-ensembles donne des chiffres cumulés, avec sa part propre en second.
 
@@ -237,7 +237,7 @@ budget d'un parent, ses autres sous-ensembles reçoivent zéro et une alerte s'a
 lui.
 
 Ces budgets d'ensemble ne remplacent pas les budgets de bloc. Les deux découpent le même
-budget total, l'un par partie physique, l'autre par fonction, et ne s'additionnent pas.
+budget total, l'un par partie physique, l'autre par bloc, et ne s'additionnent pas.
 
 ## Acheter
 
@@ -289,7 +289,7 @@ qu'on obtient, par exemple, la liste des tensions présentes dans un projet.
 ## Travailler avec l'équipe par Excel
 
 Tout le monde n'a pas besoin d'ouvrir l'outil. L'écran Imports génère un modèle Excel par
-bloc fonctionnel ou par ensemble : il reprend les composants existants avec leurs valeurs
+bloc ou par ensemble : il reprend les composants existants avec leurs valeurs
 actuelles, des listes déroulantes pour les champs à valeurs fixes, et des lignes vides pour
 les ajouts. Le modèle d'ensemble ajoute une colonne « Qté dans cet ensemble » ; c'est celui
 qu'on donne à la personne qui monte cette partie.
@@ -325,7 +325,7 @@ Dans les tableaux, où la colonne garde un titre fixe, « Marge » est signée :
 vert, négative en rouge quand le budget est dépassé. Le reste à engager, lui, compare le
 budget aux seules commandes passées : il dit combien on peut encore commander.
 
-L'écran Blocs donne une carte par bloc fonctionnel avec son coût, son budget cible
+L'écran Blocs donne une carte par bloc avec son coût, son budget cible
 modifiable sur place, sa marge restante ou son dépassement, et l'avancement des achats.
 
 Paramètres › Historique lit tout le journal du projet, cent lignes par page, les plus
