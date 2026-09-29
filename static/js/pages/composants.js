@@ -403,7 +403,7 @@ async function rendreIndicateurs() {
   const situation = situationBudget(p.ecart_budget_ht, p.budget_ht);
   etat.indicateurs.replaceChildren(
     el("span", {}, "Coût estimé HT ", el("strong", {}, formatMontant(p.cout_ht))),
-    p.budget_ht !== null ? el("span", {}, `${situation.titre} `, el("strong", { class: `ecart--${situation.niveau}` }, situation.montant)) : null,
+    p.budget_ht !== null ? el("span", {}, `${situation.titre} `, el("strong", { class: `ecart--${situation.niveau}` }, situation.montant)) : "",
     el("span", {}, "À chiffrer ", el("strong", { class: p.nb_a_chiffrer ? "texte-surveiller" : "" }, formatNombre(p.nb_a_chiffrer))),
     el("span", {}, "Composants ", el("strong", {}, formatNombre(p.nb_composants))),
   );

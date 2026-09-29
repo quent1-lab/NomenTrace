@@ -145,7 +145,7 @@ export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
         f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger si-admin", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
       ),
     ),
-    f.statut === A_VALIDER ? bandeauValidation(f, recharger) : null,
+    f.statut === A_VALIDER ? bandeauValidation(f, recharger) : "",
     coordonnees(f),
     sectionComposants(f),
     sectionCommandes(f),

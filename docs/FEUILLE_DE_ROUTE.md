@@ -51,6 +51,10 @@ d'argent avant la fin.
 La modification en masse des composants depuis l'écran Composants. L'import Excel couvre ce
 besoin pour l'instant.
 
+Une vue par cartes de la liste des composants sur téléphone (identifiant, désignation,
+bloc, avancement, prix), si l'équipe consulte la liste à l'atelier. Pour l'instant, le
+tableau défile de côté.
+
 Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvrent la fiche du
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.

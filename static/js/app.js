@@ -59,16 +59,13 @@ function routeParametree(chemin) {
   return null;
 }
 
-const TITRES_A_VENIR = {
-};
-
 const contenu = document.getElementById("contenu");
 const etatExport = document.getElementById("etat-export");
 
-function pageAVenir(conteneur, titre) {
+function pageIntrouvable(conteneur) {
   conteneur.replaceChildren(
-    el("h1", {}, titre),
-    el("p", { class: "texte-doux" }, "Cet écran sera disponible dans une prochaine version."),
+    el("h1", {}, "Page introuvable"),
+    el("p", { class: "texte-doux" }, "Cette adresse ne correspond à aucun écran."),
   );
 }
 
@@ -86,14 +83,11 @@ async function afficherRoute({ chemin, parametres }) {
   fermerPanneau({ silencieux: true });
   marquerMenu(chemin);
   const page = ROUTES[chemin] ?? routeParametree(chemin);
-  const racine = "/" + (chemin.split("/")[1] ?? "");
   try {
     if (page) {
       await page(contenu, parametres);
-    } else if (TITRES_A_VENIR[racine]) {
-      pageAVenir(contenu, TITRES_A_VENIR[racine]);
     } else {
-      pageAVenir(contenu, "Page introuvable");
+      pageIntrouvable(contenu);
     }
   } catch (erreur) {
     contenu.replaceChildren(el("h1", {}, "Chargement impossible"));

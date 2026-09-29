@@ -85,7 +85,8 @@ export function anneau(canvas, { libelles, valeurs, couleurs, formater }) {
       cutout: "60%",
       plugins: {
         legend: {
-          position: "right",
+          // Sur téléphone, la légende passe sous l'anneau : à droite, ses libellés seraient coupés.
+          position: window.matchMedia("(max-width: 800px)").matches ? "bottom" : "right",
           labels: {
             color: style.couleur,
             boxWidth: 12,

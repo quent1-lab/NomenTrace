@@ -283,7 +283,7 @@ export async function afficherOngletFournisseurs(cible, parametres = null) {
           recherche,
           nbAValider ? el("label", { class: "filtre-case" }, seulementAValider, `Seulement les ${nbAValider} à valider`) : null,
         )
-      : null,
+      : "",
     tableau,
   );
   filtrer();

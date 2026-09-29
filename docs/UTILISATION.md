@@ -40,6 +40,12 @@ cellule, la saisie, puis Entrée ou un clic ailleurs pour enregistrer, Échap po
 Une erreur (valeur refusée, conflit) s'affiche dans un bandeau rouge sous l'en-tête, avec
 un message en français ; rien n'est enregistré dans ce cas.
 
+Sur un téléphone, le menu devient un tiroir que le même bouton ouvre par-dessus la page ;
+il se referme dès qu'on choisit un écran. Les fiches occupent tout l'écran, chaque libellé
+au-dessus de sa valeur, et les tableaux larges défilent de côté dans leur cadre, la
+première colonne de la liste des composants restant visible. La saisie reste plus
+confortable sur un ordinateur.
+
 Les montants s'affichent en euros, au format français, hors taxes sauf mention contraire.
 Les filtres, le tri et la fiche ouverte sont gardés dans l'adresse de la page : on peut
 la mettre en favori ou l'envoyer à quelqu'un qui a accès au même serveur.

@@ -23,7 +23,8 @@ export function installerRecherche(conteneur) {
   const champ = el("input", {
     class: "recherche-globale__champ",
     type: "search",
-    placeholder: "Rechercher… (Ctrl+F ou /)",
+    // Les raccourcis clavier ne servent à rien sur un téléphone.
+    placeholder: window.matchMedia("(max-width: 800px)").matches ? "Rechercher…" : "Rechercher… (Ctrl+F ou /)",
     "aria-label": "Recherche globale",
     autocomplete: "off",
     role: "combobox",

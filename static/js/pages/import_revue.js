@@ -351,7 +351,7 @@ function rendre() {
           el("span", { class: "texte-doux" }, "Rien n'est modifié tant que la sélection n'est pas appliquée."),
           el("button", { type: "button", class: "bouton bouton--discret si-ecriture", onclick: abandonner }, "Abandonner le dépôt"),
           el("button", { type: "button", class: "bouton si-ecriture", onclick: appliquer }, "Appliquer la sélection"))
-      : null,
+      : "",
   );
 }
 

@@ -33,12 +33,39 @@ function appliquer(etat, bouton) {
   bouton.setAttribute("aria-expanded", String(etat !== "masque"));
 }
 
+// Sur téléphone, le menu est un tiroir par-dessus la page : le bouton l'ouvre ou le ferme, et
+// il se referme dès qu'on choisit un écran ou qu'on touche la page. Même seuil que style.css.
+const TELEPHONE = window.matchMedia("(max-width: 800px)");
+
+function basculerTiroir(bouton, ouvert) {
+  if (ouvert) document.documentElement.dataset.tiroir = "ouvert";
+  else delete document.documentElement.dataset.tiroir;
+  bouton.setAttribute("aria-expanded", String(ouvert));
+  bouton.setAttribute("aria-label", ouvert ? "Fermer le menu" : "Ouvrir le menu");
+}
+
 export function installerMenu() {
   const bouton = document.getElementById("bascule-menu");
+  const menu = document.getElementById("menu-principal");
   appliquer(lireEtat(), bouton);
+  if (TELEPHONE.matches) basculerTiroir(bouton, false);
   bouton.addEventListener("click", () => {
+    if (TELEPHONE.matches) {
+      basculerTiroir(bouton, document.documentElement.dataset.tiroir !== "ouvert");
+      return;
+    }
     const suivant = ETATS[(ETATS.indexOf(document.documentElement.dataset.menu) + 1) % ETATS.length];
     ecrireEtat(suivant);
     appliquer(suivant, bouton);
+  });
+  window.addEventListener("hashchange", () => basculerTiroir(bouton, false));
+  document.addEventListener("click", (e) => {
+    if (document.documentElement.dataset.tiroir && !menu.contains(e.target) && !bouton.contains(e.target)) {
+      basculerTiroir(bouton, false);
+    }
+  });
+  TELEPHONE.addEventListener("change", () => {
+    if (TELEPHONE.matches) basculerTiroir(bouton, false);
+    else appliquer(lireEtat(), bouton);
   });
 }
