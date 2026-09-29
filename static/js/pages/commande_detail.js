@@ -271,7 +271,7 @@ function rendre() {
         documents: etat.documents,
         typeParDefaut: etat.commande.type === "Devis" ? "Devis" : "Bon de commande",
         aide: "Ils apparaissent aussi dans la fiche de chaque composant de la commande.",
-        deposer: (donnees) => api.deposerDocumentsCommande(etat.numero, donnees),
+        deposer: (donnees, progression) => api.deposerDocumentsCommande(etat.numero, donnees, progression),
         depot: aPermission("achats"),
         surChangement: recharger,
       }),

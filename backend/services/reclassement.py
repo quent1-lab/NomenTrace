@@ -2,8 +2,9 @@
 
 Le bloc est figé dans l'identifiant : reclasser crée un nouveau composant dans le bloc
 cible, avec un nouvel identifiant et les mêmes données. L'ancien est archivé et pointe
-vers son remplaçant (remplace_par) ; ses affectations passent au nouveau. Les commandes, le
-stock et les documents restent sur l'ancien identifiant, qui garde ainsi son historique.
+vers son remplaçant (remplace_par). Ce qui décrit la pièce passe au nouveau : affectations et
+documents propres (fiche technique, plan, photo). Les commandes et le stock restent sur
+l'ancien identifiant, qui garde ainsi son historique d'achat.
 """
 
 import sqlite3
@@ -36,6 +37,17 @@ def _reporter_affectations(conn: sqlite3.Connection, ancien: str, nouveau: str) 
         )
 
 
+def _reporter_documents(conn: sqlite3.Connection, ancien: str, nouveau: str) -> None:
+    """Les documents propres à l'ancien composant passent au nouveau, avec une ligne de journal.
+
+    Le fichier reste où il est : seul le rattachement change. Les documents de commande ne
+    sont pas concernés, ils suivent leur commande.
+    """
+    for document in db.fetch_all(conn, "SELECT id FROM document WHERE composant_id = ?", (ancien,)):
+        conn.execute("UPDATE document SET composant_id = ? WHERE id = ?", (nouveau, document["id"]))
+        journal.write_journal(conn, "document", document["id"], "composant_id", ancien, nouveau)
+
+
 def reclasser_composant(conn: sqlite3.Connection, identifiant: str, bloc_cible: str) -> dict:
     """Recrée le composant dans le bloc cible ; renvoie le nouveau composant."""
     with db.transaction(conn):
@@ -58,6 +70,7 @@ def reclasser_composant(conn: sqlite3.Connection, identifiant: str, bloc_cible: 
             (nouveau, identifiant),
         )
         _reporter_affectations(conn, identifiant, nouveau)
+        _reporter_documents(conn, identifiant, nouveau)
         journal.update_with_journal(
             conn,
             "composant",

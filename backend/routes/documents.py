@@ -1,20 +1,18 @@
 """Routes des documents joints aux commandes et aux composants."""
 
-import logging
 import sqlite3
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
 from backend.deps import get_conn
-from backend.erreurs import ErreurMetier
 from backend.models import DocumentModif
 from backend.services import documents
 
 router = APIRouter(prefix="/api", tags=["documents"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
-journal_log = logging.getLogger(__name__)
 
 
 async def _deposer(
@@ -23,21 +21,16 @@ async def _deposer(
     fichiers: list[UploadFile],
     meta: dict,
 ) -> dict:
-    """Enregistre chaque fichier ; un refus n'empêche pas les autres d'être joints."""
-    documents.ensure_cible(conn, meta.get("commande_numero"), meta.get("composant_id"))
-    joints, erreurs = [], []
-    for fichier in fichiers:
-        contenu = await fichier.read(documents.TAILLE_MAX + 1)
-        nom = fichier.filename or "document"
-        try:
-            dossier = request.app.state.dossier_documents
-            joints.append(documents.add_document(conn, dossier, (nom, contenu), meta))
-        except ErreurMetier as erreur:
-            journal_log.info("Document refusé (%s) : %s", nom, erreur.message)
-            erreurs.append(erreur.message)
-    if not joints:
-        raise ErreurMetier(" ".join(erreurs) or "Aucun fichier reçu.")
-    return {"documents": joints, "erreurs": erreurs}
+    """Lit les fichiers reçus, puis les enregistre hors de la boucle d'événements.
+
+    L'empreinte, l'écriture sur disque et la base prennent du temps sur de gros fichiers :
+    faits dans la boucle, ils figeraient le serveur pour tous les utilisateurs.
+    """
+    contenus = [
+        (f.filename or "document", await f.read(documents.TAILLE_MAX + 1)) for f in fichiers
+    ]
+    dossier = request.app.state.dossier_documents
+    return await run_in_threadpool(documents.add_documents, conn, dossier, contenus, meta)
 
 
 @router.get("/commandes/{numero}/documents")

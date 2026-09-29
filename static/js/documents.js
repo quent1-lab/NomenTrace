@@ -3,7 +3,7 @@
 import { api, lienFichierDocument } from "./api.js";
 import { formatDate } from "./format.js";
 import { lienRoute } from "./router.js";
-import { afficherAvertissements, afficherErreur, el, masquerErreur } from "./ui.js";
+import { afficherAvertissements, afficherErreur, afficherInformation, el, masquerErreur, suiviEnvoi } from "./ui.js";
 
 export const TYPES_DOCUMENT = [
   "Devis",
@@ -26,7 +26,7 @@ function ligneDocument(document, { avecSource, surChangement, depot }) {
   const retirer = el("button", {
     type: "button",
     class: "bouton-icone",
-    title: "Retirer le document (le fichier reste dans le dossier des documents)",
+    title: "Retirer le document (le fichier est conservé)",
     onclick: async () => {
       if (!confirm(`Retirer « ${document.nom_origine} » ?`)) return;
       try {
@@ -60,6 +60,7 @@ function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
   const type = el("select", { class: "filtre", "aria-label": "Type de document" }, TYPES_DOCUMENT.map((t) => el("option", { value: t, selected: t === typeParDefaut }, t)));
   const commentaire = el("input", { class: "champ", type: "text", placeholder: "Commentaire (facultatif)" });
   const formulaire = el("form", { class: "formulaire-ligne formulaire-depot" }, fichiers, type, commentaire, el("button", { type: "submit", class: "bouton" }, "Joindre"));
+  const champs = [fichiers, type, commentaire, formulaire.querySelector("button")];
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!fichiers.files.length) return afficherErreur("Choisir au moins un fichier à joindre.");
@@ -67,15 +68,21 @@ function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
     for (const fichier of fichiers.files) donnees.append("fichiers", fichier);
     donnees.append("type_document", type.value);
     if (commentaire.value.trim()) donnees.append("commentaire", commentaire.value.trim());
-    const bouton = formulaire.querySelector("button");
-    bouton.disabled = true;
+    const suivi = suiviEnvoi(fichiers.files.length);
+    formulaire.append(suivi.element);
+    champs.forEach((champ) => { champ.disabled = true; });
     try {
-      const resultat = await deposer(donnees);
+      const resultat = await deposer(donnees, suivi.maj);
       masquerErreur();
       afficherAvertissements(resultat.erreurs);
-      await surChangement();
+      // L'écran a pu être quitté pendant l'envoi : le résultat s'affiche alors dans le bandeau.
+      if (!formulaire.isConnected && !resultat.erreurs?.length) {
+        afficherInformation(`Envoi terminé : ${resultat.documents.length} document(s) joint(s).`);
+      }
+      if (formulaire.isConnected) await surChangement();
     } catch (erreur) {
-      bouton.disabled = false;
+      suivi.element.remove();
+      champs.forEach((champ) => { champ.disabled = false; });
       afficherErreur(erreur);
     }
   });

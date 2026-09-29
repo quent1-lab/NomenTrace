@@ -6,6 +6,7 @@ garde leur chemin relatif, leur taille et leur empreinte SHA-256.
 """
 
 import hashlib
+import logging
 import mimetypes
 import re
 import sqlite3
@@ -16,6 +17,8 @@ from typing import Any
 from backend import db
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
 from backend.services import commandes, composants, journal
+
+journal_log = logging.getLogger(__name__)
 
 TAILLE_MAX: int = 20 * 1024 * 1024
 EXTENSIONS: frozenset[str] = frozenset(
@@ -99,6 +102,26 @@ def ensure_cible(conn: sqlite3.Connection, commande: str | None, composant: str 
         raise ErreurMetier("Un document se rattache à une commande ou à un composant.")
     composants.get_composant(conn, composant)
     return Path("composants") / nom_sur(composant)
+
+
+def add_documents(
+    conn: sqlite3.Connection,
+    dossier: Path,
+    fichiers: list[tuple[str, bytes]],
+    meta: dict[str, Any],
+) -> dict:
+    """Enregistre chaque fichier ; un refus n'empêche pas les autres d'être joints."""
+    ensure_cible(conn, meta.get("commande_numero"), meta.get("composant_id"))
+    joints, erreurs = [], []
+    for fichier in fichiers:
+        try:
+            joints.append(add_document(conn, dossier, fichier, meta))
+        except ErreurMetier as erreur:
+            journal_log.info("Document refusé (%s) : %s", fichier[0], erreur.message)
+            erreurs.append(erreur.message)
+    if not joints:
+        raise ErreurMetier(" ".join(erreurs) or "Aucun fichier reçu.")
+    return {"documents": joints, "erreurs": erreurs}
 
 
 def add_document(

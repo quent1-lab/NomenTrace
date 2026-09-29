@@ -4,7 +4,7 @@ import { api, lienModele } from "../api.js";
 import { formatDate } from "../format.js";
 import { naviguer } from "../router.js";
 import { modeLocal, peutEcrire } from "../session.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherErreur, afficherInformation, el, masquerErreur, suiviEnvoi } from "../ui.js";
 
 export const LIBELLES_CATEGORIES = {
   NOUVELLE_ENTITE: "entité(s) à créer",
@@ -64,15 +64,18 @@ function sectionDepot() {
     for (const fichier of fichiers.files) donnees.append("fichiers", fichier);
     if (auteur?.value.trim()) donnees.append("depose_par", auteur.value.trim());
     const bouton = formulaire.querySelector("button");
+    const suivi = suiviEnvoi(fichiers.files.length, "Analyse");
+    formulaire.append(suivi.element);
     bouton.disabled = true;
-    bouton.textContent = "Analyse en cours…";
     try {
-      const { depot } = await api.deposerImport(donnees);
+      const { depot } = await api.deposerImport(donnees, suivi.maj);
       masquerErreur();
-      naviguer(`/imports/${depot}`);
+      // Écran quitté pendant l'analyse : on n'y ramène pas de force, le bandeau prévient.
+      if (formulaire.isConnected) naviguer(`/imports/${depot}`);
+      else afficherInformation(`Analyse terminée : le dépôt ${depot} est à relire dans Imports.`);
     } catch (erreur) {
+      suivi.element.remove();
       bouton.disabled = false;
-      bouton.textContent = "Analyser";
       afficherErreur(erreur);
     }
   });

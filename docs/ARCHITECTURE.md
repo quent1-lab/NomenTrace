@@ -78,6 +78,13 @@ schéma est plus récent que le code (`db.SchemaTropRecent`) : une version anté
 démarre pas sur une base migrée par une plus récente, ce qui déclenche le retour arrière
 du script de mise à jour.
 
+Les routes qui reçoivent des fichiers (documents joints, imports Excel, liste de
+fournisseurs) sont asynchrones pour lire l'envoi, puis confient le traitement
+(empreinte, écriture, lecture des classeurs) à `run_in_threadpool` : fait dans la boucle
+d'événements, il figerait le serveur pour tous les utilisateurs. Côté navigateur,
+`requeteFormulaire` d'`api.js` passe par `XMLHttpRequest`, seul à donner l'avancement de
+l'envoi, affiché par `ui.suiviEnvoi()`.
+
 ## Comptes et droits
 
 Trois dépendances de `deps.py` s'enchaînent sur chaque route. `get_utilisateur` lit le

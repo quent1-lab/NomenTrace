@@ -1253,6 +1253,38 @@ td.editable:hover {
   color: var(--couleur-texte);
 }
 
+.bandeau-avertissement--info {
+  background: var(--couleur-conforme-fond);
+  border-bottom-color: var(--couleur-conforme);
+}
+
+.bandeau-avertissement--info .bandeau-erreur__fermer {
+  color: var(--couleur-conforme);
+}
+
+.suivi-envoi {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  max-width: 520px;
+}
+
+.suivi-envoi .barre__remplissage {
+  background: var(--couleur-ardoise);
+  transition: width 0.2s linear;
+}
+
+/* Fichiers reçus, serveur au travail : la barre pleine pulse doucement. */
+.suivi-envoi--traitement .barre__remplissage {
+  animation: suivi-traitement 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes suivi-traitement {
+  from { opacity: 1; }
+  to { opacity: 0.45; }
+}
+
 .bandeau-avertissement ul {
   margin: 0;
   padding-left: var(--espace-4);

@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
 from backend.deps import Auteur, Connecte, get_conn
 from backend.models import ApplicationImport
@@ -46,8 +47,13 @@ async def create_depot(
 ) -> dict:
     contenus = [(f.filename or "fichier.xlsx", await f.read()) for f in fichiers]
     dossier = request.app.state.dossier_echange / "imports"
-    depot = import_analyse.analyse_depot(
-        conn, dossier, contenus, auteur or (depose_par or "").strip() or None
+    # La lecture des classeurs est longue : hors de la boucle, pour ne pas figer le serveur.
+    depot = await run_in_threadpool(
+        import_analyse.analyse_depot,
+        conn,
+        dossier,
+        contenus,
+        auteur or (depose_par or "").strip() or None,
     )
     return {"depot": depot}
 

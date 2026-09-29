@@ -44,21 +44,47 @@ async function requete(methode, chemin, corps) {
   return donnees;
 }
 
-// Envoi de fichiers : le navigateur fixe lui-même l'en-tête multipart.
-async function requeteFormulaire(chemin, donnees) {
-  let reponse;
-  try {
-    reponse = await fetch(chemin, { method: "POST", body: donnees });
-  } catch {
-    throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
-  }
-  const resultat = await reponse.json().catch(() => null);
-  if (!reponse.ok) {
-    if (reponse.status === 401) allerConnexion();
-    throw new ErreurApi(resultat?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
-  }
-  ecouteursEcriture.forEach((rappel) => rappel());
-  return resultat;
+// Envoi de fichiers : le navigateur fixe lui-même l'en-tête multipart. XMLHttpRequest plutôt
+// que fetch, seul à donner l'avancement de l'envoi : progression(envoye, total) est appelée
+// pendant l'envoi, puis progression(total, total, true) quand le serveur traite les fichiers.
+// Tant qu'un envoi est en cours, fermer ou recharger l'onglet demande confirmation. Changer
+// d'écran ne l'interrompt pas : le routage par hash ne recharge pas la page.
+let envoisEnCours = 0;
+window.addEventListener("beforeunload", (e) => {
+  if (envoisEnCours > 0) e.preventDefault();
+});
+
+function requeteFormulaire(chemin, donnees, progression = null) {
+  envoisEnCours += 1;
+  return new Promise((resoudre, rejeter) => {
+    const xhr = new XMLHttpRequest();
+    xhr.addEventListener("loadend", () => {
+      envoisEnCours -= 1;
+    });
+    xhr.open("POST", chemin);
+    xhr.responseType = "json";
+    if (progression) {
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) progression(e.loaded, e.total, false);
+      });
+      xhr.upload.addEventListener("load", () => progression(1, 1, true));
+    }
+    xhr.addEventListener("error", () => {
+      rejeter(new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0));
+    });
+    xhr.addEventListener("load", () => {
+      const resultat = xhr.response;
+      if (xhr.status < 200 || xhr.status >= 300) {
+        if (xhr.status === 401) allerConnexion();
+        const message = xhr.status === 413 ? "Envoi trop volumineux : 100 Mo au plus à la fois." : resultat?.erreur;
+        rejeter(new ErreurApi(message ?? `Erreur ${xhr.status}`, xhr.status));
+        return;
+      }
+      ecouteursEcriture.forEach((rappel) => rappel());
+      resoudre(resultat);
+    });
+    xhr.send(donnees);
+  });
 }
 
 // Téléchargement d'un fichier construit par le serveur : renvoie son contenu et son nom.
@@ -206,15 +232,15 @@ export const api = {
 
   getDocumentsCommande: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}/documents`),
   getDocumentsComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}/documents`),
-  deposerDocumentsCommande: (numero, donnees) =>
-    requeteFormulaire(`/api/commandes/${encodeURIComponent(numero)}/documents`, donnees),
-  deposerDocumentsComposant: (id, donnees) =>
-    requeteFormulaire(`/api/composants/${encodeURIComponent(id)}/documents`, donnees),
+  deposerDocumentsCommande: (numero, donnees, progression) =>
+    requeteFormulaire(`/api/commandes/${encodeURIComponent(numero)}/documents`, donnees, progression),
+  deposerDocumentsComposant: (id, donnees, progression) =>
+    requeteFormulaire(`/api/composants/${encodeURIComponent(id)}/documents`, donnees, progression),
   retirerDocument: (id) => requete("DELETE", `/api/documents/${id}`),
 
   getImports: () => requete("GET", "/api/imports"),
   getImport: (depot) => requete("GET", `/api/imports/${depot}`),
-  deposerImport: (donnees) => requeteFormulaire("/api/imports", donnees),
+  deposerImport: (donnees, progression) => requeteFormulaire("/api/imports", donnees, progression),
   appliquerImport: (depot, decisions) => requete("POST", `/api/imports/${depot}/appliquer`, { decisions }),
   abandonnerImport: (depot) => requete("POST", `/api/imports/${depot}/abandonner`),
 

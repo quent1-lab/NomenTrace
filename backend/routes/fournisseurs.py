@@ -4,6 +4,7 @@ import sqlite3
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from backend.arrondi import round_output
 from backend.deps import Connecte, get_conn
@@ -30,8 +31,10 @@ def create_fournisseur(corps: FournisseurCreation, conn: Conn, utilisateur: Conn
 
 @router.post("/comparaison")
 async def compare_liste(fichier: Annotated[UploadFile, File()], conn: Conn) -> dict:
-    lus = fournisseurs_liste.read_liste(await fichier.read())
-    return fournisseurs_liste.compare_liste(conn, lus)
+    contenu = await fichier.read()
+    # Lecture du classeur hors de la boucle d'événements, pour ne pas figer le serveur.
+    lus = await run_in_threadpool(fournisseurs_liste.read_liste, contenu)
+    return await run_in_threadpool(fournisseurs_liste.compare_liste, conn, lus)
 
 
 @router.post("/comparaison/appliquer")

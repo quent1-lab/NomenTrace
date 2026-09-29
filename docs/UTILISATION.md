@@ -161,13 +161,16 @@ lieu, pas au moment où ils ont été saisis.
 
 Les documents propres au composant (fiche technique, plan, photo) se déposent dans la
 section Documents. La même section montre aussi, en lecture, les documents des commandes
-où le composant figure.
+où le composant figure. Pendant un envoi, une barre donne l'avancement, puis signale
+l'enregistrement sur le serveur ; on peut changer d'écran sans l'interrompre, un bandeau
+annonce alors la fin. Fermer ou recharger l'onglet demande confirmation tant qu'un envoi
+est en cours. Il en va de même pour les commandes et pour les fichiers Excel de l'équipe.
 
 « Archiver » retire le composant des listes et des calculs sans rien effacer. « Reclasser »
 le déplace dans un autre bloc : comme le bloc fait partie de l'identifiant, l'outil crée
-un nouveau composant avec les mêmes données, reporte les affectations, et archive
-l'ancien en pointant vers le nouveau. Les commandes, le stock et les documents restent à
-l'ancien identifiant, qui garde ainsi son histoire.
+un nouveau composant avec les mêmes données, y reporte les affectations et les documents
+(fiche technique, plan, photo), et archive l'ancien en pointant vers le nouveau. Les
+commandes et le stock restent à l'ancien identifiant, qui garde ainsi son histoire d'achat.
 
 ## Organiser les ensembles
 

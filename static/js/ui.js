@@ -44,7 +44,46 @@ document.getElementById("bandeau-avertissement-fermer").addEventListener("click"
 export function afficherAvertissements(messages) {
   if (!messages?.length) return;
   document.getElementById("bandeau-avertissement-liste").replaceChildren(...messages.map((m) => el("li", {}, m)));
+  bandeauAvertissement.classList.remove("bandeau-avertissement--info");
   bandeauAvertissement.hidden = false;
+}
+
+// Message de fin d'une opération menée en arrière-plan, quand son écran a été quitté.
+export function afficherInformation(message) {
+  document.getElementById("bandeau-avertissement-liste").replaceChildren(el("li", {}, message));
+  bandeauAvertissement.classList.add("bandeau-avertissement--info");
+  bandeauAvertissement.hidden = false;
+}
+
+function tailleLisible(octets) {
+  if (octets < 1024 * 1024) return `${Math.max(1, Math.round(octets / 1024))} ko`;
+  return `${(octets / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
+}
+
+// Suivi d'un envoi de fichiers : barre et texte. maj(envoye, total, traitement) suit les
+// rappels de progression de l'API ; traitement : les fichiers sont arrivés, le serveur travaille.
+export function suiviEnvoi(nbFichiers, verbeTraitement = "Enregistrement") {
+  const remplissage = el("div", { class: "barre__remplissage" });
+  const texte = el("span", { class: "texte-doux texte-petit" });
+  const element = el("div", { class: "suivi-envoi", role: "status", "aria-live": "polite" }, el("div", { class: "barre" }, remplissage), texte);
+  const fichiers = `${nbFichiers} fichier${nbFichiers > 1 ? "s" : ""}`;
+  function maj(envoye, total, traitement) {
+    if (traitement) {
+      largeur(remplissage, 100);
+      element.classList.add("suivi-envoi--traitement");
+      texte.textContent = `${verbeTraitement} de ${fichiers}…`;
+      return;
+    }
+    if (!total) {
+      texte.textContent = `Envoi de ${fichiers}…`;
+      return;
+    }
+    const pourcent = Math.round((100 * envoye) / total);
+    largeur(remplissage, pourcent);
+    texte.textContent = `Envoi de ${fichiers} : ${tailleLisible(envoye)} sur ${tailleLisible(total)} (${pourcent} %)`;
+  }
+  maj(0, 0, false);
+  return { element, maj };
 }
 
 // Propose au navigateur d'enregistrer un fichier reçu du serveur ({ contenu, nom }).

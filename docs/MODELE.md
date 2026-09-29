@@ -71,8 +71,10 @@ journal (après sauvegarde) le laisse avec une seule ligne, qui trace la purge.
 
 **Reclassement.** Le bloc est figé dans l'identifiant : reclasser un composant dans un
 autre bloc crée un nouveau composant (nouvel identifiant, mêmes données). L'ancien est
-archivé et sa colonne `remplace_par` désigne le nouveau ; ses affectations passent au
-nouveau, ses commandes, son stock et ses documents lui restent.
+archivé et sa colonne `remplace_par` désigne le nouveau. Ses affectations et ses documents
+propres (fiche technique, plan, photo) passent au nouveau, le fichier restant où il est ;
+ses commandes et son stock lui restent. La migration 016 a rattaché de même les documents
+des composants reclassés auparavant.
 
 Des déclencheurs refusent, sur `composant` et `mouvement_stock`, une valeur absente de
 `valeur_liste`. Les listes figées (statuts de commande, de ligne, de montage, base de
