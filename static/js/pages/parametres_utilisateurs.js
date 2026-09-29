@@ -18,6 +18,7 @@ const ROLES = [
 const PERMISSIONS = [
   ["achats", "Achats : commandes, réceptions, demandes de devis, fiches fournisseurs"],
   ["ensembles", "Ensembles : créer et modifier l'arborescence (hors budgets)"],
+  ["attributs", "Attributs : créer et modifier les attributs et leurs valeurs"],
 ];
 
 function lienInvitation(jeton) {

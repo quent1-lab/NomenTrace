@@ -423,7 +423,7 @@ class InvitationAcceptation(ModeleSecret):
 
 
 Role = Literal["lecteur", "contributeur", "administrateur"]
-Permission = Literal["achats", "ensembles"]
+Permission = Literal["achats", "ensembles", "attributs"]
 
 
 class UtilisateurCreation(Modele):

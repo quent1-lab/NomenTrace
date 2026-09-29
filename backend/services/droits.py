@@ -7,10 +7,11 @@ pas s'ouvrir par oubli. Un test vérifie que toutes les routes y sont déclarée
 Les rôles :
 - lecteur : lit tout, télécharge les exports Excel ;
 - contributeur : écrit sur les composants des blocs qui lui sont attribués, fait les
-  mouvements de stock et les imports (ligne par ligne, dans ses blocs). Deux permissions
+  mouvements de stock et les imports (ligne par ligne, dans ses blocs). Trois permissions
   s'ajoutent au cas par cas : « achats » (commandes, réceptions, demandes de devis,
-  modification des fournisseurs) et « ensembles » (création et modification de
-  l'arborescence). Tout contributeur peut proposer un fournisseur, qui reste « à valider » ;
+  modification des fournisseurs), « ensembles » (création et modification de
+  l'arborescence) et « attributs » (création et modification des attributs et de leurs
+  valeurs). Tout contributeur peut proposer un fournisseur, qui reste « à valider » ;
 - administrateur : tout, dont les paramètres, les budgets, les utilisateurs, le nettoyage,
   les sauvegardes et la validation des fournisseurs.
 """
@@ -32,7 +33,8 @@ ROLES: tuple[str, ...] = (LECTEUR, CONTRIBUTEUR, ADMINISTRATEUR)
 
 ACHATS = "achats"
 ENSEMBLES = "ensembles"
-PERMISSIONS: tuple[str, ...] = (ACHATS, ENSEMBLES)
+ATTRIBUTS = "attributs"
+PERMISSIONS: tuple[str, ...] = (ACHATS, ENSEMBLES, ATTRIBUTS)
 
 
 class AccesRefuse(ErreurMetier):
@@ -108,7 +110,9 @@ def exiger_ecriture(utilisateur: Utilisateur) -> None:
 
 def exiger_permission(utilisateur: Utilisateur, permission: str) -> None:
     if not utilisateur.a_permission(permission):
-        libelle = {ACHATS: "les achats", ENSEMBLES: "les ensembles"}[permission]
+        libelle = {ACHATS: "les achats", ENSEMBLES: "les ensembles", ATTRIBUTS: "les attributs"}[
+            permission
+        ]
         raise AccesRefuse(f"Vous n'avez pas la permission de modifier {libelle}.")
 
 
@@ -215,6 +219,7 @@ ECRITURE = Regle("ecriture")
 ADMIN = Regle("admin")
 ACHAT = Regle("permission", ACHATS)
 ENSEMBLE = Regle("permission", ENSEMBLES)
+ATTRIBUT = Regle("permission", ATTRIBUTS)
 COMPOSANT = Regle("composant", parametre="identifiant")
 
 REGLES: dict[tuple[str, str], Regle] = {
@@ -243,10 +248,10 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("GET", "/api/recherche"): LECTURE,
     # Attributs et listes
     ("GET", "/api/attributs"): LECTURE,
-    ("POST", "/api/attributs"): ADMIN,
-    ("PATCH", "/api/attributs/{code}"): ADMIN,
-    ("POST", "/api/attributs/{code}/valeurs"): ADMIN,
-    ("PATCH", "/api/attributs/{code}/valeurs/{valeur:path}"): ADMIN,
+    ("POST", "/api/attributs"): ATTRIBUT,
+    ("PATCH", "/api/attributs/{code}"): ATTRIBUT,
+    ("POST", "/api/attributs/{code}/valeurs"): ATTRIBUT,
+    ("PATCH", "/api/attributs/{code}/valeurs/{valeur:path}"): ATTRIBUT,
     ("GET", "/api/attributs/{code}/repartition"): LECTURE,
     ("GET", "/api/attributs/{code}/calcul"): LECTURE,
     ("GET", "/api/listes"): LECTURE,

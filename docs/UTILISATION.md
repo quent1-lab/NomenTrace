@@ -70,11 +70,12 @@ Trois rôles se partagent le travail. Le lecteur consulte tout et télécharge l
 Excel, sans rien modifier. Le contributeur modifie les composants des blocs
 qui lui sont attribués (champs, caractéristiques, affectations, documents, imports), fait
 les mouvements de stock et peut proposer un nouveau fournisseur, qui restera « à valider ».
-Deux permissions s'ajoutent au cas par cas : « achats » ouvre les commandes, les
-réceptions, les demandes de devis et la modification des fiches fournisseurs ; « ensembles
-» ouvre la création et la modification de l'arborescence des ensembles. L'administrateur a
-tout le reste : paramètres, blocs, listes, attributs, budgets, validation des
-fournisseurs, nettoyage, sauvegardes et comptes.
+Trois permissions s'ajoutent au cas par cas : « achats » ouvre les commandes, les
+réceptions, les demandes de devis et la modification des fiches fournisseurs ;
+« ensembles » ouvre la création et la modification de l'arborescence des ensembles ;
+« attributs » ouvre Paramètres › Attributs, pour créer et modifier les attributs et leurs
+listes de valeurs. L'administrateur a tout le reste : paramètres, blocs, listes, budgets,
+validation des fournisseurs, nettoyage, sauvegardes et comptes.
 
 Ce qui n'est pas permis n'apparaît pas : la fiche d'un composant d'un autre bloc s'ouvre
 en lecture seule, les boutons de commande disparaissent sans la permission « achats ».

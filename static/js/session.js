@@ -15,6 +15,7 @@ export async function chargerSession() {
   corps.toggle("est-admin", estAdmin());
   corps.toggle("peut-achats", aPermission("achats"));
   corps.toggle("peut-ensembles", aPermission("ensembles"));
+  corps.toggle("peut-attributs", aPermission("attributs"));
   return courante;
 }
 
@@ -43,7 +44,7 @@ export function peutEcrire() {
   return ["contributeur", "administrateur"].includes(utilisateur()?.role);
 }
 
-// Permission supplémentaire d'un contributeur : « achats » ou « ensembles ».
+// Permission supplémentaire d'un contributeur : « achats », « ensembles » ou « attributs ».
 export function aPermission(permission) {
   return estAdmin() || (peutEcrire() && utilisateur().permissions.includes(permission));
 }

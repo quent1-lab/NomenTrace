@@ -481,6 +481,7 @@ CAS: tuple[tuple[str, str, dict | None, int, int, int], ...] = (
     ("POST", "/api/fournisseurs", {"nom": "Nouveau"}, 403, 201, 201),
     ("PATCH", "/api/fournisseurs/Mouser", {"pays": "France"}, 403, 403, 200),
     ("POST", "/api/blocs", {"code": "NEW", "nom": "Nouveau"}, 403, 403, 201),
+    ("POST", "/api/attributs", {"libelle": "Tension", "type": "nombre"}, 403, 403, 201),
     ("POST", "/api/listes/criticite", {"libelle": "Majeure"}, 403, 403, 201),
     ("PATCH", "/api/parametres", {"nom_projet": "Renommé"}, 403, 403, 200),
     ("GET", "/api/sauvegardes", None, 403, 403, 200),
@@ -558,6 +559,54 @@ def test_permission_achats(app: FastAPI) -> None:
     assert client.patch("/api/fournisseurs/Proposé", json={"statut": "Valide"}).status_code == 403
     assert client.patch("/api/fournisseurs/Proposé", json={"pays": "France"}).status_code == 200
     assert client.delete("/api/fournisseurs/Proposé").status_code == 403
+
+
+def test_permission_attributs(app: FastAPI, admin: TestClient) -> None:
+    creer_compte(app, "attr@ecole.test", "contributeur", blocs=("IHM",), permissions=("attributs",))
+    client = connecter(app, "attr@ecole.test")
+    cree = client.post("/api/attributs", json={"libelle": "Matériau", "type": "liste"})
+    assert cree.status_code == 201, cree.text
+    code = cree.json()["code"]
+    assert client.patch(f"/api/attributs/{code}", json={"libelle": "Matière"}).status_code == 200
+    valeur = client.post(f"/api/attributs/{code}/valeurs", json={"libelle": "Acier"})
+    assert valeur.status_code == 201
+    chemin_valeur = f"/api/attributs/{code}/valeurs/Acier"
+    assert client.patch(chemin_valeur, json={"ordre": 2}).status_code == 200
+    # La permission ne va pas au-delà des attributs.
+    assert client.post("/api/listes/criticite", json={"libelle": "Majeure"}).status_code == 403
+    assert client.get("/api/session").json()["utilisateur"]["permissions"] == ["attributs"]
+    # Sans la permission, un contributeur ne crée pas d'attribut.
+    creer_compte(app, "simple@ecole.test", "contributeur", blocs=("IHM",))
+    simple = connecter(app, "simple@ecole.test")
+    refus = simple.post("/api/attributs", json={"libelle": "Poids", "type": "nombre"})
+    assert refus.status_code == 403
+
+
+def test_permissions_gardees_par_la_mise_a_jour_des_comptes(tmp_path: Path) -> None:
+    """La base des comptes reconstruite pour la permission « attributs » garde les autres."""
+    anciennes = tmp_path / "migrations"
+    anciennes.mkdir()
+    for numero, fichier in db.list_migrations(config.DOSSIER_MIGRATIONS_COMPTES):
+        if numero == 1:
+            (anciennes / fichier.name).write_bytes(fichier.read_bytes())
+    conn = db.connect(tmp_path / "comptes.db")
+    db.apply_migrations(conn, anciennes)
+    conn.execute("INSERT INTO utilisateur (identifiant, nom) VALUES ('a@ecole.test', 'A')")
+    conn.execute(
+        "INSERT INTO acces (utilisateur_id, projet, role) VALUES (1, 'essai', 'contributeur')"
+    )
+    conn.execute(
+        "INSERT INTO utilisateur_permission (utilisateur_id, projet, permission)"
+        " VALUES (1, 'essai', 'achats')"
+    )
+    db.apply_migrations(conn, config.DOSSIER_MIGRATIONS_COMPTES)
+    conn.execute(
+        "INSERT INTO utilisateur_permission (utilisateur_id, projet, permission)"
+        " VALUES (1, 'essai', 'attributs')"
+    )
+    permissions = conn.execute("SELECT permission FROM utilisateur_permission ORDER BY 1")
+    assert [p[0] for p in permissions] == ["achats", "attributs"]
+    conn.close()
 
 
 def test_permission_ensembles_sans_budget(app: FastAPI, admin: TestClient) -> None:

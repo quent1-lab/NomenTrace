@@ -11,16 +11,17 @@ import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
-import { estAdmin, modeLocal } from "../session.js";
+import { aPermission, estAdmin, modeLocal } from "../session.js";
 
-// [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur.
+// [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur,
+// sauf Attributs, ouvert aussi aux contributeurs qui ont la permission.
 const ONGLETS = [
   ["projet", "Projet", afficherOngletProjet, () => true],
   ["blocs", "Blocs", afficherOngletBlocs, () => true],
   ["ensembles", "Ensembles", afficherOngletEnsembles, () => true],
   ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, () => true],
   ["listes", "Listes de valeurs", afficherListes, estAdmin],
-  ["attributs", "Attributs", afficherOngletAttributs, estAdmin],
+  ["attributs", "Attributs", afficherOngletAttributs, () => aPermission("attributs")],
   ["utilisateurs", "Utilisateurs", afficherOngletUtilisateurs, () => estAdmin() && !modeLocal()],
   ["historique", "Historique", afficherOngletHistorique, () => true],
   ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes, () => true],

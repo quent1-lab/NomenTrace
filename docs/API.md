@@ -36,8 +36,8 @@ valide, une route répond 401 ; avec une session mais sans le droit demandé, 40
 accessibles sans connexion ; `/api/sante` ne donne alors ni le nom du projet ni l'état de
 l'export.
 
-La condition de chaque route (lecture, écriture, permission « achats » ou « ensembles »,
-bloc du composant concerné, administrateur) est écrite dans la table `REGLES` de
+La condition de chaque route (lecture, écriture, permission « achats », « ensembles » ou
+« attributs », bloc du composant concerné, administrateur) est écrite dans la table `REGLES` de
 `backend/services/droits.py`, qui fait référence. Une route absente de cette table est
 réservée à l'administrateur.
 

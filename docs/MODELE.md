@@ -263,7 +263,7 @@ restauration de la base du projet de toucher aux comptes.
 | `identite` | Moyens de connexion d'un utilisateur. Seul `mot_de_passe` existe : `secret` est l'empreinte scrypt `scrypt$N$r$p$sel$hash`. Une connexion par un compte externe s'ajoutera ici. | `id` ; unique (`fournisseur`, `sujet`) |
 | `acces` | Rôle d'un utilisateur dans un projet (`lecteur`, `contributeur`, `administrateur`). Sans ligne, le projet lui est fermé. | `utilisateur_id`, `projet` |
 | `utilisateur_bloc` | Blocs dont un contributeur modifie les composants. | `utilisateur_id`, `projet`, `bloc_code` |
-| `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`. | `utilisateur_id`, `projet`, `permission` |
+| `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`, `attributs`. | `utilisateur_id`, `projet`, `permission` |
 | `invitation` | Liens d'invitation : empreinte SHA-256 du jeton, `expire_le` (72 heures), `utilisee_le`. | `id` |
 | `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |
 
