@@ -1,5 +1,5 @@
 """Paramètres de l'instance : nom du projet, préfixe d'identifiant, budget, TVA par défaut,
-champs obligatoires des composants."""
+champs obligatoires des composants, coordonnées de l'établissement (demandes de devis)."""
 
 import sqlite3
 from typing import Any
@@ -16,6 +16,12 @@ CLES: frozenset[str] = frozenset(
         "taux_tva_defaut",
         "champs_obligatoires",
         "champs_obligatoires_portee",
+        "etablissement_nom",
+        "adresse_livraison",
+        "adresse_facturation",
+        "contact_achats_nom",
+        "contact_achats_mail",
+        "contact_achats_tel",
     }
 )
 

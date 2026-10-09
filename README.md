@@ -98,4 +98,4 @@ licence fait foi.
 
 Les données que vous saisissez dans l'outil (base, exports, documents) vous appartiennent :
 la licence porte sur le code, pas sur elles. Les bibliothèques utilisées (FastAPI,
-Uvicorn, Pydantic, openpyxl, Chart.js) gardent leurs propres licences, compatibles.
+Uvicorn, Pydantic, openpyxl, fpdf2, Chart.js) gardent leurs propres licences, compatibles.

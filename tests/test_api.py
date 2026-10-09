@@ -176,7 +176,9 @@ def test_commande_numero_genere_et_engagement(client_essai: TestClient) -> None:
     ligne = {"composant_id": "ESSAI-TR-001", "qte_commandee": 4, "pu_ht_devis": 1.13}
     assert client_essai.post("/api/commandes/CMD-001/lignes", json=ligne).status_code == 201
     assert client_essai.get("/api/pilotage").json()["montant_engage_ht"] == 0
-    client_essai.patch("/api/commandes/CMD-001", json={"statut": "Commande", "port_ht": 10})
+    frais = {"type_frais": "Livraison", "montant_ht": 10}
+    assert client_essai.post("/api/commandes/CMD-001/frais", json=frais).status_code == 201
+    client_essai.patch("/api/commandes/CMD-001", json={"statut": "Commande"})
     assert client_essai.get("/api/pilotage").json()["montant_engage_ht"] == 14.52
     assert client_essai.get("/api/commandes").json()[0]["total_ht"] == 14.52
 

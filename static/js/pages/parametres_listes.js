@@ -16,6 +16,7 @@ const LISTES = {
     titre: "Types de mouvement de stock",
     aide: "Chaque type impose une entrée ou une sortie, ou laisse le sens libre (inventaire). Les types de réception et de montage sont gérés par l'outil.",
   },
+  type_frais: { titre: "Types de frais", aide: "Frais ajoutés à une commande : livraison, douane, facturation…" },
 };
 
 const SENS = [["Entree", "Entrée"], ["Sortie", "Sortie"], ["", "Libre"]];

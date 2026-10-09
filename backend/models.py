@@ -294,7 +294,6 @@ class CommandeCreation(Modele):
     date_commande: str | None = Field(default=None, pattern=MOTIF_DATE)
     livraison_annoncee: str | None = Field(default=None, pattern=MOTIF_DATE)
     date_reception_reelle: str | None = Field(default=None, pattern=MOTIF_DATE)
-    port_ht: float = Field(default=0, ge=0)
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
     reference_externe: str | None = None
     lien_document: Lien = None
@@ -311,10 +310,21 @@ class CommandeModif(Modele):
     date_commande: str | None = Field(default=None, pattern=MOTIF_DATE)
     livraison_annoncee: str | None = Field(default=None, pattern=MOTIF_DATE)
     date_reception_reelle: str | None = Field(default=None, pattern=MOTIF_DATE)
-    port_ht: float | None = Field(default=None, ge=0)
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
     reference_externe: str | None = None
     lien_document: Lien = None
+    commentaire: str | None = None
+
+
+class FraisCreation(Modele):
+    type_frais: str = Field(min_length=1)
+    montant_ht: float = Field(ge=0)
+    commentaire: str | None = None
+
+
+class FraisModif(Modele):
+    type_frais: str | None = Field(default=None, min_length=1)
+    montant_ht: float | None = Field(default=None, ge=0)
     commentaire: str | None = None
 
 
@@ -408,6 +418,13 @@ class ParametresModif(Modele):
     taux_tva_defaut: float | None = Field(default=None, ge=0, lt=1)
     champs_obligatoires: list[ChampObligatoire] | None = None
     champs_obligatoires_portee: Literal["achat", "tous"] | None = None
+    # Coordonnées de l'établissement, reprises dans les demandes de devis.
+    etablissement_nom: str | None = Field(default=None, max_length=120)
+    adresse_livraison: str | None = Field(default=None, max_length=500)
+    adresse_facturation: str | None = Field(default=None, max_length=500)
+    contact_achats_nom: str | None = Field(default=None, max_length=120)
+    contact_achats_mail: str | None = Field(default=None, max_length=120)
+    contact_achats_tel: str | None = Field(default=None, max_length=40)
 
 
 # --- Comptes ------------------------------------------------------------------------------------

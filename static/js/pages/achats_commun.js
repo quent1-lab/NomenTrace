@@ -17,13 +17,12 @@ const DESCRIPTION = {
   date_commande: "texte",
   livraison_annoncee: "texte",
   date_reception_reelle: "texte",
-  port_ht: "montant",
   taux_tva: "taux",
   reference_externe: "texte",
   lien_document: "texte",
   commentaire: "texte",
 };
-const LIBELLES = { port_ht: "Port HT", taux_tva: "Taux de TVA" };
+const LIBELLES = { taux_tva: "Taux de TVA" };
 
 function champDate(nom, valeur) {
   return el("input", { class: "champ champ--date", type: "date", name: nom, value: valeur ?? "" });
@@ -54,10 +53,7 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
       ligneChamp("Livraison annoncée", champDate("livraison_annoncee", c.livraison_annoncee)),
       ligneChamp("Réception réelle", champDate("date_reception_reelle", c.date_reception_reelle)),
     ),
-    el("fieldset", {}, el("legend", {}, "Montants"),
-      ligneChamp("Port HT", champNombre("port_ht", c.port_ht ?? 0, 2)),
-      ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tva * 100, 1)),
-    ),
+    ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tva * 100, 1), { aide: "Les frais (livraison, douane…) se saisissent sur la commande." }),
     ligneChamp("Lien du document", champTexte("lien_document", c.lien_document, { type: "url" })),
     ligneChamp("Commentaire", champZone("commentaire", c.commentaire)),
     el("div", { class: "actions-formulaire" },
@@ -69,7 +65,7 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
     e.preventDefault();
     const lu = lireFormulaire(formulaire, DESCRIPTION, LIBELLES);
     if (lu.erreur) return afficherErreur(lu.erreur);
-    const valeurs = { ...lu.valeurs, port_ht: lu.valeurs.port_ht ?? 0 };
+    const valeurs = lu.valeurs;
     const modifs = creation ? valeurs : Object.fromEntries(Object.entries(valeurs).filter(([k, v]) => v !== c[k]));
     try {
       const resultat = creation ? await api.createCommande(modifs) : await api.patchCommande(c.numero, modifs);

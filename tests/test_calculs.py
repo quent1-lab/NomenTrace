@@ -143,8 +143,12 @@ def test_bloc_sans_budget_a_un_ecart_nul(conn_vide: sqlite3.Connection) -> None:
 def test_devis_n_engage_rien(conn_vide: sqlite3.Connection) -> None:
     identifiant = _composant(conn_vide, pu_releve=10, qte_besoin=2)
     conn_vide.execute(
-        "INSERT INTO commande (numero, type, statut, port_ht) VALUES"
-        " ('CMD-001', 'Devis', 'Devis recu', 5), ('CMD-002', 'Commande', 'Commande', 7)"
+        "INSERT INTO commande (numero, type, statut) VALUES"
+        " ('CMD-001', 'Devis', 'Devis recu'), ('CMD-002', 'Commande', 'Commande')"
+    )
+    conn_vide.execute(
+        "INSERT INTO frais_commande (commande_numero, type_frais, montant_ht) VALUES"
+        " ('CMD-001', 'Livraison', 5), ('CMD-002', 'Livraison', 4), ('CMD-002', 'Douane', 3)"
     )
     for numero in ("CMD-001", "CMD-002"):
         conn_vide.execute(

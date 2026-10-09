@@ -44,6 +44,7 @@ TABLES: tuple[str, ...] = (
     "affectation",
     "commande",
     "ligne_commande",
+    "frais_commande",
     "mouvement_stock",
     "document",
     "journal",

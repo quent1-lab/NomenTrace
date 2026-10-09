@@ -20,6 +20,7 @@ LISTES: dict[str, str] = {
     "statut_choix": "Statut de choix",
     "criticite": "Criticité",
     "type_mouvement": "Type de mouvement",
+    "type_frais": "Type de frais",
 }
 
 # Où chaque liste est utilisée : pour refuser la suppression d'une valeur en service.
@@ -29,6 +30,7 @@ UTILISATIONS: dict[str, tuple[str, str]] = {
     "statut_choix": ("composant", "statut_choix"),
     "criticite": ("composant", "criticite"),
     "type_mouvement": ("mouvement_stock", "type_mouvement"),
+    "type_frais": ("frais_commande", "type_frais"),
 }
 
 

@@ -1,22 +1,33 @@
 """Routes des commandes, de leurs lignes et des mouvements de stock."""
 
 import sqlite3
-from typing import Annotated
+from datetime import date
+from typing import Annotated, Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Response
 
 from backend.arrondi import round_output
-from backend.deps import Auteur, get_conn
+from backend.deps import Auteur, UtilisateurRequete, get_conn
 from backend.models import (
     CommandeCreation,
     CommandeModif,
     DemandesDevis,
+    FraisCreation,
+    FraisModif,
     LigneCreation,
     LigneModif,
     MouvementCreation,
     Reception,
 )
-from backend.services import commandes, demandes_devis, mouvements, receptions
+from backend.services import (
+    commandes,
+    demande_document,
+    demandes_devis,
+    frais,
+    mouvements,
+    receptions,
+)
 
 router = APIRouter(prefix="/api", tags=["achats et stock"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -61,6 +72,59 @@ def update_commande(numero: str, corps: CommandeModif, conn: Conn) -> dict:
 def archive_commande(numero: str, conn: Conn) -> dict:
     commandes.archive_commande(conn, numero)
     return {"statut": "archivé"}
+
+
+TYPES_DOCUMENT = {
+    "pdf": (".pdf", "application/pdf", demande_document.build_pdf),
+    "xlsx": (
+        ".xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        demande_document.build_excel,
+    ),
+}
+
+
+@router.get("/commandes/{numero}/demande-devis.{format_document}")
+def read_demande_devis(
+    numero: str,
+    format_document: Literal["pdf", "xlsx"],
+    conn: Conn,
+    utilisateur: UtilisateurRequete,
+    avant: Annotated[date | None, Query()] = None,
+) -> Response:
+    """Document à envoyer au fournisseur : la liste des articles à chiffrer."""
+    extension, type_mime, construire = TYPES_DOCUMENT[format_document]
+    demandeur = demande_document.demandeur(conn, utilisateur)
+    donnees = demande_document.get_donnees(
+        conn, numero, demandeur, avant.isoformat() if avant else None
+    )
+    nom = demande_document.nom_fichier(donnees, extension)
+    return Response(
+        construire(donnees),
+        media_type=type_mime,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nom)}"},
+    )
+
+
+@router.get("/commandes/{numero}/frais")
+def read_frais(numero: str, conn: Conn) -> list[dict]:
+    return round_output(frais.list_frais(conn, numero))
+
+
+@router.post("/commandes/{numero}/frais", status_code=201)
+def create_frais(numero: str, corps: FraisCreation, conn: Conn) -> dict:
+    return round_output(frais.create_frais(conn, numero, corps.model_dump()))
+
+
+@router.patch("/frais/{identifiant}")
+def update_frais(identifiant: int, corps: FraisModif, conn: Conn) -> dict:
+    return round_output(frais.patch_frais(conn, identifiant, corps.model_dump(exclude_unset=True)))
+
+
+@router.delete("/frais/{identifiant}")
+def delete_frais(identifiant: int, conn: Conn) -> dict:
+    frais.delete_frais(conn, identifiant)
+    return {"statut": "retiré"}
 
 
 @router.get("/commandes/{numero}/lignes")

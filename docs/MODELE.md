@@ -35,7 +35,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | Table | Rôle | Clé |
 |---|---|---|
 | `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut`, `champs_obligatoires` (champs de base séparés par des virgules), `champs_obligatoires_portee` (`achat` ou `tous`), stockés en texte. | `cle` |
-| `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
+| `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`, `type_frais`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
 | `bloc` | Blocs, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage` ; `parent_code` désigne l'ensemble parent (un seul, ou aucun pour un ensemble de premier niveau) ; `budget_cible_ht` et `budget_verrouille` pour le budget d'ensemble. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
@@ -44,7 +44,8 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `attribut_valeur` | Valeurs possibles d'un attribut de type liste ; renommer ne change que le libellé. | `attribut_code`, `code` |
 | `composant_attribut` | Valeur d'un attribut pour un composant : `valeur_nombre` pour le type nombre, `valeur_texte` sinon (texte, code de liste, `1`/`0` pour un booléen). Une seule valeur par couple. | `composant_id`, `attribut_code` |
 | `affectation` | Composant × ensemble, avec la quantité. | `id` ; unique (`ensemble_code`, `composant_id`) |
-| `commande` | Devis et commandes, avec `port_ht` et `taux_tva`. | `numero` (`CMD-NNN`) |
+| `commande` | Devis et commandes, avec `taux_tva`. `port_ht` est obsolète et vaut toujours 0 : le port est devenu un frais (migration 018). | `numero` (`CMD-NNN`) |
+| `frais_commande` | Frais d'une commande : `type_frais` (liste paramétrable), `montant_ht`, `commentaire`. | `id` |
 | `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
 | `mouvement_stock` | Entrées et sorties de stock, montages (avec `ensemble_code`). | `id` |
 | `document` | Fichiers joints (devis, factures…) rangés dans `echange/documents/`, rattachés à une commande et/ou un composant. | `id` |
@@ -123,7 +124,7 @@ statut_montage    Non commence | En cours | Monte | Valide
 
 **Listes paramétrables**, propres au projet suivi, dans la table `valeur_liste` et gérées
 depuis l'écran Paramètres : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`,
-`type_mouvement` (avec son sens imposé, ou libre). Des déclencheurs refusent une valeur
+`type_mouvement` (avec son sens imposé, ou libre), `type_frais`. Des déclencheurs refusent une valeur
 absente de la liste ; l'API refuse en plus une valeur désactivée pour une nouvelle saisie.
 Le code stocké ne change jamais : renommer une valeur ne modifie que son libellé.
 
@@ -185,8 +186,8 @@ Budget et pilotage (`v_pilotage`, `v_bloc`) :
 
 ```
 cout_ht              = somme des total_ht                  (coût estimé)
-montant_engage_ht    = global  : lignes engagées + port_ht des commandes engagées
-                       par bloc : lignes engagées seules (le port n'est pas ventilé,
+montant_engage_ht    = global  : lignes engagées + frais des commandes engagées
+                       par bloc : lignes engagées seules (les frais ne sont pas ventilés,
                        la somme des blocs peut donc être inférieure au global)
 reste_a_engager_ht   = budget_ht - montant_engage_ht       (peut être négatif)
 consommation_pct     = cout_ht / budget_ht * 100           (estimé, pas engagé)

@@ -21,7 +21,6 @@ CHAMPS_COMMANDE: frozenset[str] = frozenset(
         "date_commande",
         "livraison_annoncee",
         "date_reception_reelle",
-        "port_ht",
         "taux_tva",
         "reference_externe",
         "lien_document",

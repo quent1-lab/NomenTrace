@@ -7,8 +7,8 @@ import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, li
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, nomAuteur } from "../session.js";
-import { afficherAvertissements, afficherErreur, el, lienExterne, lienProduit, masquerErreur } from "../ui.js";
-import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE } from "../valeurs.js";
+import { afficherAvertissements, afficherErreur, el, enregistrerFichier, lienExterne, lienProduit, masquerErreur } from "../ui.js";
+import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE, valeursListe } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { lienFournisseur } from "./fournisseurs_commun.js";
 
@@ -129,10 +129,91 @@ function tableLignes() {
       "tfoot",
       {},
       el("tr", {}, el("td", { colspan: 8, class: "nombre" }, "Articles HT"), el("td", { class: "nombre" }, formatMontant(c.montant_articles_ht)), el("td", { colspan: 3 })),
-      el("tr", {}, el("td", { colspan: 8, class: "nombre" }, "Port HT"), el("td", { class: "nombre" }, formatMontant(c.port_ht)), el("td", { colspan: 3 })),
+      etat.frais.map(ligneFrais),
       el("tr", {}, el("td", { colspan: 8, class: "nombre fort" }, "Total HT"), el("td", { class: "nombre fort" }, formatMontant(c.total_ht)), el("td", { colspan: 3, class: "texte-doux" }, `TTC ${formatMontant(c.total_ttc)}`)),
     ),
   );
+}
+
+// --- Document de demande de devis --------------------------------------------------------
+
+function sectionDemande() {
+  const avant = el("input", { class: "champ champ--date", type: "date", "aria-label": "Réponse souhaitée avant le" });
+  const telecharger = (format) => async () => {
+    try {
+      enregistrerFichier(await api.telechargerDemandeDevis(etat.numero, format, avant.value || null));
+      masquerErreur();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
+  return el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Demande au fournisseur"),
+    el("p", { class: "texte-doux texte-petit" }, "Articles à chiffrer, sans prix ; l'en-tête reprend l'établissement saisi dans Paramètres › Projet."),
+    el(
+      "div",
+      { class: "formulaire-ligne" },
+      el("label", { class: "ligne-compacte" }, "Réponse souhaitée avant le ", avant),
+      el("button", { type: "button", class: "bouton", onclick: telecharger("pdf") }, "Télécharger le PDF"),
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: telecharger("xlsx") }, "Télécharger l'Excel"),
+    ),
+  );
+}
+
+// --- Frais (livraison, douane, facturation…) ----------------------------------------------
+
+function ligneFrais(frais) {
+  const achats = aPermission("achats");
+  const montant = el("td", { class: achats ? "nombre editable" : "nombre" }, formatMontant(frais.montant_ht));
+  if (achats) {
+    montant.addEventListener("click", () =>
+      editerCellule(montant, { champ: "montant_ht", type: "montant" }, frais, {
+        enregistrer: (modifs) => api.patchFrais(frais.id, modifs),
+        terminer: (reussi) => reussi && recharger(),
+      }),
+    );
+  }
+  const retirer = async () => {
+    if (!confirm(`Retirer le frais « ${frais.type_libelle ?? frais.type_frais} » de ${etat.numero} ?`)) return;
+    try {
+      await api.deleteFrais(frais.id);
+      masquerErreur();
+      await recharger();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
+  const intitule = frais.commentaire ? `${frais.type_libelle ?? frais.type_frais} (${frais.commentaire})` : (frais.type_libelle ?? frais.type_frais);
+  return el(
+    "tr",
+    {},
+    el("td", { colspan: 8, class: "nombre" }, intitule),
+    montant,
+    el("td", { colspan: 2 }),
+    el("td", { class: "nombre" }, achats ? el("button", { type: "button", class: "bouton-icone", title: "Retirer le frais", onclick: retirer }, "×") : null),
+  );
+}
+
+function formulaireFrais() {
+  const type = el("select", { class: "champ", "aria-label": "Type de frais" }, valeursListe("type_frais").map(([code, texte]) => el("option", { value: code }, texte)));
+  const montant = el("input", { class: "champ champ--nombre", type: "text", inputmode: "decimal", placeholder: "Montant HT", "aria-label": "Montant HT" });
+  const commentaire = el("input", { class: "champ", type: "text", placeholder: "Commentaire (facultatif)", "aria-label": "Commentaire" });
+  const formulaire = el("form", { class: "formulaire-ligne formulaire-ajout" }, type, montant, commentaire, el("button", { type: "submit", class: "bouton" }, "Ajouter le frais"));
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const valeur = lireNombre(montant.value);
+    if (valeur === null || Number.isNaN(valeur) || valeur < 0) return afficherErreur(`Montant illisible : « ${montant.value} ».`);
+    try {
+      await api.createFrais(etat.numero, { type_frais: type.value, montant_ht: valeur, commentaire: commentaire.value.trim() || null });
+      masquerErreur();
+      await recharger();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  return formulaire;
 }
 
 // --- Réception ---------------------------------------------------------------------------
@@ -255,16 +336,19 @@ function rendre() {
       ),
     ),
     infos(),
+    etat.lignes.length && !etat.reception ? sectionDemande() : "",
     etat.reception
       ? modeReception()
       : el(
           "section",
           { class: "panneau" },
           el("h2", {}, "Lignes"),
-          etat.lignes.length ? tableLignes() : el("p", { class: "texte-doux" }, "Aucune ligne pour l'instant."),
+          etat.lignes.length || etat.frais.length ? tableLignes() : el("p", { class: "texte-doux" }, "Aucune ligne pour l'instant."),
+          el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %.`),
           aPermission("achats") ? el("h3", { class: "sous-titre" }, "Ajouter une ligne") : null,
           aPermission("achats") ? formulaireAjout() : null,
-          el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %.`),
+          aPermission("achats") ? el("h3", { class: "sous-titre" }, "Ajouter un frais") : null,
+          aPermission("achats") ? formulaireFrais() : null,
         ),
     el(
       "div",
@@ -293,13 +377,14 @@ async function archiver() {
 }
 
 async function recharger() {
-  const [commande, lignes, composants, documents] = await Promise.all([
+  const [commande, lignes, frais, composants, documents] = await Promise.all([
     api.getCommande(etat.numero),
     api.getLignes(etat.numero),
+    api.getFrais(etat.numero),
     api.getComposants({ tri: "id" }),
     api.getDocumentsCommande(etat.numero),
   ]);
-  Object.assign(etat, { commande, lignes, composants, documents });
+  Object.assign(etat, { commande, lignes, frais, composants, documents });
   rendre();
 }
 

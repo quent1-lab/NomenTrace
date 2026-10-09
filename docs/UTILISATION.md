@@ -96,7 +96,9 @@ n'est écrasé sans qu'on le sache.
 
 Paramètres › Projet reçoit le nom du projet, le préfixe des identifiants, le budget HT
 total et le taux de TVA par défaut. Le préfixe est obligatoire avant de créer le premier
-composant ; le changer plus tard ne renomme pas les composants existants.
+composant ; le changer plus tard ne renomme pas les composants existants. La section
+Établissement reçoit le nom de l'établissement, les adresses de livraison et de facturation
+et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs.
 
 La même page règle les champs obligatoires des composants : lien produit, fournisseur,
 référence fabricant, fabricant, prix relevé, au choix. Par défaut, la règle ne vaut que pour
@@ -269,8 +271,19 @@ livré, refusé. Seules les commandes de type Commande au statut commandé ou li
 dans le montant engagé ; un devis n'engage rien.
 
 « + Nouvelle commande » crée une commande vide chez un fournisseur. Sa page permet d'ajouter
-des lignes (composant, quantité, PU HT du devis), de renseigner les dates, le port et le
+des lignes (composant, quantité, PU HT du devis), des frais (livraison, douane, frais de
+facturation…, selon la liste Types de frais des paramètres), de renseigner les dates et le
 taux de TVA, de joindre les documents (devis, bon de commande, facture, bon de livraison).
+Les frais entrent dans le total de la commande et, une fois celle-ci passée, dans le
+montant engagé ; ils ne sont pas répartis entre les blocs. Un fournisseur peut recevoir
+autant de commandes que nécessaire, chacune avec son numéro.
+
+Dès qu'une commande a des lignes, sa page propose le document à envoyer au fournisseur, en
+PDF ou en Excel : la liste des articles à chiffrer (référence, désignation, fabricant,
+quantité, lien produit), sans prix, avec une date de réponse souhaitée facultative. L'en-tête
+reprend l'établissement, ses adresses et son contact achats, saisis dans Paramètres ›
+Projet, la personne connectée comme demandeur et le numéro de compte client noté sur la
+fiche du fournisseur.
 
 « Préparer les demandes de devis » part de l'autre bout. Le panneau rassemble les
 composants en mode Achat dont il reste des pièces à commander, dans un cadre par

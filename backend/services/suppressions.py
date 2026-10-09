@@ -144,9 +144,10 @@ def _delete_composant(conn: sqlite3.Connection, identifiant: str) -> None:
 
 
 def _delete_commande(conn: sqlite3.Connection, numero: str) -> list[dict]:
-    """Supprime une commande, ses lignes et ses documents ; renvoie les fichiers à jeter."""
+    """Supprime une commande, ses lignes, frais et documents ; renvoie les fichiers à jeter."""
     ligne = db.fetch_one(conn, "SELECT * FROM commande WHERE numero = ?", (numero,))
     lignes = db.fetch_all(conn, "SELECT * FROM ligne_commande WHERE commande_numero = ?", (numero,))
+    frais = db.fetch_all(conn, "SELECT * FROM frais_commande WHERE commande_numero = ?", (numero,))
     documents = db.fetch_all(
         conn,
         "SELECT id, nom_origine, chemin, empreinte FROM document WHERE commande_numero = ?",
@@ -154,8 +155,9 @@ def _delete_commande(conn: sqlite3.Connection, numero: str) -> list[dict]:
     )
     conn.execute("DELETE FROM document WHERE commande_numero = ?", (numero,))
     conn.execute("DELETE FROM ligne_commande WHERE commande_numero = ?", (numero,))
+    conn.execute("DELETE FROM frais_commande WHERE commande_numero = ?", (numero,))
     conn.execute("DELETE FROM commande WHERE numero = ?", (numero,))
-    resume = _resume({**(ligne or {}), "lignes": lignes, "documents": documents})
+    resume = _resume({**(ligne or {}), "lignes": lignes, "frais": frais, "documents": documents})
     journal.write_journal(conn, "commande", numero, CHAMP_SUPPRESSION, resume, None)
     return documents
 

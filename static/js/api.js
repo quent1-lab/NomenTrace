@@ -101,7 +101,9 @@ async function requeteFichier(chemin) {
     throw new ErreurApi(donnees?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
   }
   const disposition = reponse.headers.get("Content-Disposition") ?? "";
-  const nom = disposition.match(/filename="?([^";]+)"?/)?.[1] ?? "nomentrace";
+  // filename* (encodé, accents permis) d'abord, sinon filename.
+  const encode = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const nom = encode ? decodeURIComponent(encode) : (disposition.match(/filename="?([^";]+)"?/)?.[1] ?? "nomentrace");
   return { contenu: await reponse.blob(), nom };
 }
 
@@ -224,6 +226,12 @@ export const api = {
   createLigne: (numero, valeurs) => requete("POST", `/api/commandes/${encodeURIComponent(numero)}/lignes`, valeurs),
   patchLigne: (numero, id, modifs) => requete("PATCH", `/api/commandes/${encodeURIComponent(numero)}/lignes/${id}`, modifs),
   deleteLigne: (numero, id) => requete("DELETE", `/api/commandes/${encodeURIComponent(numero)}/lignes/${id}`),
+  telechargerDemandeDevis: (numero, format, avant) =>
+    requeteFichier(avecParametres(`/api/commandes/${encodeURIComponent(numero)}/demande-devis.${format}`, { avant })),
+  getFrais: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}/frais`),
+  createFrais: (numero, frais) => requete("POST", `/api/commandes/${encodeURIComponent(numero)}/frais`, frais),
+  patchFrais: (id, modifs) => requete("PATCH", `/api/frais/${id}`, modifs),
+  deleteFrais: (id) => requete("DELETE", `/api/frais/${id}`),
   receptionner: (numero, reception) => requete("POST", `/api/commandes/${encodeURIComponent(numero)}/reception`, reception),
 
   getStock: () => requete("GET", "/api/stock"),

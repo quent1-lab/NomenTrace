@@ -151,6 +151,10 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | GET, POST | `/api/commandes` | Commandes et devis, filtrables par `statut` et `fournisseur` ; création |
 | GET, PATCH, DELETE | `/api/commandes/{numero}` | Détail, modification, archivage |
 | GET, POST | `/api/commandes/{numero}/lignes` | Lignes d'une commande ; ajout |
+| GET, POST | `/api/commandes/{numero}/frais` | Frais d'une commande (livraison, douane…) ; ajout |
+| PATCH, DELETE | `/api/frais/{id}` | Type, montant, commentaire d'un frais ; retrait |
+| GET | `/api/commandes/{numero}/demande-devis.pdf` | Demande de devis à envoyer au fournisseur ; `avant` : date de réponse souhaitée |
+| GET | `/api/commandes/{numero}/demande-devis.xlsx` | La même demande, en Excel |
 | PATCH, DELETE | `/api/commandes/{numero}/lignes/{id}` | Modifier, supprimer une ligne sans réception |
 | POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock |
 | GET, POST | `/api/demandes-devis` | Composants à commander par fournisseur ; création des demandes |

@@ -3,7 +3,7 @@
 
 import { api } from "../api.js";
 import { formatDate, formatNombre } from "../format.js";
-import { champChoix, champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { lienRoute, remplacerRoute } from "../router.js";
 import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
@@ -40,6 +40,47 @@ function message(texte, classe = "message-info") {
 
 const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux" };
 const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut" };
+
+// Coordonnées reprises dans l'en-tête des demandes de devis envoyées aux fournisseurs.
+const CHAMPS_ETABLISSEMENT = [
+  ["etablissement_nom", "Nom de l'établissement", "texte"],
+  ["adresse_livraison", "Adresse de livraison", "zone"],
+  ["adresse_facturation", "Adresse de facturation", "zone"],
+  ["contact_achats_nom", "Contact achats", "texte"],
+  ["contact_achats_mail", "Adresse mail du contact", "texte"],
+  ["contact_achats_tel", "Téléphone du contact", "texte"],
+];
+
+function sectionEtablissement(parametres) {
+  const retour = el("div");
+  const formulaire = el(
+    "form",
+    { class: "formulaire formulaire--page", novalidate: true },
+    CHAMPS_ETABLISSEMENT.map(([cle, libelle, type]) =>
+      ligneChamp(libelle, type === "zone" ? champZone(cle, parametres[cle] ?? "") : champTexte(cle, parametres[cle] ?? "")),
+    ),
+    el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
+    retour,
+  );
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const modifs = {};
+    for (const [cle] of CHAMPS_ETABLISSEMENT) {
+      const valeur = formulaire.elements.namedItem(cle).value.trim() || null;
+      if (valeur !== (parametres[cle] ?? null)) modifs[cle] = valeur;
+    }
+    if (!Object.keys(modifs).length) return retour.replaceChildren(message("Rien à enregistrer : aucune valeur n'a changé."));
+    try {
+      Object.assign(parametres, await api.patchParametres(modifs));
+      masquerErreur();
+      retour.replaceChildren(message("Coordonnées enregistrées.", "message-ok"));
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  if (!estAdmin()) formulaire.querySelectorAll("input, textarea, button").forEach((champ) => { champ.disabled = true; });
+  return el("section", { class: "panneau" }, el("h2", {}, "Établissement"), el("p", { class: "texte-doux texte-petit" }, "Repris dans l'en-tête des demandes de devis."), formulaire);
+}
 
 // Champs de base qu'un projet peut rendre obligatoires ; même liste que services/obligatoires.py.
 const CHAMPS_OBLIGATOIRES = [
@@ -155,7 +196,7 @@ async function afficherOngletProjet(cible) {
       afficherErreur(erreur);
     }
   });
-  cible.replaceChildren(formulaire, sectionObligatoires(parametres));
+  cible.replaceChildren(formulaire, sectionEtablissement(parametres), sectionObligatoires(parametres));
 }
 
 // --- Export et sauvegardes --------------------------------------------------------------------
