@@ -5,10 +5,13 @@ from datetime import date
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
+from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from backend.arrondi import round_output
 from backend.deps import Auteur, UtilisateurRequete, get_conn
+from backend.erreurs import ErreurMetier
 from backend.models import (
     CommandeCreation,
     CommandeModif,
@@ -19,6 +22,7 @@ from backend.models import (
     LigneModif,
     MouvementCreation,
     Reception,
+    RetenuesSuivi,
 )
 from backend.services import (
     commandes,
@@ -27,6 +31,7 @@ from backend.services import (
     frais,
     mouvements,
     receptions,
+    suivi_achats,
 )
 
 router = APIRouter(prefix="/api", tags=["achats et stock"])
@@ -102,6 +107,35 @@ def read_demande_devis(
     return Response(
         construire(donnees),
         media_type=type_mime,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nom)}"},
+    )
+
+
+TYPE_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.post("/suivi-achats/analyse")
+async def analyse_suivi(fichier: Annotated[UploadFile, File()], conn: Conn) -> dict:
+    """Ce que le classeur de suivi de l'établissement ferait changer, sans rien écrire."""
+    contenu = await fichier.read()
+    return round_output(await run_in_threadpool(suivi_achats.analyse, conn, contenu))
+
+
+@router.post("/suivi-achats/appliquer")
+async def appliquer_suivi(
+    fichier: Annotated[UploadFile, File()], retenues: Annotated[str, Form()], conn: Conn
+) -> Response:
+    """Applique les changements retenus et renvoie le classeur complété, sous le même nom."""
+    try:
+        choix = RetenuesSuivi.model_validate_json(retenues).root
+    except ValidationError as erreur:
+        raise ErreurMetier("Choix du suivi illisibles.") from erreur
+    contenu = await fichier.read()
+    complete = await run_in_threadpool(suivi_achats.appliquer, conn, contenu, choix)
+    nom = fichier.filename or "suivi des achats.xlsx"
+    return Response(
+        complete,
+        media_type=TYPE_XLSX,
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nom)}"},
     )
 

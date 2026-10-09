@@ -148,6 +148,7 @@ les services.
 | Service | Domaine |
 |---|---|
 | `composants`, `reclassement` | Composants, identifiants, fiche, reclassement dans un autre bloc |
+| `suivi_achats` | Classeur de suivi de l'établissement, en aller-retour : colonnes repérées par leur titre, couleurs lues dans la légende, référence en colonne masquée |
 | `frais`, `demande_document` | Frais d'une commande ; document de demande de devis (PDF par fpdf2, Excel par openpyxl) |
 | `obligatoires` | Champs obligatoires des composants, vérifiés à la création, à la modification et à l'import |
 | `attributs`, `attributs_requetes`, `attributs_analyse` | Caractéristiques paramétrables, filtres et tris sur attribut, écran d'analyse |

@@ -7,6 +7,7 @@ import { afficherErreur, el } from "../ui.js";
 import { STATUTS_COMMANDE } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { ouvrirDemandesDevis } from "./achats_devis.js";
+import { ouvrirSuivi } from "./achats_suivi.js";
 
 let etat = null;
 
@@ -86,6 +87,7 @@ export async function afficherAchats(conteneur, parametres) {
       el(
         "div",
         { class: "actions" },
+        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirSuivi(() => afficherAchats(conteneur, parametres)) }, "Suivi de l'établissement"),
         el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirDemandesDevis().catch(afficherErreur) }, "Préparer les demandes de devis"),
         el("button", { type: "button", class: "bouton si-achats", onclick: creer }, "+ Nouvelle commande"),
       ),

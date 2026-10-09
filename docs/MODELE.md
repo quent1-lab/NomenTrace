@@ -45,6 +45,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `composant_attribut` | Valeur d'un attribut pour un composant : `valeur_nombre` pour le type nombre, `valeur_texte` sinon (texte, code de liste, `1`/`0` pour un booléen). Une seule valeur par couple. | `composant_id`, `attribut_code` |
 | `affectation` | Composant × ensemble, avec la quantité. | `id` ; unique (`ensemble_code`, `composant_id`) |
 | `commande` | Devis et commandes, avec `taux_tva`. `port_ht` est obsolète et vaut toujours 0 : le port est devenu un frais (migration 018). | `numero` (`CMD-NNN`) |
+| `commande` (suivi) | Champs appris du suivi de l'établissement : `date_transmission_suivi`, `montant_commande_ht` (montant réel, frais compris), `date_commande_confirmee`, `livraison_confirmee`, `date_reception_annoncee`, `commentaire_suivi`. | |
 | `frais_commande` | Frais d'une commande : `type_frais` (liste paramétrable), `montant_ht`, `commentaire`. | `id` |
 | `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
 | `mouvement_stock` | Entrées et sorties de stock, montages (avec `ensemble_code`). | `id` |
@@ -186,7 +187,8 @@ Budget et pilotage (`v_pilotage`, `v_bloc`) :
 
 ```
 cout_ht              = somme des total_ht                  (coût estimé)
-montant_engage_ht    = global  : lignes engagées + frais des commandes engagées
+montant_engage_ht    = global  : par commande engagée, montant_commande_ht s'il est connu
+                       (montant réel saisi par l'établissement), sinon lignes + frais
                        par bloc : lignes engagées seules (les frais ne sont pas ventilés,
                        la somme des blocs peut donc être inférieure au global)
 reste_a_engager_ht   = budget_ht - montant_engage_ht       (peut être négatif)

@@ -280,6 +280,40 @@ function modeReception() {
 
 // --- Page -----------------------------------------------------------------------------------
 
+// Date d'une commande transmise au suivi de l'établissement : confirmée (police bleue dans
+// son fichier) ou estimée. Hors suivi, la mention n'aurait pas de sens.
+function confirmation(date, confirmee) {
+  if (!date || !etat.commande.date_transmission_suivi) return null;
+  return el("span", { class: "texte-doux texte-petit" }, confirmee ? " (confirmée)" : " (estimée)");
+}
+
+// Ce que le suivi des achats de l'établissement a appris de la commande.
+function blocSuivi(c) {
+  if (!c.date_transmission_suivi) {
+    if (!aPermission("achats") || !etat.lignes.length) return null;
+    const transmettre = async () => {
+      try {
+        await api.patchCommande(c.numero, { date_transmission_suivi: aujourdhui() });
+        masquerErreur();
+        await recharger();
+      } catch (erreur) {
+        afficherErreur(erreur);
+      }
+    };
+    return el(
+      "p",
+      { class: "suivi-commande" },
+      el("span", { class: "texte-doux" }, "Pas encore transmise au suivi de l'établissement. "),
+      el("button", { type: "button", class: "bouton bouton--petit", onclick: transmettre }, "Transmettre au suivi"),
+    );
+  }
+  const elements = [`Transmise au suivi le ${formatDate(c.date_transmission_suivi)}`];
+  if (c.montant_commande_ht !== null) elements.push(`montant de la commande ${formatMontant(c.montant_commande_ht)} HT`);
+  if (c.date_reception_annoncee) elements.push(`réception annoncée le ${formatDate(c.date_reception_annoncee)}`);
+  if (c.commentaire_suivi) elements.push(`« ${c.commentaire_suivi} »`);
+  return el("p", { class: "suivi-commande texte-doux" }, `${elements.join(" · ")}.`);
+}
+
 function infos() {
   const c = etat.commande;
   const statut = el("select", { class: "filtre", "aria-label": "Statut de la commande", disabled: !aPermission("achats") }, STATUTS_COMMANDE.map((s) => el("option", { value: s, selected: s === c.statut }, libelle(s))));
@@ -301,8 +335,8 @@ function infos() {
     ["Référence externe", c.reference_externe ?? "—"],
     ["Demande", formatDate(c.date_demande) || "—"],
     ["Devis reçu", formatDate(c.date_reception_devis) || "—"],
-    ["Commandée le", formatDate(c.date_commande) || "—"],
-    ["Livraison annoncée", [formatDate(c.livraison_annoncee) || "—", " ", badgeRetard(c)]],
+    ["Commandée le", [formatDate(c.date_commande) || "—", confirmation(c.date_commande, c.date_commande_confirmee)]],
+    ["Livraison annoncée", [formatDate(c.livraison_annoncee) || "—", confirmation(c.livraison_annoncee, c.livraison_confirmee), " ", badgeRetard(c)]],
     ["Réception réelle", formatDate(c.date_reception_reelle) || "—"],
     ["TVA", formatPourcent(c.taux_tva * 100, 1)],
     ["Document", lien],
@@ -312,6 +346,7 @@ function infos() {
     { class: "panneau" },
     el("dl", { class: "infos-commande" }, paires.flatMap(([t, v]) => [el("dt", {}, t), el("dd", {}, v)])),
     c.commentaire ? el("p", { class: "texte-doux" }, c.commentaire) : null,
+    blocSuivi(c),
     c.type === "Commande" && !STATUTS_ENGAGES.includes(c.statut)
       ? el("p", { class: "texte-doux texte-petit" }, "Cette commande n'est pas encore engagée : passer son statut à « Commandé » pour qu'elle compte dans le montant engagé et puisse être réceptionnée.")
       : null,

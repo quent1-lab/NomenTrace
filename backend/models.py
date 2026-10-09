@@ -7,7 +7,7 @@ paramétrables sont validées contre la table valeur_liste par les services.
 import re
 from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, RootModel
 
 # Listes paramétrables (table valeur_liste) : validées contre la base par le service.
 ValeurListe = str
@@ -314,6 +314,15 @@ class CommandeModif(Modele):
     reference_externe: str | None = None
     lien_document: Lien = None
     commentaire: str | None = None
+    # Suivi tenu par l'établissement (services/suivi_achats.py).
+    date_transmission_suivi: str | None = Field(default=None, pattern=MOTIF_DATE)
+    montant_commande_ht: float | None = Field(default=None, ge=0)
+    date_reception_annoncee: str | None = Field(default=None, pattern=MOTIF_DATE)
+    commentaire_suivi: str | None = None
+
+
+class RetenuesSuivi(RootModel[dict[str, list[str]]]):
+    """Changements du suivi retenus par l'utilisateur : {numéro de commande: [champs]}."""
 
 
 class FraisCreation(Modele):

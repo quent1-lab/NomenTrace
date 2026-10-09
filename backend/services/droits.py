@@ -307,6 +307,8 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("PATCH", "/api/commandes/{numero}"): ACHAT,
     ("DELETE", "/api/commandes/{numero}"): ACHAT,
     ("GET", "/api/commandes/{numero}/demande-devis.{format_document}"): LECTURE,
+    ("POST", "/api/suivi-achats/analyse"): ACHAT,
+    ("POST", "/api/suivi-achats/appliquer"): ACHAT,
     ("GET", "/api/commandes/{numero}/frais"): LECTURE,
     ("POST", "/api/commandes/{numero}/frais"): ACHAT,
     ("PATCH", "/api/frais/{identifiant}"): ACHAT,

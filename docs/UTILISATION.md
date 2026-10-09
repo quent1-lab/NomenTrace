@@ -294,6 +294,34 @@ fournisseur, dont les lignes portent le reste à commander et un PU HT vide, à 
 le devis arrive. Les composants sans fournisseur sont listés à part, avec un lien vers
 leur fiche.
 
+### Le suivi de l'établissement
+
+Quand l'établissement passe lui-même les commandes, il tient souvent son propre suivi dans
+un classeur imposé, partagé avec l'équipe. Nomentrace le complète et le relit sans en
+changer la forme.
+
+Sur la page d'une commande, « Transmettre au suivi » marque un devis reçu comme envoyé à
+l'établissement. Dans l'écran Achats, « Suivi de l'établissement » reçoit la dernière
+version du fichier. Nomentrace y repère les colonnes par leur titre (fournisseur,
+référence, désignation, quantité, montant HT, date du devis, puis les colonnes de
+l'établissement) et la légende des couleurs de l'en-tête. Il propose alors, commande par
+commande, ce que l'établissement a rempli : passage en commande d'après la couleur de la
+ligne, dates de commande et de livraison prévue (confirmées si elles sont en bleu,
+estimées sinon), date de réception, montant de la commande, commentaire. Chaque changement
+se coche ou se décoche. « Appliquer » enregistre ce qui est retenu et rend le fichier
+complété, sous le même nom, à reposer sur l'espace partagé.
+
+Chaque devis transmis y ajoute une ligne par composant (quantité, montant de la ligne,
+date du devis) et une par frais. Une colonne masquée à droite du modèle porte la
+référence Nomentrace de chaque ligne : c'est elle qui retrouve la ligne au retour, et
+une ligne n'est jamais ajoutée deux fois. Quand les lignes prévues par le modèle ne
+suffisent pas, des lignes s'insèrent avant le total, dont les sommes s'étendent. Une ligne
+saisie à la main, sans référence, est signalée et ignorée.
+
+Le montant de la commande saisi par l'établissement, frais compris, remplace l'estimation
+dans le montant engagé. Une ligne colorée « livré » ne réceptionne rien : elle note une
+réception annoncée, et la réception réelle, avec ses quantités, se saisit dans Nomentrace.
+
 ### Recevoir
 
 Sur la page d'une commande, « Réceptionner » ouvre la saisie de la livraison : la date,

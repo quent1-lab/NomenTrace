@@ -1264,6 +1264,25 @@ td.editable:hover {
   color: var(--couleur-conforme);
 }
 
+/* Suivi des achats de l'établissement : un bloc par commande, une case par changement. */
+.suivi-commande-bloc {
+  margin-bottom: var(--espace-3);
+}
+
+.suivi-commande-bloc h3 {
+  margin: 0 0 var(--espace-1);
+  font-size: 14px;
+}
+
+.suivi-changement {
+  display: flex;
+  white-space: normal;
+}
+
+.suivi-commande {
+  margin: var(--espace-2) 0 0;
+}
+
 .suivi-envoi {
   flex-basis: 100%;
   display: flex;

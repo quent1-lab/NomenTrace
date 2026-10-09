@@ -107,6 +107,25 @@ async function requeteFichier(chemin) {
   return { contenu: await reponse.blob(), nom };
 }
 
+// Envoi d'un fichier dont la réponse est un fichier (classeur complété) : { contenu, nom }.
+async function requeteFormulaireFichier(chemin, donnees) {
+  let reponse;
+  try {
+    reponse = await fetch(chemin, { method: "POST", body: donnees });
+  } catch {
+    throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
+  }
+  if (!reponse.ok) {
+    if (reponse.status === 401) allerConnexion();
+    const resultat = await reponse.json().catch(() => null);
+    throw new ErreurApi(resultat?.erreur ?? `Erreur ${reponse.status}`, reponse.status);
+  }
+  ecouteursEcriture.forEach((rappel) => rappel());
+  const disposition = reponse.headers.get("Content-Disposition") ?? "";
+  const encode = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  return { contenu: await reponse.blob(), nom: encode ? decodeURIComponent(encode) : "suivi.xlsx" };
+}
+
 // Adresses de téléchargement des modèles à remplir (liens, pas des appels fetch).
 export function lienModele(type, code) {
   return `/api/${type === "bloc" ? "blocs" : "ensembles"}/${encodeURIComponent(code)}/modele`;
@@ -226,6 +245,8 @@ export const api = {
   createLigne: (numero, valeurs) => requete("POST", `/api/commandes/${encodeURIComponent(numero)}/lignes`, valeurs),
   patchLigne: (numero, id, modifs) => requete("PATCH", `/api/commandes/${encodeURIComponent(numero)}/lignes/${id}`, modifs),
   deleteLigne: (numero, id) => requete("DELETE", `/api/commandes/${encodeURIComponent(numero)}/lignes/${id}`),
+  analyserSuivi: (donnees, progression) => requeteFormulaire("/api/suivi-achats/analyse", donnees, progression),
+  appliquerSuivi: (donnees) => requeteFormulaireFichier("/api/suivi-achats/appliquer", donnees),
   telechargerDemandeDevis: (numero, format, avant) =>
     requeteFichier(avecParametres(`/api/commandes/${encodeURIComponent(numero)}/demande-devis.${format}`, { avant })),
   getFrais: (numero) => requete("GET", `/api/commandes/${encodeURIComponent(numero)}/frais`),

@@ -155,6 +155,8 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | PATCH, DELETE | `/api/frais/{id}` | Type, montant, commentaire d'un frais ; retrait |
 | GET | `/api/commandes/{numero}/demande-devis.pdf` | Demande de devis à envoyer au fournisseur ; `avant` : date de réponse souhaitée |
 | GET | `/api/commandes/{numero}/demande-devis.xlsx` | La même demande, en Excel |
+| POST | `/api/suivi-achats/analyse` | Lit le classeur de suivi de l'établissement (`fichier`) : changements proposés, lignes à ajouter |
+| POST | `/api/suivi-achats/appliquer` | Applique les changements retenus (`retenues`, JSON `{numéro: [champs]}`) et renvoie le classeur complété |
 | PATCH, DELETE | `/api/commandes/{numero}/lignes/{id}` | Modifier, supprimer une ligne sans réception |
 | POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock |
 | GET, POST | `/api/demandes-devis` | Composants à commander par fournisseur ; création des demandes |

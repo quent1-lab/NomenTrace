@@ -18,11 +18,18 @@ const DESCRIPTION = {
   livraison_annoncee: "texte",
   date_reception_reelle: "texte",
   taux_tva: "taux",
+  date_transmission_suivi: "texte",
+  montant_commande_ht: "montant",
+  date_reception_annoncee: "texte",
+  commentaire_suivi: "texte",
   reference_externe: "texte",
   lien_document: "texte",
   commentaire: "texte",
 };
-const LIBELLES = { taux_tva: "Taux de TVA" };
+// Le suivi de l'établissement ne concerne qu'une commande existante : pas de ces champs à la création.
+const CHAMPS_SUIVI = ["date_transmission_suivi", "montant_commande_ht", "date_reception_annoncee", "commentaire_suivi"];
+const DESCRIPTION_CREATION = Object.fromEntries(Object.entries(DESCRIPTION).filter(([k]) => !CHAMPS_SUIVI.includes(k)));
+const LIBELLES = { taux_tva: "Taux de TVA", montant_commande_ht: "Montant de la commande" };
 
 function champDate(nom, valeur) {
   return el("input", { class: "champ champ--date", type: "date", name: nom, value: valeur ?? "" });
@@ -54,6 +61,12 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
       ligneChamp("Réception réelle", champDate("date_reception_reelle", c.date_reception_reelle)),
     ),
     ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tva * 100, 1), { aide: "Les frais (livraison, douane…) se saisissent sur la commande." }),
+    creation ? null : el("fieldset", {}, el("legend", {}, "Suivi de l'établissement"),
+      ligneChamp("Transmise au suivi le", champDate("date_transmission_suivi", c.date_transmission_suivi)),
+      ligneChamp("Montant de la commande HT", champNombre("montant_commande_ht", c.montant_commande_ht ?? null, 2), { aide: "Saisi par l'établissement, frais compris ; il remplace l'estimation dans le montant engagé." }),
+      ligneChamp("Réception annoncée", champDate("date_reception_annoncee", c.date_reception_annoncee)),
+      ligneChamp("Commentaire", champTexte("commentaire_suivi", c.commentaire_suivi)),
+    ),
     ligneChamp("Lien du document", champTexte("lien_document", c.lien_document, { type: "url" })),
     ligneChamp("Commentaire", champZone("commentaire", c.commentaire)),
     el("div", { class: "actions-formulaire" },
@@ -63,7 +76,7 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
   );
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const lu = lireFormulaire(formulaire, DESCRIPTION, LIBELLES);
+    const lu = lireFormulaire(formulaire, creation ? DESCRIPTION_CREATION : DESCRIPTION, LIBELLES);
     if (lu.erreur) return afficherErreur(lu.erreur);
     const valeurs = lu.valeurs;
     const modifs = creation ? valeurs : Object.fromEntries(Object.entries(valeurs).filter(([k, v]) => v !== c[k]));

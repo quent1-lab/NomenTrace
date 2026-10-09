@@ -25,6 +25,12 @@ CHAMPS_COMMANDE: frozenset[str] = frozenset(
         "reference_externe",
         "lien_document",
         "commentaire",
+        "date_transmission_suivi",
+        "montant_commande_ht",
+        "date_commande_confirmee",
+        "livraison_confirmee",
+        "date_reception_annoncee",
+        "commentaire_suivi",
     }
 )
 CHAMPS_LIGNE: frozenset[str] = frozenset(
