@@ -59,10 +59,10 @@ function boutonsOrdre(elements, index, patch) {
   );
 }
 
-function caseActif(actif, libelle, surChangement) {
-  const coche = el("input", { type: "checkbox", checked: Boolean(actif), "aria-label": `${libelle} actif` });
+function caseActif(actif, libelle, surChangement, texte = "actif") {
+  const coche = el("input", { type: "checkbox", checked: Boolean(actif), "aria-label": `${libelle} ${texte}` });
   coche.addEventListener("change", () => surChangement(coche.checked ? 1 : 0));
-  return el("label", { class: "filtre-case" }, coche, "actif");
+  return el("label", { class: "filtre-case" }, coche, texte);
 }
 
 // --- Attributs ----------------------------------------------------------------------------------
@@ -80,6 +80,7 @@ function ligneAttribut(attributs, index) {
     el("td", {}, TYPES_ATTRIBUT[a.type]),
     el("td", {}, champEnLigne(a.unite, (texte) => executer(() => api.patchAttribut(a.code, { unite: texte || null })), { libelle: `Unité de ${a.code}`, vide: true, classe: "champ champ--court" })),
     el("td", {}, caseActif(a.actif, a.libelle, (actif) => executer(() => api.patchAttribut(a.code, { actif })))),
+    el("td", {}, caseActif(a.obligatoire, a.libelle, (obligatoire) => executer(() => api.patchAttribut(a.code, { obligatoire })), "obligatoire")),
     el("td", { class: "nombre" }, el("a", { href: lienRoute("/attributs", { attribut: a.code }) }, "Répartition")),
   );
 }
@@ -152,7 +153,7 @@ function rendre() {
         ? el(
             "table",
             { class: "table table--dense table--listes" },
-            el("thead", {}, el("tr", {}, ["", "Libellé", "Code", "Type", "Unité", "", ""].map((t) => el("th", {}, t)))),
+            el("thead", {}, el("tr", {}, ["", "Libellé", "Code", "Type", "Unité", "", "", ""].map((t) => el("th", {}, t)))),
             el("tbody", {}, attributs.map((_, i) => ligneAttribut(attributs, i))),
           )
         : el("p", { class: "texte-doux" }, "Aucun attribut pour l'instant."),

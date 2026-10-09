@@ -8,7 +8,7 @@ import sqlite3
 from difflib import SequenceMatcher
 
 from backend import db
-from backend.services import import_doublons, suppressions
+from backend.services import attributs, import_doublons, obligatoires, suppressions
 
 # Contrôles de v_qualite_composant, dans l'ordre d'affichage, avec leur libellé.
 CONTROLES: dict[str, str] = {
@@ -21,6 +21,7 @@ CONTROLES: dict[str, str] = {
     "doublon": "Doublon probable",
     "valeur_desactivee": "Valeur de liste désactivée",
     "fournisseur_archive": "Fournisseur archivé",
+    "obligatoire_manquant": "Champ obligatoire manquant",
 }
 CONTROLES_COMMANDE: dict[str, str] = {
     "sans_ligne": "Aucune ligne",
@@ -59,16 +60,35 @@ def _doublons(composants: list[dict]) -> dict[str, list[dict]]:
     return resultat
 
 
+def _obligatoires_manquants(conn: sqlite3.Connection) -> dict[str, list[str]]:
+    """Composants actifs auxquels manque un champ obligatoire : {id: libellés}."""
+    composants = db.fetch_all(conn, "SELECT * FROM composant WHERE archive = 0")
+    valeurs = attributs.valeurs_par_composant(conn)
+    resultat = {}
+    for composant in composants:
+        vides = obligatoires.manquants(conn, composant, valeurs.get(composant["id"], {}))
+        if vides:
+            resultat[composant["id"]] = list(vides.values())
+    return resultat
+
+
 def list_controles_composants(conn: sqlite3.Connection) -> dict:
     """Chaque composant, archivés compris, avec ses anomalies et sa possibilité de suppression."""
     lignes = db.fetch_all(conn, "SELECT * FROM v_qualite_composant ORDER BY archive, id")
     doublons = _doublons(lignes)
+    manquants = _obligatoires_manquants(conn)
     composants = []
     for ligne in lignes:
         controles = [
             cle
             for cle in CONTROLES
-            if (ligne["id"] in doublons if cle == "doublon" else ligne[cle])
+            if (
+                ligne["id"] in doublons
+                if cle == "doublon"
+                else bool(manquants.get(ligne["id"]))
+                if cle == "obligatoire_manquant"
+                else ligne[cle]
+            )
         ]
         composants.append(
             {
@@ -82,6 +102,7 @@ def list_controles_composants(conn: sqlite3.Connection) -> dict:
                 "archive": ligne["archive"],
                 "controles": controles,
                 "doublons": doublons.get(ligne["id"], []),
+                "manquants": manquants.get(ligne["id"], []),
                 "raison_refus": suppressions.raison_composant(ligne),
             }
         )

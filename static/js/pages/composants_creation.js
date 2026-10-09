@@ -2,6 +2,7 @@
 // calculé par le serveur, affiché en aperçu et attribué définitivement à l'enregistrement.
 
 import { api } from "../api.js";
+import { champAttribut, chargerAttributs } from "../attributs.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { champFournisseur } from "./fournisseurs_commun.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
@@ -46,7 +47,10 @@ const LIBELLES = {
 const OBLIGATOIRES = ["bloc_code", "fonction", "designation", "mode_appro", "qte_besoin"];
 
 export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree, note = "" }) {
-  const parametres = await api.getParametres();
+  const [parametres, definitions] = await Promise.all([api.getParametres(), chargerAttributs()]);
+  // Champs rendus obligatoires dans les paramètres : marqués ici, contrôlés par le serveur.
+  const requis = new Set((parametres.champs_obligatoires ?? "").split(",").filter(Boolean));
+  const caracteristiques = definitions.filter((a) => a.actif && a.obligatoire).map((a) => ({ a, ...champAttribut(a, null) }));
   const tauxDefaut = Number(parametres.taux_tva_defaut ?? 0.2) * 100;
   const apercu = el("strong", { class: "code" }, "choisir un bloc");
 
@@ -86,20 +90,23 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       ligneChamp("Bloc", bloc, { requis: true }),
       ligneChamp("Fonction", champTexte("fonction"), { requis: true }),
       ligneChamp("Désignation", champTexte("designation"), { requis: true }),
-      ligneChamp("Réf fabricant", champTexte("ref_fabricant")),
-      ligneChamp("Fabricant", champTexte("fabricant")),
+      ligneChamp("Réf fabricant", champTexte("ref_fabricant"), { requis: requis.has("ref_fabricant") }),
+      ligneChamp("Fabricant", champTexte("fabricant"), { requis: requis.has("fabricant") }),
     ),
     el("fieldset", {}, el("legend", {}, "Approvisionnement"),
       ligneChamp("Mode d'appro", champChoix("mode_appro", valeursListe("mode_appro"), "Achat", { requis: true }), { requis: true }),
       ligneChamp("Qté besoin", champNombre("qte_besoin", null), { requis: true }),
       ligneChamp("Qté rechange", champNombre("qte_rechange", 0)),
       ligneChamp("Qté déjà disponible", champNombre("qte_disponible", 0), { aide: "Déjà en stock ou prêtée : réduit la quantité à acheter." }),
-      ligneChamp("Fournisseur", choixFournisseur.element),
-      ligneChamp("Lien produit", champTexte("lien_produit", "", { type: "url" })),
-      ligneChamp("PU relevé", champNombre("pu_releve", null, 2)),
+      ligneChamp("Fournisseur", choixFournisseur.element, { requis: requis.has("fournisseur_nom") }),
+      ligneChamp("Lien produit", champTexte("lien_produit", "", { type: "url" }), { requis: requis.has("lien_produit") }),
+      ligneChamp("PU relevé", champNombre("pu_releve", null, 2), { requis: requis.has("pu_releve") }),
       ligneChamp("Base du prix", base),
       ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tauxDefaut, 1)),
     ),
+    caracteristiques.length
+      ? el("fieldset", {}, el("legend", {}, "Caractéristiques"), caracteristiques.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element, { requis: true })))
+      : null,
     el("fieldset", {}, el("legend", {}, "Suivi"),
       ligneChamp("Statut choix", champChoix("statut_choix", valeursListe("statut_choix"), null, { vide: "—" })),
       ligneChamp("Statut appro", champChoix("statut_appro", valeursListe("statut_appro"), "Non lance")),
@@ -120,6 +127,13 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
     const manquants = OBLIGATOIRES.filter((nom) => lu.valeurs[nom] === null).map((nom) => LIBELLES[nom]);
     if (manquants.length) return afficherErreur(`Champs obligatoires manquants : ${manquants.join(", ")}.`);
     const valeurs = Object.fromEntries(Object.entries(lu.valeurs).filter(([, v]) => v !== null));
+    const attributs = {};
+    for (const { a, lire } of caracteristiques) {
+      const valeur = lire();
+      if (valeur.erreur) return afficherErreur(valeur.erreur);
+      if (valeur.valeur !== null) attributs[a.code] = valeur.valeur;
+    }
+    if (Object.keys(attributs).length) valeurs.attributs = attributs;
     const bouton = formulaire.querySelector("button[type=submit]");
     bouton.disabled = true;
     try {

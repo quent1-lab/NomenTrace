@@ -13,7 +13,15 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier
-from backend.services import attributs, composants, droits, import_depots, journal, sauvegardes
+from backend.services import (
+    attributs,
+    composants,
+    droits,
+    import_depots,
+    journal,
+    obligatoires,
+    sauvegardes,
+)
 from backend.services.import_analyse import avec_attributs, identiques
 
 ORIGINE = journal.ORIGINE_IMPORT
@@ -67,12 +75,20 @@ def _attribuer(conn: sqlite3.Connection, identifiant: str, valeurs: dict, lot: i
         raise LigneRefusee(erreur.message) from erreur
 
 
+def _verifier_obligatoires(conn: sqlite3.Connection, identifiant: str, touches: set | None) -> None:
+    try:
+        obligatoires.verifier(conn, identifiant, touches)
+    except ErreurMetier as erreur:
+        raise LigneRefusee(erreur.message) from erreur
+
+
 def _modifier(conn: sqlite3.Connection, identifiant: str, modifs: dict, lot: int) -> None:
     champs, caracteristiques = _separer(modifs)
     journal.update_with_journal(
         conn, "composant", identifiant, champs, composants.CHAMPS_MODIFIABLES, ORIGINE, lot_id=lot
     )
     _attribuer(conn, identifiant, caracteristiques, lot)
+    _verifier_obligatoires(conn, identifiant, set(modifs))
     conn.execute(
         "UPDATE composant SET modifie_le = ? WHERE id = ?",
         (datetime.now().isoformat(timespec="seconds"), identifiant),
@@ -116,6 +132,7 @@ def _creer(app: Application, ligne: dict) -> str:
     except ErreurMetier as erreur:
         raise LigneRefusee(erreur.message) from erreur
     _attribuer(app.conn, identifiant, caracteristiques, ligne["lot_id"])
+    _verifier_obligatoires(app.conn, identifiant, None)
     if donnees.get("affectation"):
         _affecter(
             app.conn,

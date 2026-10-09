@@ -3,7 +3,7 @@
 
 import { api } from "../api.js";
 import { formatDate, formatNombre } from "../format.js";
-import { champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { lienRoute, remplacerRoute } from "../router.js";
 import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
@@ -40,6 +40,54 @@ function message(texte, classe = "message-info") {
 
 const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux" };
 const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut" };
+
+// Champs de base qu'un projet peut rendre obligatoires ; même liste que services/obligatoires.py.
+const CHAMPS_OBLIGATOIRES = [
+  ["lien_produit", "Lien produit"],
+  ["fournisseur_nom", "Fournisseur"],
+  ["ref_fabricant", "Réf fabricant"],
+  ["fabricant", "Fabricant"],
+  ["pu_releve", "PU relevé"],
+];
+
+// Chaque case s'enregistre aussitôt ; le serveur fait respecter la règle.
+function sectionObligatoires(parametres) {
+  const choisis = new Set((parametres.champs_obligatoires ?? "").split(",").filter(Boolean));
+  const cases = CHAMPS_OBLIGATOIRES.map(([code, libelle]) => {
+    const coche = el("input", { type: "checkbox", value: code, checked: choisis.has(code) });
+    return el("label", { class: "filtre-case" }, coche, libelle);
+  });
+  const portee = champChoix(
+    "champs_obligatoires_portee",
+    [["achat", "aux composants en mode Achat"], ["tous", "à tous les composants"]],
+    parametres.champs_obligatoires_portee ?? "achat",
+  );
+  const enregistrer = async (modifs) => {
+    try {
+      await api.patchParametres(modifs);
+      masquerErreur();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
+  for (const label of cases) {
+    label.querySelector("input").addEventListener("change", () =>
+      enregistrer({ champs_obligatoires: cases.map((c) => c.querySelector("input")).filter((c) => c.checked).map((c) => c.value) }),
+    );
+  }
+  portee.addEventListener("change", () => enregistrer({ champs_obligatoires_portee: portee.value }));
+  const section = el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Champs obligatoires des composants"),
+    el("div", { class: "filtres" }, cases),
+    ligneChamp("La règle s'applique", portee, {
+      aide: "Les attributs obligatoires se règlent dans l'onglet Attributs. Un composant existant qui ne respecte pas la règle reste modifiable ; l'écran Nettoyage le signale.",
+    }),
+  );
+  if (!estAdmin()) section.querySelectorAll("input, select").forEach((champ) => { champ.disabled = true; });
+  return section;
+}
 
 async function afficherOngletProjet(cible) {
   const parametres = await api.getParametres();
@@ -107,7 +155,7 @@ async function afficherOngletProjet(cible) {
       afficherErreur(erreur);
     }
   });
-  cible.replaceChildren(formulaire);
+  cible.replaceChildren(formulaire, sectionObligatoires(parametres));
 }
 
 // --- Export et sauvegardes --------------------------------------------------------------------

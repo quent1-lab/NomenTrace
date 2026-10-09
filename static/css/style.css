@@ -809,9 +809,12 @@ a.bouton {
   max-width: 200px;
 }
 
+/* Cellule modifiable : texte souligné en pointillé. Un trait sous la cellule doublait la
+   bordure de la ligne et la faisait paraître décalée. */
 td.editable {
   cursor: text;
-  box-shadow: inset 0 -1px 0 var(--couleur-bordure);
+  text-decoration: underline dotted var(--couleur-texte-doux);
+  text-underline-offset: 3px;
 }
 
 td.editable:hover {

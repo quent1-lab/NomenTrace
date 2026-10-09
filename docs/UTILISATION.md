@@ -98,6 +98,14 @@ Paramètres › Projet reçoit le nom du projet, le préfixe des identifiants, l
 total et le taux de TVA par défaut. Le préfixe est obligatoire avant de créer le premier
 composant ; le changer plus tard ne renomme pas les composants existants.
 
+La même page règle les champs obligatoires des composants : lien produit, fournisseur,
+référence fabricant, fabricant, prix relevé, au choix. Par défaut, la règle ne vaut que pour
+les composants en mode Achat ; elle peut s'étendre à tous. Un attribut se rend obligatoire
+dans Paramètres › Attributs. La règle s'applique à la création d'un composant, à l'import et
+à toute modification qui vide un champ obligatoire ou fait passer le composant en mode
+Achat. Un composant créé avant la règle reste modifiable sur ses autres champs ; l'écran
+Nettoyage le signale par « Champ obligatoire manquant ».
+
 Paramètres › Blocs crée les blocs, chacun avec un code de deux à quatre
 lettres majuscules, un nom, un ordre d'affichage et, si on le souhaite, un budget cible.
 Le code d'un bloc ne se modifie plus après sa création. Un bloc archivé n'accepte plus de
@@ -115,7 +123,8 @@ Paramètres › Attributs crée des caractéristiques libres pour les composants
 un matériau, un indice de protection. Chaque attribut a un type (texte, nombre, liste de
 valeurs, oui ou non) et éventuellement une unité ; son code et son type sont figés à la
 création. Les attributs actifs apparaissent partout : fiche composant, colonnes et filtres
-de l'écran Composants, exports, modèles Excel.
+de l'écran Composants, exports, modèles Excel. Un attribut marqué obligatoire est demandé
+dès la création d'un composant.
 
 Paramètres › Fournisseurs tient la liste des fournisseurs avec leur catégorie, leur site,
 un contact pour les devis et un numéro de compte client. Chaque nom mène à une fiche qui
@@ -215,7 +224,9 @@ pas encore commandé.
 montre son besoin, la quantité déjà affectée ailleurs et celle affectée ici, ce qui fait
 voir tout de suite une sur-affectation. Les composants déjà présents dans l'ensemble sont
 en tête : leur quantité s'enregistre dès qu'on quitte le champ, et « Retirer » les enlève
-(saisir 0 revient au même). Un composant qui n'existe pas encore se crée depuis le même
+(saisir 0 revient au même). La case « Masquer les composants entièrement affectés »,
+cochée par défaut, retire de la liste ceux dont tout le besoin est déjà affecté ; ceux de
+l'ensemble restent visibles. Un composant qui n'existe pas encore se crée depuis le même
 panneau.
 
 « Dupliquer » copie l'ensemble sous un nouveau code, avec ou sans ses affectations et, au

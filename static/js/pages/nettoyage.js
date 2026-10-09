@@ -194,7 +194,7 @@ async function sectionComposants(cible, blocs, apresLot) {
       el("td", {}, c.bloc_code),
       el("td", { class: "tronque tronque--large", title: c.designation }, c.designation),
       el("td", { class: "tronque", title: c.fonction }, c.fonction),
-      el("td", {}, c.archive ? el("span", { class: "etiquette etiquette--espace" }, "Archivé") : null, etiquettes(c.controles, controles, { doublon: infobulleDoublons(c) })),
+      el("td", {}, c.archive ? el("span", { class: "etiquette etiquette--espace" }, "Archivé") : null, etiquettes(c.controles, controles, { doublon: infobulleDoublons(c), obligatoire_manquant: `Manquant : ${c.manquants.join(", ")}` })),
       el("td", {}, celluleSuppression(c.raison_refus)),
     ],
   });

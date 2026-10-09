@@ -1,4 +1,5 @@
-"""Paramètres de l'instance : nom du projet, préfixe d'identifiant, budget, TVA par défaut."""
+"""Paramètres de l'instance : nom du projet, préfixe d'identifiant, budget, TVA par défaut,
+champs obligatoires des composants."""
 
 import sqlite3
 from typing import Any
@@ -7,7 +8,16 @@ from backend import db
 from backend.erreurs import ErreurMetier
 from backend.services import journal
 
-CLES: frozenset[str] = frozenset({"nom_projet", "prefixe_id", "budget_ht", "taux_tva_defaut"})
+CLES: frozenset[str] = frozenset(
+    {
+        "nom_projet",
+        "prefixe_id",
+        "budget_ht",
+        "taux_tva_defaut",
+        "champs_obligatoires",
+        "champs_obligatoires_portee",
+    }
+)
 
 
 def list_parametres(conn: sqlite3.Connection) -> dict[str, str | None]:
@@ -45,7 +55,11 @@ def patch_parametres(conn: sqlite3.Connection, modifications: dict[str, Any]) ->
         for cle, valeur in modifications.items():
             if cle not in CLES:
                 raise ErreurMetier(f"Paramètre inconnu : {cle}.")
-            texte = None if valeur is None else str(valeur)
+            # Une liste (champs obligatoires) est rangée en texte, séparée par des virgules.
+            if isinstance(valeur, list):
+                texte = ",".join(valeur) or None
+            else:
+                texte = None if valeur is None else str(valeur)
             ancienne = get_parametre(conn, cle)
             if ancienne == texte:
                 continue

@@ -14,6 +14,7 @@ from backend.services import (
     historique,
     journal,
     listes,
+    obligatoires,
     parametres,
 )
 
@@ -274,9 +275,17 @@ def insert_composant(
 
 
 def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
-    """Crée un composant ; l'identifiant est généré et inséré dans la même transaction."""
+    """Crée un composant et ses caractéristiques, dans une seule transaction.
+
+    L'identifiant est généré à l'insertion ; un champ obligatoire vide annule tout.
+    """
+    valeurs = dict(valeurs)
+    caracteristiques = valeurs.pop("attributs", None) or {}
     with db.transaction(conn):
         identifiant = insert_composant(conn, valeurs)
+        if caracteristiques:
+            attributs.set_valeurs(conn, identifiant, caracteristiques)
+        obligatoires.verifier(conn, identifiant, None)
     return get_composant(conn, identifiant)
 
 
@@ -303,6 +312,7 @@ def patch_composant(
         changes = journal.update_with_journal(
             conn, "composant", identifiant, modifications, CHAMPS_MODIFIABLES
         )
+        obligatoires.verifier(conn, identifiant, modifications)
         if changes:
             conn.execute(
                 "UPDATE composant SET modifie_le = ? WHERE id = ?",
@@ -330,7 +340,11 @@ def patch_attributs(conn: sqlite3.Connection, identifiant: str, valeurs: dict[st
     """Enregistre les caractéristiques d'un composant non archivé ; None efface une valeur."""
     with db.transaction(conn):
         get_composant(conn, identifiant)
-        if attributs.set_valeurs(conn, identifiant, valeurs):
+        ecrites = attributs.set_valeurs(conn, identifiant, valeurs)
+        obligatoires.verifier(
+            conn, identifiant, {f"{attributs.PREFIXE_CHAMP}{code}" for code in valeurs}
+        )
+        if ecrites:
             conn.execute(
                 "UPDATE composant SET modifie_le = ? WHERE id = ?",
                 (datetime.now().isoformat(timespec="seconds"), identifiant),

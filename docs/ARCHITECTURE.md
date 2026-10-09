@@ -148,6 +148,7 @@ les services.
 | Service | Domaine |
 |---|---|
 | `composants`, `reclassement` | Composants, identifiants, fiche, reclassement dans un autre bloc |
+| `obligatoires` | Champs obligatoires des composants, vérifiés à la création, à la modification et à l'import |
 | `attributs`, `attributs_requetes`, `attributs_analyse` | Caractéristiques paramétrables, filtres et tris sur attribut, écran d'analyse |
 | `blocs`, `parametres`, `listes` | Blocs, paramètres du projet, listes de valeurs |
 | `ensembles`, `ensembles_arbre`, `ensembles_copie` | Ensembles et affectations, arborescence et budgets, duplication |

@@ -139,7 +139,11 @@ function vueChamps(c, statuts) {
   ];
 }
 
+// Champs de base rendus obligatoires dans les paramètres, relus à l'ouverture de la fiche.
+let champsRequis = new Set();
+
 function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
+  const requis = (champ) => ({ requis: champsRequis.has(champ) });
   const choixFournisseur = champFournisseur(fournisseurs, c.fournisseur_nom);
   const base = champChoix("base_prix_releve", BASES_PRIX, c.base_prix_releve);
   const formulaire = el(
@@ -147,15 +151,15 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
     { class: "formulaire", novalidate: true },
     ligneChamp("Fonction", champTexte("fonction", c.fonction), { requis: true }),
     ligneChamp("Désignation", champTexte("designation", c.designation), { requis: true }),
-    ligneChamp("Réf fabricant", champTexte("ref_fabricant", c.ref_fabricant)),
-    ligneChamp("Fabricant", champTexte("fabricant", c.fabricant)),
+    ligneChamp("Réf fabricant", champTexte("ref_fabricant", c.ref_fabricant), requis("ref_fabricant")),
+    ligneChamp("Fabricant", champTexte("fabricant", c.fabricant), requis("fabricant")),
     ligneChamp("Mode d'appro", champChoix("mode_appro", valeursListe("mode_appro", { valeurCourante: c.mode_appro }), c.mode_appro), { requis: true }),
-    ligneChamp("Fournisseur", choixFournisseur.element),
-    ligneChamp("Lien produit", champTexte("lien_produit", c.lien_produit, { type: "url" })),
+    ligneChamp("Fournisseur", choixFournisseur.element, requis("fournisseur_nom")),
+    ligneChamp("Lien produit", champTexte("lien_produit", c.lien_produit, { type: "url" }), requis("lien_produit")),
     ligneChamp("Qté besoin", champNombre("qte_besoin", c.qte_besoin), { requis: true }),
     ligneChamp("Qté rechange", champNombre("qte_rechange", c.qte_rechange)),
     ligneChamp("Qté déjà disponible", champNombre("qte_disponible", c.qte_disponible)),
-    ligneChamp("PU relevé", champNombre("pu_releve", c.pu_releve, 2)),
+    ligneChamp("PU relevé", champNombre("pu_releve", c.pu_releve, 2), requis("pu_releve")),
     ligneChamp("Base du prix", base),
     ligneChamp("Taux de TVA (%)", champNombre("taux_tva", c.taux_tva * 100, 1)),
     ligneChamp("Statut choix", champChoix("statut_choix", valeursListe("statut_choix", { valeurCourante: c.statut_choix }), c.statut_choix, { vide: "—" })),
@@ -312,7 +316,7 @@ function formulaireCaracteristiques(c, valeurs, { surEnregistre, surAnnule }) {
   const formulaire = el(
     "form",
     { class: "formulaire", novalidate: true },
-    champs.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element)),
+    champs.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element, { requis: Boolean(a.obligatoire) })),
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: surAnnule }, "Annuler"),
       el("button", { type: "submit", class: "bouton" }, "Enregistrer"),
@@ -428,7 +432,9 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   let fiche;
   let documents;
   try {
-    [fiche, documents] = await Promise.all([api.getComposant(id), api.getDocumentsComposant(id), chargerAttributs()]);
+    let parametres;
+    [fiche, documents, , parametres] = await Promise.all([api.getComposant(id), api.getDocumentsComposant(id), chargerAttributs(), api.getParametres()]);
+    champsRequis = new Set((parametres.champs_obligatoires ?? "").split(",").filter(Boolean));
   } catch (erreur) {
     afficherErreur(erreur);
     surFermeture();

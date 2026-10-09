@@ -34,13 +34,13 @@ affectation n'est pas une anomalie : c'est un état normal.
 
 | Table | Rôle | Clé |
 |---|---|---|
-| `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut` (stockés en texte). | `cle` |
+| `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut`, `champs_obligatoires` (champs de base séparés par des virgules), `champs_obligatoires_portee` (`achat` ou `tous`), stockés en texte. | `cle` |
 | `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
 | `bloc` | Blocs, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage` ; `parent_code` désigne l'ensemble parent (un seul, ou aucun pour un ensemble de premier niveau) ; `budget_cible_ht` et `budget_verrouille` pour le budget d'ensemble. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
 | `composant` | Le cœur : quantités, prix relevé, statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
-| `attribut` | Caractéristiques paramétrables des composants (tension, matériau…) : `libelle`, `type` (`texte`, `nombre`, `liste`, `booleen`), `unite`, `ordre`, `actif`. Code dérivé du libellé et type figés à la création. | `code` |
+| `attribut` | Caractéristiques paramétrables des composants (tension, matériau…) : `libelle`, `type` (`texte`, `nombre`, `liste`, `booleen`), `unite`, `ordre`, `actif`, `obligatoire`. Code dérivé du libellé et type figés à la création. | `code` |
 | `attribut_valeur` | Valeurs possibles d'un attribut de type liste ; renommer ne change que le libellé. | `attribut_code`, `code` |
 | `composant_attribut` | Valeur d'un attribut pour un composant : `valeur_nombre` pour le type nombre, `valeur_texte` sinon (texte, code de liste, `1`/`0` pour un booléen). Une seule valeur par couple. | `composant_id`, `attribut_code` |
 | `affectation` | Composant × ensemble, avec la quantité. | `id` ; unique (`ensemble_code`, `composant_id`) |

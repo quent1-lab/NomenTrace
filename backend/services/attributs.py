@@ -23,7 +23,7 @@ TYPES: dict[str, str] = {
 }
 VRAI: frozenset[str] = frozenset({"1", "oui", "o", "vrai", "true", "x", "yes"})
 FAUX: frozenset[str] = frozenset({"0", "non", "n", "faux", "false", "no"})
-CHAMPS_ATTRIBUT: frozenset[str] = frozenset({"libelle", "unite", "ordre", "actif"})
+CHAMPS_ATTRIBUT: frozenset[str] = frozenset({"libelle", "unite", "ordre", "actif", "obligatoire"})
 CHAMPS_VALEUR: tuple[str, ...] = ("libelle", "ordre", "actif")
 PREFIXE_CHAMP: str = "attr:"
 

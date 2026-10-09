@@ -76,7 +76,7 @@ local, où il n'y a pas de comptes.
 |---|---|---|
 | GET | `/api/sante` | État du serveur, nom du projet, export en attente |
 | GET | `/api/pilotage` | Indicateurs du tableau de bord (vue `v_pilotage`) |
-| GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget, TVA par défaut |
+| GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget, TVA par défaut, champs obligatoires et leur portée |
 | GET | `/api/journal` | Dernières lignes du journal, filtrables par `table_cible` et `cle_cible` |
 | GET | `/api/historique` | Journal filtré et paginé : `table`, `origine`, `du`, `au`, `texte`, `page`, `taille` |
 | GET | `/api/historique/tables` | Tables présentes dans le journal |
@@ -106,7 +106,7 @@ local, où il n'y a pas de comptes.
 |---|---|---|
 | GET | `/api/composants` | Liste filtrée et triée (voir ci-dessous) |
 | GET | `/api/composants/export` | Classeur Excel de la liste filtrée, colonnes choisies par `cols` |
-| POST | `/api/composants` | Création ; l'identifiant est attribué par le serveur |
+| POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque |
 | GET | `/api/composants/{id}` | Fiche complète : composant, attributs, affectations, lignes de commande, mouvements, historique |
 | PATCH | `/api/composants/{id}` | Modification |
 | DELETE | `/api/composants/{id}` | Archivage |

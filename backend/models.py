@@ -109,6 +109,7 @@ class AttributModif(Modele):
     unite: str | None = Field(default=None, max_length=20)
     ordre: int | None = None
     actif: Literal[0, 1] | None = None
+    obligatoire: Literal[0, 1] | None = None
 
 
 class AttributValeurCreation(Modele):
@@ -255,6 +256,8 @@ class ComposantCreation(Modele):
     criticite: Criticite | None = None
     origine_exigence: str | None = None
     note_technique: str | None = None
+    # Caractéristiques saisies dès la création : {code: valeur}, comme ValeursAttributs.
+    attributs: dict[str, str | float | bool | None] = {}
 
 
 class ComposantModif(Modele):
@@ -392,11 +395,19 @@ class Reception(Modele):
     lignes: list[ReceptionLigne] = Field(min_length=1)
 
 
+# Champs de base qu'un projet peut rendre obligatoires (services/obligatoires.py).
+ChampObligatoire = Literal[
+    "lien_produit", "fournisseur_nom", "ref_fabricant", "fabricant", "pu_releve"
+]
+
+
 class ParametresModif(Modele):
     nom_projet: str | None = Field(default=None, min_length=1)
     prefixe_id: str | None = Field(default=None, pattern=r"^[A-Z0-9]{1,10}$")
     budget_ht: float | None = Field(default=None, ge=0)
     taux_tva_defaut: float | None = Field(default=None, ge=0, lt=1)
+    champs_obligatoires: list[ChampObligatoire] | None = None
+    champs_obligatoires_portee: Literal["achat", "tous"] | None = None
 
 
 # --- Comptes ------------------------------------------------------------------------------------

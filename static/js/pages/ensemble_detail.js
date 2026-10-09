@@ -357,11 +357,20 @@ async function ouvrirSelecteur() {
   const recherche = el("input", { class: "champ", type: "search", placeholder: "Identifiant, désignation ou référence…", "aria-label": "Rechercher un composant" });
   const corps = el("tbody");
   const compte = el("p", { class: "texte-doux texte-petit" });
+  // Un composant dont tout le besoin est déjà affecté n'a plus rien à recevoir. Ceux de cet
+  // ensemble restent visibles : leur quantité doit pouvoir se corriger.
+  const masquerComplets = el("input", { type: "checkbox", checked: true });
+  const filtreComplets = el("label", { class: "filtre-case" }, masquerComplets, "Masquer les composants entièrement affectés");
 
   const afficherListe = () => {
     const terme = recherche.value.trim().toLowerCase();
-    const trouves = liste.filter((c) => !terme || [c.id, c.designation, c.fonction, c.ref_fabricant].some((v) => (v ?? "").toLowerCase().includes(terme)));
     const parId = new Map(etat.lignes.map((l) => [l.composant_id, l]));
+    const complet = (c) => !parId.has(c.id) && c.qte_affectee >= c.qte_besoin;
+    const trouves = liste.filter(
+      (c) =>
+        (!masquerComplets.checked || !complet(c)) &&
+        (!terme || [c.id, c.designation, c.fonction, c.ref_fabricant].some((v) => (v ?? "").toLowerCase().includes(terme))),
+    );
     trouves.sort((a, b) => Number(parId.has(b.id)) - Number(parId.has(a.id)));
     corps.replaceChildren(...trouves.slice(0, 40).map((c) => ligneSelecteur(c, parId.get(c.id), surAffecte)));
     compte.textContent = trouves.length > 40 ? `${trouves.length} composants trouvés, 40 affichés : préciser la recherche.` : `${trouves.length} composant(s) trouvé(s).`;
@@ -372,6 +381,7 @@ async function ouvrirSelecteur() {
     afficherListe();
   };
   recherche.addEventListener("input", afficherListe);
+  masquerComplets.addEventListener("change", afficherListe);
 
   const creer = () =>
     ouvrirCreation({
@@ -393,6 +403,7 @@ async function ouvrirSelecteur() {
   ouvrirPanneau(`Affecter un composant à ${etat.code}`, [
     el("p", { class: "texte-doux" }, "« Ailleurs » : quantité déjà affectée aux autres ensembles. Les composants déjà affectés ici sont en tête ; leur quantité s'enregistre en quittant le champ."),
     recherche,
+    filtreComplets,
     compte,
     el(
       "table",

@@ -55,7 +55,9 @@ function ligneCommande(ligne) {
     el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: ligne.composant_id }) }, ligne.composant_id)),
     el("td", { class: "tronque tronque--large", title: ligne.designation }, ligne.designation),
     el("td", { class: "colonne-lien" }, lienProduit(ligne.lien_produit)),
-    el("td", { class: "attendent" }, attendent),
+    // Le conteneur flex reste dans la cellule : posé sur la cellule, il la sortirait du tableau
+    // et décalerait les bordures de la ligne.
+    el("td", {}, el("div", { class: "attendent" }, attendent)),
     celluleEditable(ligne, { champ: "qte_commandee", type: "entier" }, formatNombre(ligne.qte_commandee)),
     celluleEditable(ligne, { champ: "pu_ht_devis", type: "montant" }, formatMontant(ligne.pu_ht_devis) || el("span", { class: "a-chiffrer" }, "à saisir")),
     el("td", { class: "nombre texte-doux" }, formatMontant(ligne.pu_ht_estime)),
