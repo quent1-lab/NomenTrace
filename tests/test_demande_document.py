@@ -70,6 +70,11 @@ def test_ligne_annulee_absente_et_texte_hors_latin1(client_essai: TestClient) ->
 
 def test_demandeur_connecte(client_essai: TestClient) -> None:
     conn = db.connect(client_essai.app.state.chemin_base)
-    personne = Utilisateur(id=3, identifiant="q@ecole.test", nom="Quentin", role="contributeur")
-    assert demande_document.demandeur(conn, personne) == {"nom": "Quentin", "mail": "q@ecole.test"}
+    personne = Utilisateur(
+        id=3, identifiant="camille@ecole.test", nom="Camille", role="contributeur"
+    )
+    assert demande_document.demandeur(conn, personne) == {
+        "nom": "Camille",
+        "mail": "camille@ecole.test",
+    }
     conn.close()
