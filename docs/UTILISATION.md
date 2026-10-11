@@ -60,7 +60,8 @@ et caractère spécial, ou bien une phrase de vingt caractères ou plus ; ni son
 adresse ; pas un mot de passe courant. Si plusieurs personnes se connectent au même
 instant, l'outil peut demander de patienter quelques secondes. Le lien ne sert qu'une fois et
 expire au bout de trois jours. Un mot de passe oublié se règle de la même manière, en
-demandant un nouveau lien.
+demandant un nouveau lien. En bas de la page de connexion, une ligne présente l'outil et
+mène à son code source.
 
 L'en-tête affiche son nom, son rôle et le bouton de déconnexion. Lancé en double-clic sur
 un poste (`lancer.bat`), l'outil tourne en mode local : pas de connexion, l'en-tête

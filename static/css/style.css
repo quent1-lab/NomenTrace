@@ -2389,10 +2389,43 @@ body:not(.peut-ensembles) .si-ensembles {
 
 .page-connexion {
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   min-height: 100vh;
   padding: 10vh var(--espace-4) var(--espace-4);
+}
+
+/* Présentation et lien vers le dépôt, discrets, en bas de la page de connexion. */
+.connexion__pied {
+  margin-top: auto;
+  padding-top: var(--espace-5);
+  max-width: 380px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--couleur-texte-doux);
+}
+
+.connexion__pied p {
+  margin: 0 0 var(--espace-1);
+}
+
+.connexion__source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  color: inherit;
+  text-decoration: none;
+}
+
+.connexion__source .icone {
+  width: 14px;
+  height: 14px;
+}
+
+.connexion__source:hover,
+.connexion__source:focus-visible {
+  color: var(--couleur-ardoise);
+  text-decoration: underline;
 }
 
 .connexion {
