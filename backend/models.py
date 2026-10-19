@@ -279,6 +279,8 @@ class ComposantModif(Modele):
     criticite: Criticite | None = None
     origine_exigence: str | None = None
     note_technique: str | None = None
+    # Caractéristiques modifiées en même temps que les champs : {code: valeur}, null efface.
+    attributs: dict[str, str | float | bool | None] | None = None
     # Date de modification lue avant l'édition : si elle a changé depuis, la modification
     # est refusée plutôt que d'écraser celle d'un autre.
     modifie_le: str | None = None

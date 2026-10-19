@@ -116,6 +116,27 @@ def test_valeur_ou_attribut_desactive(client_attributs: TestClient) -> None:
     assert _saisir(client_attributs, C1, tension=24).status_code == 400
 
 
+def test_champs_et_caracteristiques_enregistres_ensemble(client_attributs: TestClient) -> None:
+    """Une seule modification porte les champs et les caractéristiques, sans conflit de date."""
+    lu = client_attributs.get(f"/api/composants/{C1}").json()["composant"]["modifie_le"]
+    reponse = client_attributs.patch(
+        f"/api/composants/{C1}",
+        json={"designation": "Moteur révisé", "attributs": {"tension": 24}, "modifie_le": lu},
+    )
+    assert reponse.status_code == 200, reponse.text
+    fiche = client_attributs.get(f"/api/composants/{C1}").json()
+    assert fiche["composant"]["designation"] == "Moteur révisé"
+    assert fiche["attributs"]["tension"] == 24
+    # Une caractéristique refusée annule aussi les champs : tout ou rien.
+    refus = client_attributs.patch(
+        f"/api/composants/{C1}", json={"designation": "Autre", "attributs": {"tension": "x"}}
+    )
+    assert refus.status_code == 400
+    assert client_attributs.get(f"/api/composants/{C1}").json()["composant"]["designation"] == (
+        "Moteur révisé"
+    )
+
+
 # --- Filtre et tri -------------------------------------------------------------------------------
 
 

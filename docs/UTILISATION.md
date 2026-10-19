@@ -164,10 +164,12 @@ affichée : mêmes filtres, même tri, mêmes colonnes, avec le total.
 
 ### La fiche d'un composant
 
-Un clic sur une ligne ouvre la fiche. On y trouve tous les champs, modifiables par
-« Modifier », les caractéristiques, les ensembles où le composant est affecté (quantités
-modifiables, affectation à un nouvel ensemble), ses lignes de devis et de commande, ses
-documents, ses mouvements de stock et son historique.
+Un clic sur une ligne ouvre la fiche. On y trouve tous les champs, les caractéristiques
+renseignées (celles qui n'ont pas de valeur pour ce composant ne s'affichent pas), les
+ensembles où le composant est affecté (quantités modifiables, affectation à un nouvel
+ensemble), ses lignes de devis et de commande, ses documents, ses mouvements de stock et
+son historique. « Modifier » ouvre les champs et les caractéristiques dans un même
+formulaire, enregistré en une fois.
 
 L'historique est une frise, la plus récente en haut, qui rassemble tout ce qui concerne le
 composant, où que ce soit écrit : champs modifiés, caractéristiques, ajout à un devis,

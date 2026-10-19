@@ -294,11 +294,14 @@ def patch_composant(
 ) -> dict:
     """Modifie un composant non archivé, champ par champ, avec journal.
 
-    Si `modifie_le` est fourni et que le composant a été modifié depuis, rien n'est écrit :
-    la modification de l'autre personne est signalée au lieu d'être écrasée.
+    Les caractéristiques passées sous « attributs » sont écrites dans la même transaction :
+    champs et caractéristiques s'enregistrent ensemble ou pas du tout. Si `modifie_le` est
+    fourni et que le composant a été modifié depuis, rien n'est écrit : la modification de
+    l'autre personne est signalée au lieu d'être écrasée.
     """
     modifications = dict(modifications)
     lu = modifications.pop("modifie_le", None)
+    caracteristiques = modifications.pop("attributs", None) or {}
     with db.transaction(conn):
         actuel = get_composant(conn, identifiant)
         if lu is not None and lu != actuel["modifie_le"]:
@@ -312,8 +315,10 @@ def patch_composant(
         changes = journal.update_with_journal(
             conn, "composant", identifiant, modifications, CHAMPS_MODIFIABLES
         )
-        obligatoires.verifier(conn, identifiant, modifications)
-        if changes:
+        ecrites = attributs.set_valeurs(conn, identifiant, caracteristiques)
+        touches = set(modifications) | {f"{attributs.PREFIXE_CHAMP}{c}" for c in caracteristiques}
+        obligatoires.verifier(conn, identifiant, touches)
+        if changes or ecrites:
             conn.execute(
                 "UPDATE composant SET modifie_le = ? WHERE id = ?",
                 (datetime.now().isoformat(timespec="seconds"), identifiant),

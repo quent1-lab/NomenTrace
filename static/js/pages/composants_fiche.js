@@ -142,8 +142,10 @@ function vueChamps(c, statuts) {
 // Champs de base rendus obligatoires dans les paramètres, relus à l'ouverture de la fiche.
 let champsRequis = new Set();
 
-function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
+// Les champs et les caractéristiques se modifient ensemble et s'enregistrent en une seule fois.
+function formulaireModif(c, valeursAttributs, fournisseurs, { surEnregistre, surAnnule }) {
   const requis = (champ) => ({ requis: champsRequis.has(champ) });
+  const caracteristiques = champsCaracteristiques(valeursAttributs);
   const choixFournisseur = champFournisseur(fournisseurs, c.fournisseur_nom);
   const base = champChoix("base_prix_releve", BASES_PRIX, c.base_prix_releve);
   const formulaire = el(
@@ -167,6 +169,10 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
     ligneChamp("Criticité", champChoix("criticite", valeursListe("criticite", { valeurCourante: c.criticite }), c.criticite, { vide: "—" })),
     ligneChamp("Origine exigence", champTexte("origine_exigence", c.origine_exigence)),
     ligneChamp("Note technique", champZone("note_technique", c.note_technique)),
+    caracteristiques.length
+      ? el("fieldset", {}, el("legend", {}, "Caractéristiques"),
+          caracteristiques.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element, { requis: Boolean(a.obligatoire) })))
+      : null,
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: surAnnule }, "Annuler"),
       el("button", { type: "submit", class: "bouton" }, "Enregistrer"),
@@ -178,9 +184,16 @@ function formulaireModif(c, fournisseurs, { surEnregistre, surAnnule }) {
     if (lu.erreur) return afficherErreur(lu.erreur);
     const manquants = Object.keys(OBLIGATOIRES).filter((n) => lu.valeurs[n] === null);
     if (manquants.length) return afficherErreur(`Champs obligatoires manquants : ${manquants.map((n) => OBLIGATOIRES[n]).join(", ")}.`);
+    const attributs = {};
+    for (const { a, lire } of caracteristiques) {
+      const valeur = lire();
+      if (valeur.erreur) return afficherErreur(valeur.erreur);
+      if (valeur.valeur !== (valeursAttributs[a.code] ?? null)) attributs[a.code] = valeur.valeur;
+    }
     try {
       lu.valeurs.fournisseur_nom = await choixFournisseur.resoudre();
       const modifs = Object.fromEntries(Object.entries(lu.valeurs).filter(([cle, v]) => v !== c[cle]));
+      if (Object.keys(attributs).length) modifs.attributs = attributs;
       if (Object.keys(modifs).length === 0) return surAnnule();
       // Date lue à l'ouverture : si quelqu'un a modifié le composant depuis, le serveur refuse.
       await api.patchComposant(c.id, { ...modifs, modifie_le: c.modifie_le });
@@ -298,67 +311,25 @@ function formulaireAffectation(c, disponibles, nbEnsembles, surChangement) {
 
 // --- Caractéristiques (attributs paramétrables) ----------------------------------------------
 
-// Attributs affichés : les actifs, plus les désactivés qui portent encore une valeur.
-function attributsAffiches(valeurs) {
-  return tousLesAttributs().filter((a) => a.actif || valeurs[a.code] !== undefined);
+// Champs de saisie : les attributs actifs. Un attribut désactivé garde sa valeur, affichée
+// dans la fiche mais plus modifiable.
+function champsCaracteristiques(valeurs) {
+  return tousLesAttributs()
+    .filter((a) => a.actif)
+    .map((a) => ({ a, ...champAttribut(a, valeurs[a.code] ?? null) }));
 }
 
+// Seules les caractéristiques renseignées s'affichent : un attribut sans objet pour ce
+// composant (la tension d'une vis) n'encombre pas la fiche.
 function vueCaracteristiques(valeurs) {
-  const affiches = attributsAffiches(valeurs);
-  if (!affiches.length) {
-    return el("p", { class: "texte-doux" }, "Aucune caractéristique définie : les attributs (tension, matériau…) se créent dans Paramètres › Attributs.");
-  }
-  return definitions(affiches.map((a) => [a.unite ? `${a.libelle} (${a.unite})` : a.libelle, formatAttribut(a, valeurs[a.code])]));
+  const renseignes = tousLesAttributs().filter((a) => valeurs[a.code] !== undefined && valeurs[a.code] !== null);
+  if (!renseignes.length) return null;
+  return definitions(renseignes.map((a) => [a.unite ? `${a.libelle} (${a.unite})` : a.libelle, formatAttribut(a, valeurs[a.code])]));
 }
 
-function formulaireCaracteristiques(c, valeurs, { surEnregistre, surAnnule }) {
-  const champs = attributsAffiches(valeurs).filter((a) => a.actif).map((a) => ({ a, ...champAttribut(a, valeurs[a.code] ?? null) }));
-  const formulaire = el(
-    "form",
-    { class: "formulaire", novalidate: true },
-    champs.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element, { requis: Boolean(a.obligatoire) })),
-    el("div", { class: "actions-formulaire" },
-      el("button", { type: "button", class: "bouton bouton--discret", onclick: surAnnule }, "Annuler"),
-      el("button", { type: "submit", class: "bouton" }, "Enregistrer"),
-    ),
-  );
-  formulaire.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const modifs = {};
-    for (const { a, lire } of champs) {
-      const lu = lire();
-      if (lu.erreur) return afficherErreur(lu.erreur);
-      if (lu.valeur !== (valeurs[a.code] ?? null)) modifs[a.code] = lu.valeur;
-    }
-    if (!Object.keys(modifs).length) return surAnnule();
-    try {
-      await api.putAttributsComposant(c.id, modifs);
-      masquerErreur();
-      await surEnregistre();
-    } catch (erreur) {
-      afficherErreur(erreur);
-    }
-  });
-  return formulaire;
-}
-
-function sectionCaracteristiques(c, valeurs, surEnregistre, droitEcriture) {
-  const zone = el("div", {}, vueCaracteristiques(valeurs));
-  const modifiable = droitEcriture && tousLesAttributs().some((a) => a.actif);
-  const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret", hidden: !modifiable }, "Modifier");
-  bouton.addEventListener("click", () => {
-    bouton.hidden = true;
-    zone.replaceChildren(
-      formulaireCaracteristiques(c, valeurs, {
-        surEnregistre,
-        surAnnule: () => {
-          bouton.hidden = false;
-          zone.replaceChildren(vueCaracteristiques(valeurs));
-        },
-      }),
-    );
-  });
-  return el("section", { class: "fiche__section" }, el("div", { class: "titre-section" }, el("h3", {}, "Caractéristiques"), bouton), zone);
+function sectionCaracteristiques(valeurs) {
+  const vue = vueCaracteristiques(valeurs);
+  return vue ? section("Caractéristiques", vue) : null;
 }
 
 function sectionCommandes(lignes) {
@@ -415,7 +386,7 @@ function ouvrirFicheArchivee(fiche, documents, surFermeture) {
           ["Créé le / modifié le", `${formatDate(c.cree_le)} / ${formatDate(c.modifie_le)}`],
         ]),
       ),
-      Object.keys(fiche.attributs).length ? section("Caractéristiques", vueCaracteristiques(fiche.attributs)) : null,
+      sectionCaracteristiques(fiche.attributs),
       fiche.affectations.length
         ? section("Affectations conservées", tableSimple([["Ensemble"], ["Qté", "nombre"]], fiche.affectations.map((a) => el("tr", {}, el("td", {}, a.ensemble_code, " ", el("span", { class: "texte-doux" }, a.ensemble_nom)), el("td", { class: "nombre" }, formatNombre(a.qte_affectee)))), ""))
         : null,
@@ -453,7 +424,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   boutonModifier.addEventListener("click", () => {
     boutonModifier.disabled = true;
     zoneChamps.replaceChildren(
-      formulaireModif(c, fournisseurs, {
+      formulaireModif(c, fiche.attributs, fournisseurs, {
         surEnregistre: rafraichir,
         surAnnule: () => {
           boutonModifier.disabled = false;
@@ -498,7 +469,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
         : null,
       section("Composant", zoneChamps),
-      sectionCaracteristiques(c, fiche.attributs, rafraichir, modifiable),
+      sectionCaracteristiques(fiche.attributs),
       sectionAffectations(fiche, ensembles, rafraichir, modifiable),
       sectionCommandes(fiche.lignes_commande),
       sectionDocuments({
