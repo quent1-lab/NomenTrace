@@ -109,7 +109,7 @@ local, où il n'y a pas de comptes.
 | GET | `/api/composants` | Liste filtrée et triée (voir ci-dessous) |
 | GET | `/api/composants/export` | Classeur Excel de la liste filtrée, colonnes choisies par `cols` |
 | POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque |
-| GET | `/api/composants/{id}` | Fiche complète : composant, attributs, affectations, lignes de commande, mouvements, historique |
+| GET | `/api/composants/{id}` | Fiche complète : composant, attributs, visa, actions à faire (`code`, `texte`, `onglet`), affectations, lignes de commande, mouvements, historique |
 | PATCH | `/api/composants/{id}` | Modification ; `attributs` ({code: valeur}) enregistre les caractéristiques dans la même transaction, `modifie_le` refuse en 409 si le composant a changé |
 | DELETE | `/api/composants/{id}` | Archivage |
 | POST | `/api/composants/{id}/reclasser` | Reclassement dans un autre bloc (`bloc_code`) |

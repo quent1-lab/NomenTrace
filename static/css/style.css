@@ -944,21 +944,341 @@ td.editable:hover {
   margin-bottom: var(--espace-4);
 }
 
-/* Visa d'un responsable, en petit sous les actions de la fiche. */
-.visa {
+/* --- Fiche d'un composant : en-tête, pastilles, suivi, prix, onglets ------------------------ */
+
+.fiche-entete {
   display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  margin-bottom: var(--espace-3);
+}
+
+.fiche-entete__titre {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.fiche-entete__sous-titre {
+  margin: 0;
+  color: var(--couleur-texte-doux);
+}
+
+.fiche-entete__puces {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--espace-2);
-  margin: var(--espace-2) 0;
+  margin-top: var(--espace-1);
+}
+
+.puce-fiche {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.puce-fiche--alerte {
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.puce-fiche--conforme {
+  background: var(--couleur-conforme-fond);
+  color: var(--couleur-conforme);
+}
+
+.puce-fiche--neutre {
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+  font-weight: 400;
+}
+
+.puce-fiche--info {
+  background: var(--couleur-ardoise-clair);
+  color: var(--couleur-ardoise-fonce);
+  font-weight: 400;
+}
+
+.puce-fiche--actions {
+  border-color: var(--couleur-surveiller);
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+  cursor: pointer;
+}
+
+.icone-fiche {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.actions-fiche__ancre {
+  position: relative;
+}
+
+.actions-fiche {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: min(360px, 80vw);
+  padding: var(--espace-3) var(--espace-4);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.actions-fiche[hidden] {
+  display: none;
+}
+
+.actions-fiche__ligne {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-2) 0;
+  border-top: 1px solid var(--couleur-neutre-fond);
+}
+
+.actions-fiche > strong {
+  padding-bottom: var(--espace-1);
+}
+
+.fiche__actions--gauche {
+  justify-content: flex-start;
+  align-items: center;
+  padding-bottom: var(--espace-3);
+  margin-bottom: var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.fiche__espace {
+  flex: 1;
+}
+
+.menu-plus {
+  position: relative;
+}
+
+.menu-plus > summary {
+  list-style: none;
+}
+
+.menu-plus > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-plus > summary::after {
+  content: " ▾";
+}
+
+.menu-plus__liste {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-2);
+  min-width: 220px;
+  padding: var(--espace-3);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.suivi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-4);
+}
+
+.suivi__entete {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--espace-2);
+}
+
+.suivi__formule {
   font-size: 0.85rem;
   color: var(--couleur-texte-doux);
 }
 
-.visa--valable::before {
-  content: "✓";
+.suivi__formule strong {
+  color: var(--couleur-texte);
+}
+
+.suivi__etapes {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid var(--couleur-neutre-fond);
+  border-radius: var(--rayon);
+}
+
+.suivi__etape {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--espace-2) var(--espace-3);
+  border: 0;
+  border-left: 1px solid var(--couleur-neutre-fond);
+  background: none;
+  color: var(--couleur-texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suivi__etape:first-child {
+  border-left: 0;
+}
+
+.suivi__etape:hover {
+  background: var(--couleur-fond);
+}
+
+.suivi__titre {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--couleur-texte-doux);
+}
+
+.suivi__etape--fait .suivi__titre .icone-fiche {
   color: var(--couleur-conforme);
+}
+
+.suivi__valeur {
   font-weight: 600;
+}
+
+.suivi__etape--neutre .suivi__valeur {
+  font-weight: 400;
+  color: var(--couleur-texte-doux);
+}
+
+.suivi__jauge {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--couleur-neutre-fond);
+}
+
+.suivi__remplissage {
+  display: block;
+  height: 100%;
+}
+
+.suivi__remplissage--fait {
+  background: var(--couleur-conforme);
+}
+
+.suivi__remplissage--encours {
+  background: var(--couleur-surveiller);
+}
+
+.suivi__remplissage--neutre {
+  background: var(--couleur-neutre);
+}
+
+.suivi__note {
+  font-size: 0.75rem;
+  color: var(--couleur-texte-doux);
+}
+
+.fiche-prix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-4);
+  padding-bottom: var(--espace-3);
+  margin-bottom: var(--espace-2);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.fiche-prix > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fiche-prix__montant {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.fiche-prix__fournisseur {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.onglets--fiche {
+  margin-bottom: var(--espace-3);
+}
+
+.fiche-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-2) var(--espace-4);
+  margin: 0 0 var(--espace-3);
+}
+
+.fiche-details dt {
+  font-size: 0.85rem;
+  color: var(--couleur-texte-doux);
+}
+
+.fiche-details dd {
+  margin: 0;
+}
+
+.fiche-caracteristiques {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  margin-bottom: var(--espace-3);
+}
+
+.fiche-caracteristiques__liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+
+@media (max-width: 800px) {
+  .suivi__etapes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .suivi__etape:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .fiche-prix,
+  .fiche-details {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Pastille du menu : composants à voir pour les responsables. */
@@ -2778,3 +3098,75 @@ body:not(.peut-ensembles) .si-ensembles {
   }
 }
 
+
+/* --- Création d'un composant en deux étapes ---------------------------------------------- */
+
+.etapes {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  margin: 0 0 var(--espace-3);
+  padding: 0;
+  list-style: none;
+}
+
+.etapes__etape {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  color: var(--couleur-texte-doux);
+}
+
+.etapes__etape--faite {
+  color: var(--couleur-conforme);
+}
+
+.etapes__etape--courante {
+  color: var(--couleur-texte);
+  font-weight: 600;
+}
+
+.etapes__numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--couleur-neutre-fond);
+  font-size: 0.8rem;
+}
+
+.etapes__etape--faite .etapes__numero {
+  background: var(--couleur-conforme);
+  color: var(--couleur-surface);
+}
+
+.etapes__etape--courante .etapes__numero {
+  background: var(--couleur-ardoise);
+  color: var(--couleur-surface);
+}
+
+.etapes__trait {
+  flex: 1;
+  height: 2px;
+  background: var(--couleur-bordure);
+}
+
+.actions-formulaire--espace {
+  justify-content: space-between;
+}
+
+/* Les fieldsets prennent la largeur de leur contenu par défaut : ils débordaient du panneau. */
+.panneau-lateral fieldset {
+  min-width: 0;
+}
+
+.formulaire-ligne .champ--nombre {
+  width: 5em;
+}
+
+.fiche-prix__montant .texte-doux {
+  font-size: 0.85rem;
+  font-weight: 400;
+}

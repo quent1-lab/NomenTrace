@@ -8,6 +8,7 @@ from typing import Any
 from backend import db
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
 from backend.services import (
+    actions_composant,
     attributs,
     attributs_requetes,
     fournisseurs,
@@ -202,20 +203,26 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
             " WHERE a.composant_id = ? ORDER BY a.ensemble_code"
         )
     cle = (identifiant,)
+    valeurs = attributs.get_valeurs(conn, identifiant)
     return {
         "composant": composant,
+        # Un composant archivé n'a plus rien à faire.
+        "actions": []
+        if composant.get("archive")
+        else actions_composant.list_actions(conn, composant, valeurs),
         "remplace": [
             ligne["id"]
             for ligne in db.fetch_all(
                 conn, "SELECT id FROM composant WHERE remplace_par = ? ORDER BY id", cle
             )
         ],
-        "attributs": attributs.get_valeurs(conn, identifiant),
+        "attributs": valeurs,
         "visa": visas.get_visa(conn, identifiant),
         "affectations": db.fetch_all(conn, affectations_sql, cle),
         "lignes_commande": db.fetch_all(
             conn,
-            "SELECT l.*, c.type, c.statut, c.fournisseur_nom, c.date_commande"
+            "SELECT l.*, c.type, c.statut, c.fournisseur_nom, c.date_commande,"
+            " c.livraison_annoncee, c.date_reception_annoncee"
             " FROM ligne_commande l JOIN commande c ON c.numero = l.commande_numero"
             " WHERE l.composant_id = ? AND c.archive = 0 ORDER BY l.id",
             cle,

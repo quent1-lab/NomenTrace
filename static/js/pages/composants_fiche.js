@@ -1,5 +1,6 @@
-// Fiche d'un composant dans le panneau latéral : tous les champs, ses affectations aux
-// ensembles (modifiables), ses lignes de commande, ses mouvements et son historique.
+// Fiche d'un composant dans le panneau latéral : un en-tête (désignation, pastilles de visa
+// et d'actions à faire), le suivi du composant de son chiffrage à son montage, son prix et son
+// fournisseur, puis des onglets : détails, ensembles, achats, stock, documents, historique.
 
 import { frise } from "../historique.js";
 import { api } from "../api.js";
@@ -10,7 +11,7 @@ import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormula
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, ecritBloc, estAdmin } from "../session.js";
-import { afficherErreur, el, lienExterne, masquerErreur } from "../ui.js";
+import { afficherErreur, el, largeur, lienExterne, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
 import { champFournisseur, lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
 
@@ -104,40 +105,202 @@ async function ouvrirReclassement(c, zone, surReclasse) {
   zone.replaceChildren(formulaire);
 }
 
-function vueChamps(c, statuts) {
-  const lien = c.lien_produit ? lienExterne(c.lien_produit, "ouvrir la page produit") : null;
+// --- En-tête, suivi, prix et onglets de la fiche ---------------------------------------------
+
+const SVG = "http://www.w3.org/2000/svg";
+
+// Petite icône tracée (coche, avertissement), décorative.
+function icone(traces, classe = "") {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("class", `icone-fiche ${classe}`);
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of traces) {
+    const trace = document.createElementNS(SVG, "path");
+    trace.setAttribute("d", d);
+    svg.append(trace);
+  }
+  return svg;
+}
+const COCHE = ["M5 12l5 5 9-10"];
+const ATTENTION = ["M12 3l10 18H2z", "M12 10v5", "M12 18h.01"];
+
+function texteVisa(visa) {
+  const auteur = visa.vise_par ? ` par ${visa.vise_par}` : "";
+  return `Visé${auteur} le ${formatDate(visa.vise_le)}`;
+}
+
+// Pastille du visa : posé tout seul quand un responsable ouvre la fiche.
+function pastilleVisa(visa) {
+  if (visa?.a_jour) return el("span", { class: "puce-fiche puce-fiche--conforme" }, icone(COCHE), texteVisa(visa));
+  const texte = visa ? "Modifié depuis le dernier visa" : "Pas encore visé";
+  return el("span", { class: "puce-fiche puce-fiche--neutre", title: "Un responsable le vise en ouvrant la fiche" }, texte);
+}
+
+// Pastille « N actions » : un clic déroule la liste de ce qui reste à faire.
+function pastilleActions(actions, allerA) {
+  if (!actions.length) return null;
+  const liste = el(
+    "div",
+    { class: "actions-fiche", hidden: true },
+    el("strong", {}, "À faire sur ce composant"),
+    actions.map((a) =>
+      el(
+        "div",
+        { class: "actions-fiche__ligne" },
+        el("span", {}, a.texte),
+        el("button", { type: "button", class: "bouton-lien", onclick: () => { fermer(); allerA(a.onglet); } }, LIBELLES_ACTION[a.onglet] ?? "Voir"),
+      ),
+    ),
+  );
+  const bouton = el(
+    "button",
+    { type: "button", class: "puce-fiche puce-fiche--actions", "aria-expanded": "false" },
+    icone(ATTENTION),
+    `${actions.length} action${actions.length > 1 ? "s" : ""}`,
+  );
+  function fermer() {
+    liste.hidden = true;
+    bouton.setAttribute("aria-expanded", "false");
+  }
+  bouton.addEventListener("click", () => {
+    liste.hidden = !liste.hidden;
+    bouton.setAttribute("aria-expanded", String(!liste.hidden));
+  });
+  const ancre = el("span", { class: "actions-fiche__ancre" }, bouton, liste);
+  // Un clic ailleurs referme la liste ; l'écouteur s'en va avec la fiche.
+  const ailleurs = (e) => {
+    if (!ancre.isConnected) return document.removeEventListener("click", ailleurs);
+    if (!ancre.contains(e.target)) fermer();
+  };
+  document.addEventListener("click", ailleurs);
+  return ancre;
+}
+const LIBELLES_ACTION = { modifier: "Compléter", ensembles: "Affecter", documents: "Joindre" };
+
+// Une étape du suivi : valeur courte, fine jauge verte (fait), orange (en cours) ou grise.
+function etapeSuivi({ titre, valeur, fait = null, total = null, note = "", neutre = false, onglet, allerA }) {
+  const part = total ? Math.min(fait / total, 1) : fait === null ? 0 : 1;
+  const niveau = neutre ? "neutre" : part >= 1 ? "fait" : part > 0 ? "encours" : "neutre";
+  const jauge = el("span", { class: "suivi__jauge" }, largeur(el("span", { class: `suivi__remplissage suivi__remplissage--${niveau}` }), (neutre ? 0 : part) * 100));
+  return el(
+    "button",
+    { type: "button", class: `suivi__etape suivi__etape--${niveau}`, onclick: () => allerA(onglet) },
+    el("span", { class: "suivi__titre" }, niveau === "fait" ? icone(COCHE) : null, titre),
+    el("span", { class: "suivi__valeur" }, valeur),
+    jauge,
+    note ? el("span", { class: "suivi__note" }, note) : null,
+  );
+}
+
+function prochaineLivraison(lignes) {
+  const dates = lignes
+    .filter((l) => l.type === "Commande" && l.qte_recue < l.qte_commandee && l.statut_ligne !== "Annulee")
+    .map((l) => l.date_reception_annoncee || l.livraison_annoncee)
+    .filter(Boolean)
+    .sort();
+  return dates[0] ?? null;
+}
+
+// Où en est le composant : chiffré, commandé, reçu, affecté, monté.
+function suivi(fiche, allerA) {
+  const c = fiche.composant;
+  const achat = c.mode_appro === "Achat";
+  const aAcheter = c.qte_a_acheter;
+  const montees = fiche.affectations.reduce((s, a) => s + Math.min(Math.max(a.qte_montee, 0), a.qte_affectee), 0);
+  const livraison = prochaineLivraison(fiche.lignes_commande);
+  const noteRecu = [livraison ? `solde le ${formatDate(livraison)}` : "", `${formatNombre(c.stock_actuel)} en stock`].filter(Boolean).join(" · ");
+  const horsAchat = { valeur: achat ? "rien à acheter" : libelle(c.mode_appro), neutre: true };
+  const etapes = [
+    achat
+      ? { titre: "Chiffré", valeur: c.pu_ht === null ? "à chiffrer" : `${formatMontant(c.pu_ht)} HT`, fait: c.pu_ht === null ? 0 : 1, total: 1, onglet: "modifier" }
+      : { titre: "Chiffré", ...horsAchat, onglet: "details" },
+    achat && aAcheter > 0
+      ? { titre: "Commandé", valeur: `${formatNombre(c.qte_commandee)} / ${formatNombre(aAcheter)}`, fait: c.qte_commandee, total: aAcheter, onglet: "achats" }
+      : { titre: "Commandé", ...horsAchat, onglet: "achats" },
+    achat && aAcheter > 0
+      ? { titre: "Reçu", valeur: `${formatNombre(c.qte_recue)} / ${formatNombre(aAcheter)}`, fait: c.qte_recue, total: aAcheter, note: noteRecu, onglet: "achats" }
+      : { titre: "Reçu", ...horsAchat, note: `${formatNombre(c.stock_actuel)} en stock`, onglet: "stock" },
+    // Aucune affectation est un état normal : l'étape reste neutre, sans alerte.
+    c.nb_ensembles > 0
+      ? { titre: "Affecté", valeur: `${formatNombre(c.qte_affectee)} / ${formatNombre(c.qte_besoin)}`, fait: c.qte_affectee, total: c.qte_besoin, onglet: "ensembles" }
+      : { titre: "Affecté", valeur: "aucun ensemble", neutre: true, onglet: "ensembles" },
+    c.qte_affectee > 0
+      ? { titre: "Monté", valeur: `${formatNombre(montees)} / ${formatNombre(c.qte_affectee)}`, fait: montees, total: c.qte_affectee, onglet: "ensembles" }
+      : { titre: "Monté", valeur: "—", neutre: true, onglet: "ensembles" },
+  ];
+  return el(
+    "section",
+    { class: "suivi" },
+    el(
+      "div",
+      { class: "suivi__entete" },
+      el("strong", {}, "Suivi"),
+      el("span", { class: "suivi__formule" }, `Besoin ${c.qte_besoin} + rechange ${c.qte_rechange} − déjà disponible ${c.qte_disponible} = `, el("strong", {}, `${formatNombre(aAcheter)} à acheter`)),
+    ),
+    el("div", { class: "suivi__etapes" }, etapes.map((e) => etapeSuivi({ ...e, allerA }))),
+  );
+}
+
+function blocPrixFournisseur(c, statuts) {
+  const prix = c.pu_ht === null
+    ? [el("div", { class: "fiche-prix__montant" }, c.mode_appro === "Achat" ? "à chiffrer" : "—")]
+    : [
+        el("div", { class: "fiche-prix__montant" }, `${formatMontant(c.pu_ht)} HT `, el("span", { class: "texte-doux" }, "l'unité")),
+        el("div", { class: "texte-doux" }, `Relevé ${formatMontant(c.pu_releve)} ${c.base_prix_releve} · TVA ${formatPourcent(c.taux_tva * 100, 1)}`),
+        el("div", {}, "Total HT ", el("strong", {}, formatMontant(c.total_ht))),
+      ];
+  const reference = [c.ref_fabricant, c.fabricant].filter(Boolean).join(" · ");
+  return el(
+    "section",
+    { class: "fiche-prix" },
+    el("div", {}, el("div", { class: "texte-doux texte-petit" }, "Prix"), ...prix),
+    el(
+      "div",
+      {},
+      el("div", { class: "texte-doux texte-petit" }, "Fournisseur"),
+      el("div", { class: "fiche-prix__fournisseur" }, c.fournisseur_nom ? lienFournisseur(c.fournisseur_nom, statuts.get(c.fournisseur_nom)) : "—"),
+      reference ? el("div", {}, `Réf. ${reference}`) : null,
+      c.lien_produit ? el("div", {}, lienExterne(c.lien_produit, "Page produit")) : null,
+    ),
+  );
+}
+
+function vueDetails(fiche) {
+  const c = fiche.composant;
+  const renseignes = tousLesAttributs().filter((a) => fiche.attributs[a.code] !== undefined && fiche.attributs[a.code] !== null);
   return [
-    definitions([
-      ["Bloc", c.bloc_code],
-      ["Fonction", c.fonction],
-      ["Désignation", c.designation],
-      ["Réf fabricant", c.ref_fabricant],
-      ["Fabricant", c.fabricant],
-      ["Mode d'appro", libelle(c.mode_appro)],
-      ["Fournisseur", c.fournisseur_nom ? lienFournisseur(c.fournisseur_nom, statuts.get(c.fournisseur_nom)) : null],
-      ["Lien produit", lien],
-    ]),
-    definitions([
-      ["Qté besoin / rechange / déjà dispo.", `${c.qte_besoin} / ${c.qte_rechange} / ${c.qte_disponible}`],
-      ["Qté à acheter", formatNombre(c.qte_a_acheter)],
-      ["PU relevé", c.pu_releve === null ? (c.mode_appro === "Achat" ? "à chiffrer" : null) : `${formatMontant(c.pu_releve)} ${c.base_prix_releve}`],
-      ["TVA", formatPourcent(c.taux_tva * 100, 1)],
-      ["PU HT / TTC", c.pu_ht === null ? null : `${formatMontant(c.pu_ht)} / ${formatMontant(c.pu_ttc)}`],
-      ["Total HT / TTC", `${formatMontant(c.total_ht)} / ${formatMontant(c.total_ttc)}`],
-      ["Commandé / reçu", `${c.qte_commandee} / ${c.qte_recue}`],
-      ["Stock actuel", el("span", { class: c.stock_actuel < 0 ? "texte-alerte" : "" }, formatNombre(c.stock_actuel))],
-    ]),
-    definitions([
-      ["Statut choix", libelle(c.statut_choix)],
-      ["Statut appro", libelle(c.statut_appro)],
-      ["Criticité", libelle(c.criticite)],
-      ["Avancement", libelle(c.avancement)],
-      ["Origine exigence", c.origine_exigence],
-      ["Créé le / modifié le", `${formatDate(c.cree_le)} / ${formatDate(c.modifie_le)}`],
-    ]),
+    el(
+      "dl",
+      { class: "fiche-details" },
+      [
+        ["Fonction", c.fonction],
+        ["Mode d'appro", libelle(c.mode_appro)],
+        ["Statut de choix", libelle(c.statut_choix)],
+        ["Statut d'appro", libelle(c.statut_appro)],
+        ["Criticité", libelle(c.criticite)],
+        ["Avancement", libelle(c.avancement)],
+        ["Origine de l'exigence", c.origine_exigence],
+      ].map(([terme, valeur]) => el("div", {}, el("dt", {}, terme), el("dd", {}, valeur || "—"))),
+    ),
+    renseignes.length
+      ? el(
+          "div",
+          { class: "fiche-caracteristiques" },
+          el("div", { class: "texte-doux texte-petit" }, "Caractéristiques"),
+          el("div", { class: "fiche-caracteristiques__liste" }, renseignes.map((a) => el("span", { class: "puce-fiche puce-fiche--info" }, `${a.libelle} `, el("strong", {}, formatAttribut(a, fiche.attributs[a.code]))))),
+        )
+      : null,
     c.note_technique ? el("div", { class: "fiche__note" }, el("strong", {}, "Note technique"), el("p", {}, c.note_technique)) : null,
+    fiche.remplace.length
+      ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
+      : null,
+    el("p", { class: "texte-doux texte-petit" }, `Créé le ${formatDate(c.cree_le)} · modifié le ${formatDate(c.modifie_le)}`),
   ];
 }
+
+// Onglet ouvert, gardé d'un rafraîchissement à l'autre pour le même composant.
+let ongletCourant = { id: null, onglet: "details" };
 
 // Champs de base rendus obligatoires dans les paramètres, relus à l'ouverture de la fiche.
 let champsRequis = new Set();
@@ -332,32 +495,6 @@ function sectionCaracteristiques(valeurs) {
   return vue ? section("Caractéristiques", vue) : null;
 }
 
-// Visa d'un responsable : visible de tous, posé par l'administrateur et la permission achats.
-function ligneVisa(c, visa, surVise) {
-  const auteur = visa?.vise_par ? ` par ${visa.vise_par}` : "";
-  const texte = !visa
-    ? "Pas encore visé par un responsable."
-    : visa.a_jour
-      ? `Visé${auteur} le ${formatDate(visa.vise_le)}.`
-      : `Modifié depuis le visa${auteur} du ${formatDate(visa.vise_le)}.`;
-  const bouton = aPermission("achats") && !visa?.a_jour
-    ? el("button", {
-        type: "button",
-        class: "bouton bouton--petit bouton--discret",
-        onclick: async () => {
-          try {
-            await api.viserComposants([c.id]);
-            masquerErreur();
-            await surVise();
-          } catch (erreur) {
-            afficherErreur(erreur);
-          }
-        },
-      }, "Viser")
-    : null;
-  return el("p", { class: `visa ${visa?.a_jour ? "visa--valable" : "visa--a-voir"}` }, texte, bouton);
-}
-
 function sectionCommandes(lignes) {
   return section(
     "Lignes de commande",
@@ -439,72 +576,22 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   }
   const c = fiche.composant;
   if (c.archive) return ouvrirFicheArchivee(fiche, documents, surFermeture);
+  if (ongletCourant.id !== id) ongletCourant = { id, onglet: "details" };
   // Modifiable par l'administrateur et par les contributeurs du bloc du composant.
   const modifiable = ecritBloc(c.bloc_code);
+  const statuts = statutsFournisseurs(fournisseurs);
   const rafraichir = async () => {
     await surChangement();
     await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture, surDupliquer });
   };
-  const zoneChamps = el("div", {}, vueChamps(c, statutsFournisseurs(fournisseurs)));
-  const boutonModifier = el("button", { type: "button", class: "bouton bouton--discret" }, "Modifier");
-  boutonModifier.addEventListener("click", () => {
-    boutonModifier.disabled = true;
-    zoneChamps.replaceChildren(
-      formulaireModif(c, fiche.attributs, fournisseurs, {
-        surEnregistre: rafraichir,
-        surAnnule: () => {
-          boutonModifier.disabled = false;
-          zoneChamps.replaceChildren(...vueChamps(c, statutsFournisseurs(fournisseurs)));
-        },
-      }),
-    );
-  });
-  const boutonArchiver = el("button", {
-    type: "button",
-    class: "bouton bouton--danger",
-    onclick: async () => {
-      if (!confirm(`Archiver ${c.id} (${c.designation}) ?\nIl disparaîtra des listes mais restera en base, avec son historique.`)) return;
-      try {
-        await api.archiveComposant(c.id);
-        fermerPanneau();
-        await surChangement();
-      } catch (erreur) {
-        afficherErreur(erreur);
-      }
-    },
-  }, "Archiver");
-  const boutonDupliquer = el("button", {
-    type: "button",
-    class: "bouton bouton--discret si-ecriture",
-    title: "Créer un composant prérempli avec ces informations",
-    onclick: () => surDupliquer({ composant: c, attributs: fiche.attributs }),
-  }, "Dupliquer");
-  const zoneReclassement = el("div");
-  const boutonReclasser = el("button", {
-    type: "button",
-    class: "bouton bouton--discret",
-    title: "Changer de bloc (nouvel identifiant)",
-    onclick: () =>
-      ouvrirReclassement(c, zoneReclassement, async (nouveau) => {
-        await surChangement();
-        naviguer("/composants", { fiche: nouveau.id });
-      }),
-  }, "Reclasser…");
-  ouvrirPanneau(
-    `${c.id} · ${c.designation}`,
-    [
-      modifiable
-        ? el("div", { class: "fiche__actions" }, boutonModifier, boutonDupliquer, estAdmin() ? boutonReclasser : null, boutonArchiver)
-        : el("div", { class: "fiche__actions" }, el("p", { class: "texte-doux texte-petit" }, `Lecture seule : le bloc ${c.bloc_code} ne vous est pas attribué.`), boutonDupliquer),
-      zoneReclassement,
-      ligneVisa(c, fiche.visa, rafraichir),
-      fiche.remplace.length
-        ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
-        : null,
-      section("Composant", zoneChamps),
-      sectionCaracteristiques(fiche.attributs),
-      sectionAffectations(fiche, ensembles, rafraichir, modifiable),
-      sectionCommandes(fiche.lignes_commande),
+
+  const corpsOnglet = el("div", { class: "fiche-onglet" });
+  const contenus = {
+    details: () => vueDetails(fiche),
+    ensembles: () => sectionAffectations(fiche, ensembles, rafraichir, modifiable),
+    achats: () => sectionCommandes(fiche.lignes_commande),
+    stock: () => sectionMouvements(fiche.mouvements),
+    documents: () =>
       sectionDocuments({
         documents,
         avecSource: true,
@@ -514,9 +601,140 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         depot: modifiable,
         surChangement: rafraichir,
       }),
-      sectionMouvements(fiche.mouvements),
-      sectionHistorique(fiche.historique, c.id),
+    historique: () => frise(fiche.historique, c.id),
+  };
+  const titres = [
+    ["details", "Détails"],
+    ["ensembles", `Ensembles · ${fiche.affectations.length}`],
+    ["achats", `Achats · ${fiche.lignes_commande.length}`],
+    ["stock", `Stock · ${fiche.mouvements.length}`],
+    ["documents", `Documents · ${documents.length}`],
+    ["historique", "Historique"],
+  ];
+  const boutonsOnglets = titres.map(([code, titre]) =>
+    el("button", { type: "button", role: "tab", class: "onglet", "data-onglet": code, onclick: () => choisirOnglet(code) }, titre),
+  );
+  function choisirOnglet(code) {
+    ongletCourant.onglet = code;
+    for (const bouton of boutonsOnglets) {
+      const actif = bouton.dataset.onglet === code;
+      bouton.classList.toggle("onglet--actif", actif);
+      bouton.setAttribute("aria-selected", String(actif));
+    }
+    corpsOnglet.replaceChildren(...[contenus[code]()].flat().filter(Boolean));
+  }
+
+  // Lecture (suivi, prix, onglets) ou formulaire de modification, à la même place.
+  const zone = el("div");
+  const lecture = el(
+    "div",
+    {},
+    suivi(fiche, allerA),
+    blocPrixFournisseur(c, statuts),
+    el("nav", { class: "onglets onglets--fiche", role: "tablist", "aria-label": "Sections de la fiche" }, boutonsOnglets),
+    corpsOnglet,
+  );
+  const boutonModifier = el("button", { type: "button", class: "bouton", onclick: () => modifier() }, "Modifier");
+  function modifier() {
+    if (!modifiable) return;
+    boutonModifier.disabled = true;
+    zone.replaceChildren(
+      formulaireModif(c, fiche.attributs, fournisseurs, {
+        surEnregistre: rafraichir,
+        surAnnule: () => {
+          boutonModifier.disabled = false;
+          zone.replaceChildren(lecture);
+        },
+      }),
+    );
+  }
+  function allerA(onglet) {
+    if (onglet === "modifier") return modifiable ? modifier() : choisirOnglet("details");
+    choisirOnglet(contenus[onglet] ? onglet : "details");
+  }
+
+  const zoneReclassement = el("div");
+  const menuPlus = el(
+    "details",
+    { class: "menu-plus" },
+    el("summary", { class: "bouton bouton--discret" }, "Plus"),
+    el(
+      "div",
+      { class: "menu-plus__liste" },
+      estAdmin()
+        ? el("button", {
+            type: "button",
+            class: "bouton-lien",
+            title: "Changer de bloc (nouvel identifiant)",
+            onclick: () => {
+              menuPlus.open = false;
+              ouvrirReclassement(c, zoneReclassement, async (nouveau) => {
+                await surChangement();
+                naviguer("/composants", { fiche: nouveau.id });
+              });
+            },
+          }, "Reclasser dans un autre bloc…")
+        : null,
+      el("button", {
+        type: "button",
+        class: "bouton-lien texte-alerte",
+        onclick: async () => {
+          if (!confirm(`Archiver ${c.id} (${c.designation}) ?\nIl disparaîtra des listes mais restera en base, avec son historique.`)) return;
+          try {
+            await api.archiveComposant(c.id);
+            fermerPanneau();
+            await surChangement();
+          } catch (erreur) {
+            afficherErreur(erreur);
+          }
+        },
+      }, "Archiver"),
+    ),
+  );
+  const boutonDupliquer = el("button", {
+    type: "button",
+    class: "bouton bouton--discret si-ecriture",
+    title: "Créer un composant prérempli avec ces informations",
+    onclick: () => surDupliquer({ composant: c, attributs: fiche.attributs }),
+  }, "Dupliquer");
+
+  const zoneVisa = el("span", {}, pastilleVisa(fiche.visa));
+  ouvrirPanneau(
+    c.id,
+    [
+      el(
+        "header",
+        { class: "fiche-entete" },
+        el("h3", { class: "fiche-entete__titre" }, c.designation),
+        el("p", { class: "fiche-entete__sous-titre" }, `Bloc ${c.bloc_code} · ${c.fonction}`),
+        el(
+          "div",
+          { class: "fiche-entete__puces" },
+          c.criticite === "Bloquant" ? el("span", { class: "puce-fiche puce-fiche--alerte" }, libelle(c.criticite)) : null,
+          zoneVisa,
+          pastilleActions(fiche.actions, allerA),
+        ),
+      ),
+      modifiable
+        ? el("div", { class: "fiche__actions fiche__actions--gauche" }, boutonModifier, boutonDupliquer, el("span", { class: "fiche__espace" }), menuPlus)
+        : el("div", { class: "fiche__actions fiche__actions--gauche" }, el("p", { class: "texte-doux texte-petit" }, `Lecture seule : le bloc ${c.bloc_code} ne vous est pas attribué.`), boutonDupliquer),
+      zoneReclassement,
+      zone,
     ],
     surFermeture,
   );
+  zone.replaceChildren(lecture);
+  choisirOnglet(ongletCourant.onglet);
+  viserAOuverture(fiche, zoneVisa);
+}
+
+// Un responsable qui ouvre la fiche la vise : il a vu le composant tel qu'il est.
+async function viserAOuverture(fiche, zoneVisa) {
+  if (!aPermission("achats") || fiche.visa?.a_jour) return;
+  try {
+    await api.viserComposants([fiche.composant.id]);
+    zoneVisa.replaceChildren(el("span", { class: "puce-fiche puce-fiche--conforme" }, icone(COCHE), "Visé par vous à l'instant"));
+  } catch (erreur) {
+    afficherErreur(erreur);
+  }
 }

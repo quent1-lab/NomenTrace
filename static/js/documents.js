@@ -99,7 +99,7 @@ export function sectionDocuments({ titre = "Documents", documents, deposer, surC
   return el(
     "section",
     { class: "fiche__section section-documents" },
-    el("h3", {}, titre),
+    titre ? el("h3", {}, titre) : null,
     aide ? el("p", { class: "texte-doux texte-petit" }, aide) : null,
     documents.length
       ? el(

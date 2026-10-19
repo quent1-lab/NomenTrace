@@ -142,10 +142,13 @@ tableau de bord jusqu'à ce qu'on complète sa fiche.
 ## Saisir les composants
 
 L'écran Composants est une table de toute la nomenclature. Le bouton « + Ajouter un
-composant » ouvre le formulaire de création : on choisit le bloc, et l'identifiant suivant
-de ce bloc s'affiche en aperçu ; il est attribué définitivement à l'enregistrement. La
-fonction, la désignation, le mode d'approvisionnement et la quantité besoin sont
-obligatoires.
+composant » ouvre la création, en deux étapes. La première demande l'essentiel : on
+choisit le bloc, et l'identifiant suivant de ce bloc s'affiche en aperçu ; la fonction, la
+désignation, le mode d'approvisionnement et la quantité besoin sont obligatoires. « Créer
+et continuer » enregistre le composant et lui attribue son identifiant. La seconde étape,
+facultative, propose toutes les caractéristiques, l'affectation aux ensembles et le dépôt
+de documents, pour que rien ne soit oublié ; « Passer » la saute, et fermer le panneau garde
+le composant créé.
 
 La forme des champs texte est contrôlée. Une adresse web collée dans la fonction, la
 désignation, la référence fabricant ou le fabricant est refusée (elle va dans Lien produit),
@@ -174,20 +177,32 @@ affichée : mêmes filtres, même tri, mêmes colonnes, avec le total.
 
 ### La fiche d'un composant
 
-Un clic sur une ligne ouvre la fiche. On y trouve tous les champs, les caractéristiques
-renseignées (celles qui n'ont pas de valeur pour ce composant ne s'affichent pas), les
-ensembles où le composant est affecté (quantités modifiables, affectation à un nouvel
-ensemble), ses lignes de devis et de commande, ses documents, ses mouvements de stock et
-son historique. « Modifier » ouvre les champs et les caractéristiques dans un même
-formulaire, enregistré en une fois.
+Un clic sur une ligne ouvre la fiche. Son en-tête donne la désignation, le bloc et la
+fonction, puis des pastilles : la criticité Bloquant, le visa, et le nombre d'actions qui
+restent à faire. Un clic sur cette dernière déroule la liste : champs obligatoires à
+remplir, prix à relever, saisie à vérifier, pièces du besoin restées hors de tout ensemble
+alors que l'affectation est commencée, fiche technique absente pour un composant acheté.
+Chaque action mène à l'endroit où la faire. Un composant affecté à aucun ensemble n'a pas
+d'action pour autant : c'est un état normal.
 
-Sous les boutons, une ligne indique le visa du composant. Un responsable, administrateur ou
-contributeur qui a la permission achats, vise un composant pour dire qu'il l'a vu tel qu'il
-est. Le visa se perd dès qu'un champ ou une caractéristique du composant change ; les
-affectations, les commandes, le stock et les documents ne le retirent pas. La case « À voir
-(sans visa) » de la liste ne garde que les composants à viser, avec un bouton qui vise toute
-la liste affichée, et le menu Composants porte pour les responsables le nombre de composants
-à voir. Chaque visa entre dans l'historique du composant.
+Sous les boutons, le suivi montre où en est le composant en cinq étapes : chiffré,
+commandé, reçu, affecté, monté. Chaque étape a sa valeur et une fine barre, verte quand
+l'étape est faite, orange quand elle est en cours, grise sinon ; la réception indique la
+prochaine livraison annoncée et le stock. Au-dessus, une ligne rappelle le calcul de la
+quantité à acheter. Viennent ensuite le prix et le fournisseur, puis des onglets :
+Détails (statuts, caractéristiques renseignées, note technique), Ensembles (quantités
+modifiables, affectation à un nouvel ensemble), Achats, Stock, Documents et Historique. Un
+clic sur une étape du suivi ouvre l'onglet correspondant. « Modifier » ouvre les champs et
+toutes les caractéristiques, même vides, dans un même formulaire enregistré en une fois.
+Reclasser et Archiver sont rangés sous « Plus ».
+
+Un responsable, administrateur ou contributeur qui a la permission achats, vise le
+composant en ouvrant sa fiche : il l'a vu tel qu'il est. Le visa se perd dès qu'un champ
+ou une caractéristique du composant change ; les affectations, les commandes, le stock et
+les documents ne le retirent pas. La case « À voir (sans visa) » de la liste ne garde que
+les composants à viser, avec un bouton qui vise toute la liste affichée, et le menu
+Composants porte pour les responsables le nombre de composants à voir. Chaque visa entre
+dans l'historique du composant.
 
 « Dupliquer » ouvre la création d'un nouveau composant, préremplie avec les champs et les
 caractéristiques de celui-ci, dans le même bloc : il reste à changer ce qui diffère. Les

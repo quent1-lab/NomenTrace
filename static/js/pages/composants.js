@@ -495,6 +495,8 @@ function ouvrirCreationComposant(modele = null) {
     fournisseurs: etat.fournisseurs,
     blocInitial: modele?.composant.bloc_code ?? etat.filtres.bloc,
     modele,
+    // Étape 2 : fermer le panneau garde le composant créé et rafraîchit la liste.
+    completer: { ensembles: etat.ensembles, surFermeture: apresChangement },
     surCree: async (composant) => {
       await apresChangement();
       ouvrirFicheComposant(composant.id);
