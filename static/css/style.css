@@ -1085,6 +1085,10 @@ td.editable:hover {
   border-top: 1px solid var(--couleur-bordure);
 }
 
+.logo-etablissement .actions-formulaire {
+  justify-content: flex-start;
+}
+
 .logo-etablissement__apercu {
   display: block;
   max-width: 200px;
