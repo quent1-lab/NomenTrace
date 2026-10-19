@@ -53,12 +53,18 @@ export function barreProgression(libelleTexte, valeur, total, vide) {
   );
 }
 
-export function texteCout(ensemble) {
+// Montant d'un ensemble, signalé partiel s'il manque des prix. Le coût matière compte toutes
+// les pièces affectées ; la dépense (champ « depense_ht ») déduit le stock interne.
+export function texteCout(ensemble, champ = "cout_ht") {
   const partiel = ensemble.nb_lignes_non_chiffrees > 0;
   return [
-    formatMontant(ensemble.cout_ht),
+    formatMontant(ensemble[champ]),
     partiel ? el("span", { class: "a-chiffrer", title: `${ensemble.nb_lignes_non_chiffrees} composant(s) à acheter sans prix` }, " (partiel)") : null,
   ];
+}
+
+export function texteDepense(ensemble) {
+  return texteCout(ensemble, "depense_ht");
 }
 
 // Sélecteur du statut de montage, enregistré dès qu'il change.
@@ -119,17 +125,20 @@ export function texteBudget(ensemble) {
   ];
 }
 
-// Colonne « Marge » : budget − coût cumulé, négative en cas de dépassement.
+// Colonnes « Marge » : budget − montant cumulé, négative en cas de dépassement.
 export function texteMarge(ecart) {
   if (ecart === null || ecart === undefined) return "";
   return el("span", { class: `ecart--${niveauMarge(ecart)}` }, formatMarge(ecart));
 }
 
-// Marge restante ou dépassement d'un ensemble, avec son titre : [titre, valeur].
-export function situationEnsemble(ensemble) {
-  const s = situationBudget(ensemble.ecart_budget_ht, ensemble.budget_ht);
+// Marge restante ou dépassement d'un ensemble, avec son titre : [titre, valeur]. Le budget
+// se compare d'abord à ce qui reste à dépenser ; `sur = "cout"` le compare au coût matière.
+export function situationEnsemble(ensemble, sur = "depense") {
+  const ecart = sur === "cout" ? ensemble.ecart_budget_ht : ensemble.ecart_depense_ht;
+  const s = situationBudget(ecart, ensemble.budget_ht);
   const texte = s.pourcent ? `${s.montant} (${s.pourcent})` : s.montant;
-  return [s.titre, el("span", { class: `ecart--${s.niveau}` }, texte)];
+  const titre = sur === "cout" ? `${s.titre} sur le coût matière` : s.titre;
+  return [titre, el("span", { class: `ecart--${s.niveau}` }, texte)];
 }
 
 // Alerte portée par un parent dont les sous-ensembles verrouillés dépassent le budget.

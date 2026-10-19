@@ -99,7 +99,7 @@ l'export.
 | `v_ensemble_descendant` | Chaque ensemble face à lui-même et à tous ses descendants non archivés (requête récursive). |
 | `v_ensemble_cumul` | Mêmes indicateurs que `v_ensemble`, « cumulés » : l'ensemble et tous ses descendants, plus le nombre de sous-ensembles. |
 | `v_ensemble_bloc_cumul` | Répartition par bloc d'un ensemble et de ses descendants. |
-| `v_ensemble_composant` | Chaque affectation avec coût de ligne, quantité montée, reste à monter. |
+| `v_ensemble_composant` | Chaque affectation avec coût matière de ligne, part à dépenser, quantité montée, reste à monter. |
 | `v_ensemble_bloc` | Répartition de chaque ensemble par bloc. |
 | `v_incoherence` | Signalements : sur-affectation, affecté non commandé, monté au-delà de l'affectation, monté sans affectation. |
 | `v_commande` | Commandes avec montant des articles, totaux HT/TTC, indicateurs `engagee` et `en_retard`. |
@@ -204,6 +204,24 @@ valeur_stock         = somme de MAX(stock_actuel, 0) * pu_ht
 avancement_appro_pct = nb 'Recu' / nb dont avancement <> 'Hors achat' * 100
 ```
 
+Coût et dépense d'un ensemble (`v_ensemble_composant`, sommés dans `v_ensemble`,
+`v_ensemble_cumul` et les répartitions par bloc) :
+
+```
+cout_ligne_ht        = qte_affectee * pu_ht              (coût matière, stock compris)
+part_achetee         = 0 si mode_appro <> 'Achat'
+                       sinon MAX(0, qte_besoin - qte_disponible) / qte_besoin
+                       (besoin nul : 0 s'il y a du stock, 1 sinon)
+depense_ligne_ht     = cout_ligne_ht * part_achetee      (NULL sans prix)
+cout_ht, depense_ht  = sommes des lignes de l'ensemble (propre) ou de sa branche (cumul)
+```
+
+Le stock déjà disponible couvre d'abord le besoin, et chaque ensemble en profite au
+prorata de ses pièces : un moteur à 20 € HT, besoin 10, 4 disponibles, affecté 6 à A et 4
+à B, coûte 120 € et 80 € en matière, et fait dépenser 72 € et 48 €, soit les 120 € achetés.
+La rechange n'est affectée à aucun ensemble : elle reste dans la dépense du projet
+(`total_ht`), pas dans celle des ensembles.
+
 Montage (`v_ensemble_composant`, `v_ensemble`) :
 
 ```
@@ -243,8 +261,12 @@ fonction. Il est réparti à chaque niveau, en partant de la racine (budget de l
 4. si verrouillés et coût propre dépassent le budget du parent (tolérance 0,01 €), les
    non verrouillés reçoivent 0 et le dépassement est signalé sur le parent.
 part propre du budget = coût propre (+ le reste s'il n'y a aucun enfant non verrouillé)
-ecart_budget_ht       = coût cumulé - budget de l'ensemble   (positif = dépassement)
+ecart_depense_ht      = dépense cumulée - budget de l'ensemble   (positif = dépassement)
+ecart_budget_ht       = coût matière cumulé - budget de l'ensemble
 ```
+
+La répartition s'appuie sur le coût matière ; l'interface compare le budget d'abord au
+montant à dépenser, puis au coût matière.
 
 Sans budget de projet, seuls les ensembles verrouillés ont un budget, et leurs
 descendants. Un budget verrouillé exige un montant saisi ; déverrouillé, le montant saisi

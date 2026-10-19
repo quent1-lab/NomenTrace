@@ -16,6 +16,7 @@ import {
   selectStatutMontage,
   texteBudget,
   texteCout,
+  texteDepense,
   situationEnsemble,
   texteMarge,
 } from "./ensembles_commun.js";
@@ -72,11 +73,14 @@ function carte(ensemble, repartition, rangs, rafraichir, noms) {
       el("dd", {}, chiffre(ensemble, "nb_composants_distincts")),
       el("dt", {}, "Pièces"),
       el("dd", {}, chiffre(ensemble, "nb_pieces_total")),
-      el("dt", {}, "Coût HT"),
-      el("dd", { class: "fort" }, texteCout(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.cout_ht)}`) : null),
+      el("dt", { title: "Toutes les pièces affectées, stock interne compris" }, "Coût matière HT"),
+      el("dd", {}, texteCout(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.cout_ht)}`) : null),
+      el("dt", { title: "Coût matière moins le stock déjà disponible" }, "À dépenser HT"),
+      el("dd", { class: "fort" }, texteDepense(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.depense_ht)}`) : null),
       el("dt", {}, "Budget HT"),
       el("dd", {}, texteBudget(ensemble)),
-      ensemble.ecart_budget_ht !== null ? situationEnsemble(ensemble).map((partie, rang) => el(rang ? "dd" : "dt", {}, partie)) : null,
+      ensemble.ecart_depense_ht !== null ? situationEnsemble(ensemble).map((partie, rang) => el(rang ? "dd" : "dt", {}, partie)) : null,
+      ensemble.ecart_budget_ht !== null ? situationEnsemble(ensemble, "cout").map((partie, rang) => el(rang ? "dd" : "dt", { class: "texte-doux" }, partie)) : null,
     ),
     alerteDepassement(ensemble.depassement_verrouille_ht),
     barreRepartition(repartition, rangs),
@@ -138,9 +142,11 @@ function ligneArbre(e, rafraichir) {
     { class: "ligne-cliquable", tabindex: "0", onclick: ouvrir, onkeydown: (ev) => ev.key === "Enter" && ouvrir() },
     nom,
     el("td", { class: "nombre" }, texteCout(c)),
-    el("td", { class: "nombre" }, e.nb_sous_ensembles ? formatMontant(e.cout_ht) : ""),
+    el("td", { class: "nombre" }, texteDepense(c)),
+    el("td", { class: "nombre" }, e.nb_sous_ensembles ? formatMontant(e.depense_ht) : ""),
     budgetCibleEnsemble(e, rafraichir),
     el("td", { class: "nombre" }, e.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(e.budget_ht)),
+    el("td", { class: "nombre" }, texteMarge(e.ecart_depense_ht)),
     el("td", { class: "nombre" }, texteMarge(e.ecart_budget_ht)),
     el("td", { class: "nombre" }, appro),
     el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
@@ -160,9 +166,11 @@ function ligneRacine(racine) {
     { class: "arbre__racine" },
     nom,
     el("td", { class: "nombre" }, formatMontant(racine.cout_ht)),
+    el("td", { class: "nombre" }, formatMontant(racine.depense_ht)),
     el("td"),
     el("td", { class: "nombre texte-doux texte-petit", title: "Le budget du projet se modifie dans Paramètres › Projet" }, "Paramètres"),
     el("td", { class: "nombre" }, racine.budget_ht === null ? el("span", { class: "texte-doux" }, "non défini") : formatMontant(racine.budget_ht)),
+    el("td", { class: "nombre" }, texteMarge(racine.ecart_depense_ht)),
     el("td", { class: "nombre" }, texteMarge(racine.ecart_budget_ht)),
     el("td"),
     el("td"),
@@ -170,14 +178,14 @@ function ligneRacine(racine) {
 }
 
 function vueArbre(arbre, rafraichir) {
-  const entetes = [["Ensemble"], ["Coût HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget cible HT", "nombre"], ["Budget HT", "nombre"], ["Marge", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
+  const entetes = [["Ensemble"], ["Coût matière HT cumulé", "nombre"], ["À dépenser HT cumulé", "nombre"], ["dont propre", "nombre"], ["Budget cible HT", "nombre"], ["Budget HT", "nombre"], ["Marge sur dépense", "nombre"], ["Marge sur coût", "nombre"], ["Appro reçus", "nombre"], ["Montage", "nombre"]];
   return el(
     "section",
     { class: "panneau" },
     el(
       "p",
       { class: "texte-doux texte-petit" },
-      "Le budget du projet descend l'arbre : les ensembles verrouillés gardent leur montant, les composants affectés directement au parent prennent leur coût, et le reste est partagé à parts égales entre les autres sous-ensembles.",
+      "Le budget du projet descend l'arbre : les ensembles verrouillés gardent leur montant, les composants affectés directement au parent prennent leur coût matière, et le reste est partagé à parts égales entre les autres sous-ensembles. Le coût matière compte toutes les pièces affectées ; le montant à dépenser en retire le stock déjà disponible, réparti entre les ensembles au prorata de leurs pièces.",
     ),
     el(
       "p",

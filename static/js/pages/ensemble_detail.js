@@ -18,6 +18,7 @@ import {
   selectStatutMontage,
   texteBudget,
   texteCout,
+  texteDepense,
   situationEnsemble,
   texteMarge,
 } from "./ensembles_commun.js";
@@ -26,8 +27,8 @@ const EDITION_QTE = { champ: "qte_affectee", type: "entier" };
 
 let etat = null;
 
-function coutLigne(ligne) {
-  if (ligne.cout_ligne_ht !== null) return formatMontant(ligne.cout_ligne_ht);
+function coutLigne(ligne, champ = "cout_ligne_ht") {
+  if (ligne[champ] !== null) return formatMontant(ligne[champ]);
   return ligne.avancement === "Hors achat" ? "—" : el("span", { class: "a-chiffrer" }, "à chiffrer");
 }
 
@@ -74,22 +75,24 @@ function ligneComposant(ligne) {
     el("td", {}, libelle(ligne.statut_appro)),
     el("td", { class: "nombre" }, formatMontant(ligne.pu_ht)),
     el("td", { class: "nombre" }, coutLigne(ligne)),
+    el("td", { class: "nombre" }, coutLigne(ligne, "depense_ligne_ht")),
     el("td", { class: "nombre" }, modifiable ? el("button", { type: "button", class: "bouton-icone", title: "Retirer de l'ensemble", onclick: () => retirer(ligne) }, "×") : null),
   );
 }
 
 function tableComposants() {
-  const entetes = ["ID", "Désignation", "", "Bloc", "Qté affectée", "Montée", "Reste à monter", "Statut appro", "PU HT", "Coût ligne HT", ""];
-  const numeriques = new Set([4, 5, 6, 8, 9, 10]);
+  const entetes = ["ID", "Désignation", "", "Bloc", "Qté affectée", "Montée", "Reste à monter", "Statut appro", "PU HT", "Coût matière HT", "À dépenser HT", ""];
+  const numeriques = new Set([4, 5, 6, 8, 9, 10, 11]);
   const corps = el("tbody");
   if (etat.grouper) {
     const blocs = [...new Set(etat.lignes.map((l) => l.bloc_code))].sort((a, b) => (etat.rangs.get(a) ?? 0) - (etat.rangs.get(b) ?? 0));
     for (const bloc of blocs) {
       const lignes = etat.lignes.filter((l) => l.bloc_code === bloc);
       const sousTotal = lignes.reduce((s, l) => s + (l.cout_ligne_ht ?? 0), 0);
+      const sousTotalDepense = lignes.reduce((s, l) => s + (l.depense_ligne_ht ?? 0), 0);
       const nom = etat.blocs.find((b) => b.code === bloc)?.nom ?? bloc;
       corps.append(
-        el("tr", { class: "ligne-groupe" }, el("td", { colspan: 9 }, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(bloc) ?? 0)}` }, bloc), ` ${nom} (${lignes.length} composant(s))`), el("td", { class: "nombre fort" }, formatMontant(sousTotal)), el("td")),
+        el("tr", { class: "ligne-groupe" }, el("td", { colspan: 9 }, el("span", { class: `etiquette-bloc ${classeBloc(etat.rangs.get(bloc) ?? 0)}` }, bloc), ` ${nom} (${lignes.length} composant(s))`), el("td", { class: "nombre" }, formatMontant(sousTotal)), el("td", { class: "nombre fort" }, formatMontant(sousTotalDepense)), el("td")),
         ...lignes.map(ligneComposant),
       );
     }
@@ -101,7 +104,7 @@ function tableComposants() {
     { class: "table table--dense" },
     el("thead", {}, el("tr", {}, entetes.map((t, i) => el("th", { class: numeriques.has(i) ? "nombre" : "" }, t)))),
     corps,
-    el("tfoot", {}, el("tr", {}, el("td", { colspan: 9, class: "nombre" }, "Coût total HT"), el("td", { class: "nombre fort" }, texteCout(etat.ensemble)), el("td"))),
+    el("tfoot", {}, el("tr", {}, el("td", { colspan: 9, class: "nombre" }, "Total HT"), el("td", { class: "nombre" }, texteCout(etat.ensemble)), el("td", { class: "nombre fort" }, texteDepense(etat.ensemble)), el("td"))),
   );
 }
 
@@ -165,9 +168,11 @@ function bandeau() {
       { class: "bandeau-ensemble__chiffres" },
       caseChiffre("Composants distincts", formatNombre(c.nb_composants_distincts), propre(formatNombre(e.nb_composants_distincts))),
       caseChiffre("Pièces", formatNombre(c.nb_pieces_total), propre(formatNombre(e.nb_pieces_total))),
-      caseChiffre("Coût HT", texteCout(c), propre(formatMontant(e.cout_ht))),
+      caseChiffre("Coût matière HT", texteCout(c), propre(formatMontant(e.cout_ht))),
+      caseChiffre("À dépenser HT", texteDepense(c), propre(formatMontant(e.depense_ht))),
       caseChiffre("Budget HT", texteBudget(e), parent && e.budget_propre_ht !== null ? formatMontant(e.budget_propre_ht) : null),
-      e.ecart_budget_ht !== null ? caseChiffre(...situationEnsemble(e)) : null,
+      e.ecart_depense_ht !== null ? caseChiffre(...situationEnsemble(e)) : null,
+      e.ecart_budget_ht !== null ? caseChiffre(...situationEnsemble(e, "cout")) : null,
       caseChiffre("Blocs représentés", formatNombre(c.nb_blocs_representes)),
       el("div", {}, el("span", { class: "texte-doux" }, "Statut de montage"), selectStatutMontage(e, recharger)),
     ),
@@ -203,12 +208,14 @@ function sectionSousEnsembles() {
       el("td", {}, s.nom, el("span", { class: "etiquette etiquette--espace" }, s.code), s.nb_sous_ensembles ? el("span", { class: "texte-doux texte-petit" }, ` + ${s.nb_sous_ensembles} sous-ensemble(s)`) : null),
       el("td", { class: "nombre" }, formatNombre(c.nb_pieces_total)),
       el("td", { class: "nombre" }, texteCout(c)),
+      el("td", { class: "nombre" }, texteDepense(c)),
       el("td", { class: "nombre" }, texteBudget(s)),
+      el("td", { class: "nombre" }, texteMarge(s.ecart_depense_ht)),
       el("td", { class: "nombre" }, texteMarge(s.ecart_budget_ht)),
       el("td", { class: "nombre" }, c.avancement_montage_pct === null ? "—" : formatPourcent(c.avancement_montage_pct, 0)),
     );
   });
-  const entetes = [["Sous-ensemble"], ["Pièces", "nombre"], ["Coût HT cumulé", "nombre"], ["Budget HT", "nombre"], ["Marge", "nombre"], ["Montage", "nombre"]];
+  const entetes = [["Sous-ensemble"], ["Pièces", "nombre"], ["Coût matière HT", "nombre"], ["À dépenser HT", "nombre"], ["Budget HT", "nombre"], ["Marge sur dépense", "nombre"], ["Marge sur coût", "nombre"], ["Montage", "nombre"]];
   return el(
     "section",
     { class: "panneau" },

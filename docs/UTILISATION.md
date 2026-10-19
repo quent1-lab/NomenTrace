@@ -220,19 +220,29 @@ commandes et le stock restent à l'ancien identifiant, qui garde ainsi son histo
 
 L'écran Ensembles présente les ensembles physiques de trois façons, par ses onglets.
 
+Chaque ensemble porte deux montants. Le coût matière vaut toutes les pièces affectées à
+leur prix, y compris celles qu'on a déjà en stock : c'est ce que vaut l'ensemble. Le
+montant à dépenser en retire le stock déjà disponible : c'est ce que l'ensemble coûtera
+réellement en achats. Quand un composant en stock sert à plusieurs ensembles, chacun
+profite du stock au prorata de ses pièces. Un composant fabriqué, prêté ou donné n'a rien
+à dépenser, et les pièces de rechange restent comptées au niveau du projet seulement.
+
 L'onglet Cartes montre une carte par ensemble et par sous-ensemble : composants, pièces,
-coût, budget, répartition du coût par bloc, avancement de l'approvisionnement
-et du montage, statut de montage modifiable directement. La carte d'un ensemble qui a des
-sous-ensembles donne des chiffres cumulés, avec sa part propre en second.
+coût matière, montant à dépenser, budget et marge (sur la dépense, puis sur le coût
+matière), répartition du coût par bloc, avancement de l'approvisionnement et du montage,
+statut de montage modifiable directement. La carte d'un ensemble qui a des sous-ensembles
+donne des chiffres cumulés, avec sa part propre en second.
 
 L'onglet Arbre donne la hiérarchie complète dans un tableau, depuis la ligne du projet :
-coût cumulé, part propre, budget cible, budget calculé, marge, avancement. C'est l'endroit
-où l'on arbitre les budgets (voir plus bas).
+coût matière et montant à dépenser cumulés, part propre, budget cible, budget calculé,
+marges sur la dépense et sur le coût matière, avancement. C'est l'endroit où l'on arbitre
+les budgets (voir plus bas).
 
 L'onglet Schéma dessine le même arbre de gauche à droite, un cadre par ensemble relié à son
-parent. Un sélecteur change ce que racontent les couleurs : la marge sur budget, l'avancement
-de l'approvisionnement, celui du montage ou le statut de montage. Un cadre rouge signale un
-parent dont le budget est dépassé par ce qu'on y a verrouillé. Un clic ouvre l'ensemble.
+parent. Un sélecteur change ce que racontent les couleurs : la dépense face au budget,
+l'avancement de l'approvisionnement, celui du montage ou le statut de montage. Un cadre
+rouge signale un parent dont le budget est dépassé par ce qu'on y a verrouillé. Un clic
+ouvre l'ensemble.
 
 Le bouton « + Nouvel ensemble » demande un code (majuscules, chiffres et tirets, figé
 ensuite), un nom, l'ensemble parent éventuel et un ordre d'affichage parmi ses frères. Un

@@ -14,7 +14,9 @@ racine :
    on voit ainsi ce qu'il reste à chacun. Sans enfant non verrouillé, il reste au parent ;
 4. si verrouillés et composants propres dépassent le budget du parent, les non verrouillés
    reçoivent 0 et le parent porte le dépassement.
-Aucun arrondi : il se fait à la sortie de l'API.
+Chaque budget se compare à deux montants : le coût matière (`ecart_budget_ht`, toutes les
+pièces affectées) et le reste à dépenser (`ecart_depense_ht`, stock interne déduit, voir
+v_ensemble_composant). Aucun arrondi : il se fait à la sortie de l'API.
 """
 
 import sqlite3
@@ -125,12 +127,13 @@ def _poser_budgets(
     for enfant in enfants.get(code, []):
         budget_enfant = repartition.parts[enfant["code"]]
         sous = _poser_budgets(enfant["code"], budget_enfant, noeuds, enfants)
-        cout = enfant["cumul"]["cout_ht"]
+        cout, depense = enfant["cumul"]["cout_ht"], enfant["cumul"]["depense_ht"]
         enfant.update(
             budget_ht=budget_enfant,
             budget_propre_ht=sous.propre,
             depassement_verrouille_ht=sous.depassement,
             ecart_budget_ht=None if budget_enfant is None else cout - budget_enfant,
+            ecart_depense_ht=None if budget_enfant is None else depense - budget_enfant,
         )
     return repartition
 
@@ -163,11 +166,14 @@ def get_arbre(conn: sqlite3.Connection) -> dict:
     _parcourir(None, None, enfants, ensembles)
     premiers = enfants.get(None, [])
     cout = sum(e["cumul"]["cout_ht"] for e in premiers)
+    depense = sum(e["cumul"]["depense_ht"] for e in premiers)
     racine = {
         "nom": parametres.get_parametre(conn, "nom_projet"),
         "budget_ht": budget,
         "cout_ht": cout,
+        "depense_ht": depense,
         "ecart_budget_ht": None if budget is None else cout - budget,
+        "ecart_depense_ht": None if budget is None else depense - budget,
         "budget_non_reparti_ht": repartition.propre,
         "depassement_verrouille_ht": repartition.depassement,
         "nb_ensembles": len(ensembles),

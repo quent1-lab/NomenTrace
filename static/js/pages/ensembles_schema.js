@@ -64,10 +64,10 @@ function lien(parent, enfant) {
 // Modes de couleur : ce que la jauge et la bande de gauche de chaque nœud racontent.
 const MODES = {
   budget: {
-    titre: "Marge sur budget",
+    titre: "Dépense sur budget",
     legende: [["conforme", "dans le budget"], ["alerte", "au-delà du budget"], ["neutre", "sans budget"]],
-    etat: (n) => (n.budget ? { part: n.cout / n.budget, niveau: n.cout > n.budget ? "alerte" : "conforme" } : { part: 0, niveau: "neutre" }),
-    texte: (n) => `${formatMontant(n.cout)} / ${n.budget === null ? "budget non défini" : formatMontant(n.budget)}`,
+    etat: (n) => (n.budget ? { part: n.depense / n.budget, niveau: n.depense > n.budget ? "alerte" : "conforme" } : { part: 0, niveau: "neutre" }),
+    texte: (n) => `${formatMontant(n.depense)} / ${n.budget === null ? "budget non défini" : formatMontant(n.budget)}`,
   },
   appro: {
     titre: "Avancement d'appro",
@@ -117,7 +117,8 @@ function dessinerNoeud(noeud, mode) {
   const budget = noeud.budget === null ? "budget non défini" : formatMontant(noeud.budget);
   const infobulle = [
     noeud.racine ? `${noeud.nom} (projet)` : `${noeud.nom} (${noeud.code})`,
-    `Coût HT cumulé : ${formatMontant(noeud.cout)}`,
+    `Coût matière HT cumulé : ${formatMontant(noeud.cout)}`,
+    `À dépenser HT cumulé : ${formatMontant(noeud.depense)}`,
     `Budget HT : ${budget}${noeud.verrouille ? " (verrouillé)" : ""}`,
     noeud.depassement ? `Sous-ensembles verrouillés et composants propres au-delà de ce budget : ${formatMontant(noeud.depassement)}` : null,
   ].filter(Boolean).join("\n");
@@ -154,6 +155,7 @@ export function vueSchema(arbre) {
     racine: true,
     nom: arbre.racine.nom || "Projet",
     cout: arbre.racine.cout_ht,
+    depense: arbre.racine.depense_ht,
     budget: arbre.racine.budget_ht,
     depassement: arbre.racine.depassement_verrouille_ht,
   };
@@ -162,6 +164,7 @@ export function vueSchema(arbre) {
     parent: e.parent_code,
     nom: e.nom,
     cout: e.cumul.cout_ht,
+    depense: e.cumul.depense_ht,
     budget: e.budget_ht,
     verrouille: Boolean(e.budget_verrouille),
     depassement: e.depassement_verrouille_ht,
