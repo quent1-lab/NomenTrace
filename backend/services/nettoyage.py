@@ -1,14 +1,15 @@
 """Écran nettoyage : contrôles de qualité des composants et des commandes.
 
-Les contrôles simples sont calculés par la vue v_qualite_composant ; les doublons probables
-viennent du moteur de l'import (import_doublons), réutilisé tel quel.
+Les contrôles simples sont calculés par la vue v_qualite_composant, la forme des champs texte
+par le module saisie ; les doublons probables viennent du moteur de l'import
+(import_doublons), réutilisé tel quel.
 """
 
 import sqlite3
 from difflib import SequenceMatcher
 
 from backend import db
-from backend.services import attributs, import_doublons, obligatoires, suppressions
+from backend.services import attributs, import_doublons, obligatoires, saisie, suppressions
 
 # Contrôles de v_qualite_composant, dans l'ordre d'affichage, avec leur libellé.
 CONTROLES: dict[str, str] = {
@@ -22,6 +23,7 @@ CONTROLES: dict[str, str] = {
     "valeur_desactivee": "Valeur de liste désactivée",
     "fournisseur_archive": "Fournisseur archivé",
     "obligatoire_manquant": "Champ obligatoire manquant",
+    "saisie_a_verifier": "Saisie à vérifier",
 }
 CONTROLES_COMMANDE: dict[str, str] = {
     "sans_ligne": "Aucune ligne",
@@ -77,19 +79,16 @@ def list_controles_composants(conn: sqlite3.Connection) -> dict:
     lignes = db.fetch_all(conn, "SELECT * FROM v_qualite_composant ORDER BY archive, id")
     doublons = _doublons(lignes)
     manquants = _obligatoires_manquants(conn)
+    fabricants = dict(conn.execute("SELECT id, fabricant FROM composant").fetchall())
     composants = []
     for ligne in lignes:
-        controles = [
-            cle
-            for cle in CONTROLES
-            if (
-                ligne["id"] in doublons
-                if cle == "doublon"
-                else bool(manquants.get(ligne["id"]))
-                if cle == "obligatoire_manquant"
-                else ligne[cle]
-            )
-        ]
+        a_verifier = saisie.a_verifier({**ligne, "fabricant": fabricants.get(ligne["id"])})
+        speciaux = {
+            "doublon": ligne["id"] in doublons,
+            "obligatoire_manquant": bool(manquants.get(ligne["id"])),
+            "saisie_a_verifier": bool(a_verifier),
+        }
+        controles = [cle for cle in CONTROLES if speciaux.get(cle, False) or ligne.get(cle)]
         composants.append(
             {
                 "id": ligne["id"],
@@ -103,6 +102,7 @@ def list_controles_composants(conn: sqlite3.Connection) -> dict:
                 "controles": controles,
                 "doublons": doublons.get(ligne["id"], []),
                 "manquants": manquants.get(ligne["id"], []),
+                "a_verifier": a_verifier,
                 "raison_refus": suppressions.raison_composant(ligne),
             }
         )

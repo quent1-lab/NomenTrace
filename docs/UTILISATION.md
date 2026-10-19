@@ -145,6 +145,14 @@ de ce bloc s'affiche en aperçu ; il est attribué définitivement à l'enregist
 fonction, la désignation, le mode d'approvisionnement et la quantité besoin sont
 obligatoires.
 
+La forme des champs texte est contrôlée. Une adresse web collée dans la fonction, la
+désignation, la référence fabricant ou le fabricant est refusée (elle va dans Lien produit),
+de même qu'un retour à la ligne dans une référence ; le refus vaut aussi pour l'import, ligne
+par ligne. Une référence seulement inhabituelle, de plus de 40 caractères ou qui ressemble à
+une phrase, est acceptée mais signalée dans l'écran Nettoyage par « Saisie à vérifier », comme
+les erreurs saisies avant ce contrôle. Celles-ci ne bloquent pas la modification des autres
+champs du composant.
+
 Le prix se saisit tel qu'on l'a relevé, en HT ou en TTC. L'outil en déduit le PU HT avec le
 taux de TVA du composant. Les quantités se lisent ainsi : on achète le besoin plus la
 rechange, moins ce qui est déjà disponible sans achat (un stock existant, un prêt). Un

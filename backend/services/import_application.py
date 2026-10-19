@@ -20,6 +20,7 @@ from backend.services import (
     import_depots,
     journal,
     obligatoires,
+    saisie,
     sauvegardes,
 )
 from backend.services.import_analyse import avec_attributs, identiques
@@ -84,6 +85,10 @@ def _verifier_obligatoires(conn: sqlite3.Connection, identifiant: str, touches: 
 
 def _modifier(conn: sqlite3.Connection, identifiant: str, modifs: dict, lot: int) -> None:
     champs, caracteristiques = _separer(modifs)
+    try:
+        saisie.verifier(champs, champs.keys())
+    except ErreurMetier as erreur:
+        raise LigneRefusee(erreur.message) from erreur
     journal.update_with_journal(
         conn, "composant", identifiant, champs, composants.CHAMPS_MODIFIABLES, ORIGINE, lot_id=lot
     )

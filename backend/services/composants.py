@@ -16,6 +16,7 @@ from backend.services import (
     listes,
     obligatoires,
     parametres,
+    saisie,
 )
 
 CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
@@ -264,6 +265,7 @@ def insert_composant(
 ) -> str:
     """Insère un composant avec un identifiant généré. À appeler dans une transaction."""
     ensure_bloc_ouvert(conn, valeurs["bloc_code"])
+    saisie.verifier(valeurs)
     _check_listes(conn, valeurs)
     fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
     if valeurs.get("taux_tva") is None:
@@ -310,6 +312,7 @@ def patch_composant(
         _check_listes(
             conn, {k: v for k, v in modifications.items() if k in CHAMPS_LISTES and v != actuel[k]}
         )
+        saisie.verifier(modifications, modifications.keys())
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
         changes = journal.update_with_journal(
