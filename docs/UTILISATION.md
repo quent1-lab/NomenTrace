@@ -99,7 +99,9 @@ Paramètres › Projet reçoit le nom du projet, le préfixe des identifiants, l
 total et le taux de TVA par défaut. Le préfixe est obligatoire avant de créer le premier
 composant ; le changer plus tard ne renomme pas les composants existants. La section
 Établissement reçoit le nom de l'établissement, les adresses de livraison et de facturation
-et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs.
+et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs. Un logo,
+image PNG ou JPEG de 2 Mo au plus, s'y ajoute : il se place en haut à droite du PDF et du
+classeur Excel de chaque demande.
 
 La même page règle les champs obligatoires des composants : lien produit, fournisseur,
 référence fabricant, fabricant, prix relevé, au choix. Par défaut, la règle ne vaut que pour

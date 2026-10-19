@@ -39,9 +39,7 @@ def erreurs(valeurs: Mapping[str, Any], touches: Iterable[str] | None = None) ->
         if not isinstance(texte, str) or not texte:
             continue
         if _ADRESSE_WEB.search(texte):
-            messages.append(
-                f"{libelle} : une adresse web n'a rien à faire ici (champ Lien produit)"
-            )
+            messages.append(f"{libelle} : une adresse web va dans le champ Lien produit")
         elif champ == "ref_fabricant" and ("\n" in texte or "\r" in texte):
             messages.append(f"{libelle} : pas de retour à la ligne dans une référence")
     return messages

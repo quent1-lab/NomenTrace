@@ -77,6 +77,8 @@ local, où il n'y a pas de comptes.
 | GET | `/api/sante` | État du serveur, nom du projet, export en attente |
 | GET | `/api/pilotage` | Indicateurs du tableau de bord (vue `v_pilotage`) |
 | GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget, TVA par défaut, champs obligatoires et leur portée |
+| GET, POST, DELETE | `/api/parametres/logo` | Logo de l'établissement : l'image ; envoi (`fichier`, PNG ou JPEG, 2 Mo au plus) ; retrait |
+| GET | `/api/parametres/logo/infos` | Présence du logo, dimensions en pixels, date de modification |
 | GET | `/api/journal` | Dernières lignes du journal, filtrables par `table_cible` et `cle_cible` |
 | GET | `/api/historique` | Journal filtré et paginé : `table`, `origine`, `du`, `au`, `texte`, `page`, `taille` |
 | GET | `/api/historique/tables` | Tables présentes dans le journal |

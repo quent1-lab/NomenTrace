@@ -79,7 +79,56 @@ function sectionEtablissement(parametres) {
     }
   });
   if (!estAdmin()) formulaire.querySelectorAll("input, textarea, button").forEach((champ) => { champ.disabled = true; });
-  return el("section", { class: "panneau" }, el("h2", {}, "Établissement"), el("p", { class: "texte-doux texte-petit" }, "Repris dans l'en-tête des demandes de devis."), formulaire);
+  const zoneLogo = el("div", { class: "logo-etablissement" });
+  rendreLogo(zoneLogo);
+  return el("section", { class: "panneau" }, el("h2", {}, "Établissement"), el("p", { class: "texte-doux texte-petit" }, "Repris dans l'en-tête des demandes de devis."), formulaire, zoneLogo);
+}
+
+// Logo en tête des demandes de devis : aperçu, envoi d'une image PNG ou JPEG, retrait.
+async function rendreLogo(zone) {
+  let infos;
+  try {
+    infos = await api.getLogoInfos();
+  } catch (erreur) {
+    afficherErreur(erreur);
+    return;
+  }
+  const fichier = el("input", { type: "file", accept: "image/png,image/jpeg", hidden: true });
+  fichier.addEventListener("change", async () => {
+    if (!fichier.files.length) return;
+    const donnees = new FormData();
+    donnees.append("fichier", fichier.files[0]);
+    try {
+      await api.envoyerLogo(donnees);
+      masquerErreur();
+      rendreLogo(zone);
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  const retirer = async () => {
+    if (!confirm("Retirer le logo des demandes de devis ?")) return;
+    try {
+      await api.deleteLogo();
+      rendreLogo(zone);
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
+  zone.replaceChildren(
+    el("h3", {}, "Logo"),
+    infos.present
+      ? el("img", { class: "logo-etablissement__apercu", src: `/api/parametres/logo?v=${encodeURIComponent(infos.modifie_le)}`, alt: "Logo de l'établissement" })
+      : el("p", { class: "texte-doux texte-petit" }, "Aucun logo : les demandes de devis n'en portent pas."),
+    estAdmin()
+      ? el("div", { class: "actions-formulaire" },
+          fichier,
+          infos.present ? el("button", { type: "button", class: "bouton bouton--discret", onclick: retirer }, "Retirer") : null,
+          el("button", { type: "button", class: "bouton", onclick: () => fichier.click() }, infos.present ? "Remplacer…" : "Choisir une image…"),
+        )
+      : null,
+    el("p", { class: "texte-doux texte-petit" }, "Image PNG ou JPEG, 2 Mo au plus, placée en haut à droite du PDF et du classeur Excel."),
+  );
 }
 
 // Champs de base qu'un projet peut rendre obligatoires ; même liste que services/obligatoires.py.

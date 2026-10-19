@@ -1049,6 +1049,23 @@ td.editable:hover {
   width: auto;
 }
 
+.logo-etablissement {
+  margin-top: var(--espace-4);
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.logo-etablissement__apercu {
+  display: block;
+  max-width: 200px;
+  max-height: 80px;
+  margin-bottom: var(--espace-2);
+  padding: var(--espace-2);
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+}
+
 .apercu-id {
   margin: 0 0 var(--espace-3);
   padding: var(--espace-2) var(--espace-3);

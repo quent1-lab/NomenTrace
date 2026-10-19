@@ -49,6 +49,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `frais_commande` | Frais d'une commande : `type_frais` (liste paramétrable), `montant_ht`, `commentaire`. | `id` |
 | `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
 | `mouvement_stock` | Entrées et sorties de stock, montages (avec `ensemble_code`). | `id` |
+| `logo` | Logo de l'établissement repris dans les demandes de devis : une ligne au plus (`id = 1`), `type_mime` (`image/png` ou `image/jpeg`), `contenu` (l'image, gardée en base pour partir avec les sauvegardes), `largeur` et `hauteur` en pixels. | `id` |
 | `document` | Fichiers joints (devis, factures…) rangés dans `echange/documents/`, rattachés à une commande et/ou un composant. | `id` |
 | `import_lot`, `import_ligne` | Dépôts de fichiers d'équipe et leurs lignes analysées, en attente ou appliquées ; `import_lot.utilisateur` nomme qui a déposé le fichier dans l'outil. | `id` |
 | `journal` | Historique de toutes les modifications : table, clé, champ, ancienne et nouvelle valeur, origine (`interface` ou `import`), lot d'import éventuel, `utilisateur` (nom affiché de l'auteur au moment de l'écriture, `local` en mode local, vide avant la migration 015). | `id` |

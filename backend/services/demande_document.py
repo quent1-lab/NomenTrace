@@ -1,8 +1,8 @@
 """Document d'une demande de devis à envoyer au fournisseur, en Excel et en PDF.
 
-Il reprend l'établissement (Paramètres › Projet), le demandeur, le fournisseur et, pour
-chaque ligne de la commande, la référence, la désignation, le fabricant, la quantité et le
-lien produit. Aucun prix : c'est au fournisseur de chiffrer.
+Il reprend l'établissement (Paramètres › Projet) et son logo, le demandeur, le fournisseur
+et, pour chaque ligne de la commande, la référence, la désignation, le fabricant, la
+quantité et le lien produit. Aucun prix : c'est au fournisseur de chiffrer.
 """
 
 import io
@@ -14,10 +14,11 @@ from datetime import date
 from fpdf import FPDF
 from fpdf.fonts import FontFace
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as ImageExcel
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from backend import db
-from backend.services import commandes, parametres, tableur
+from backend.services import commandes, logo, parametres, tableur
 from backend.services.droits import Utilisateur
 
 PHRASE = "Merci de nous adresser un devis HT pour les articles ci-dessous."
@@ -85,7 +86,14 @@ def get_donnees(
         },
         "reference_externe": commande["reference_externe"] or "",
         "lignes": lignes,
+        "logo": logo.get_logo(conn),
     }
+
+
+def _taille_logo(image: dict, largeur_max: float, hauteur_max: float) -> tuple[float, float]:
+    """Dimensions du logo dans la boîte permise, proportions gardées."""
+    echelle = min(largeur_max / image["largeur"], hauteur_max / image["hauteur"])
+    return image["largeur"] * echelle, image["hauteur"] * echelle
 
 
 def nom_fichier(donnees: dict, extension: str) -> str:
@@ -148,6 +156,11 @@ def build_excel(donnees: dict) -> bytes:
             feuille.cell(feuille.max_row, len(COLONNES)).hyperlink = lien
     for colonne, largeur in zip("ABCDE", (22, 50, 22, 8, 45), strict=True):
         feuille.column_dimensions[colonne].width = largeur
+    if donnees.get("logo"):
+        # En haut à droite, dans la colonne du lien, à côté de l'en-tête.
+        image = ImageExcel(io.BytesIO(donnees["logo"]["contenu"]))
+        image.width, image.height = _taille_logo(donnees["logo"], 300, 70)
+        feuille.add_image(image, "E1")
     tableur.neutraliser_formules(classeur)
     flux = io.BytesIO()
     classeur.save(flux)
@@ -193,9 +206,22 @@ def build_pdf(donnees: dict) -> bytes:
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_title(_latin1(f"Demande de devis {donnees['numero']}"))
     pdf.add_page()
+    bas_logo = 0.0
+    if donnees.get("logo"):
+        # En haut à droite, au plus 50 × 22 mm ; l'en-tête commence sous le logo.
+        largeur, hauteur = _taille_logo(donnees["logo"], 50, 22)
+        pdf.image(
+            io.BytesIO(donnees["logo"]["contenu"]),
+            x=pdf.w - pdf.r_margin - largeur,
+            y=pdf.t_margin,
+            w=largeur,
+            h=hauteur,
+        )
+        bas_logo = pdf.t_margin + hauteur
     pdf.set_font("helvetica", "B", 16)
     pdf.cell(0, 10, _latin1("Demande de devis"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
+    pdf.set_y(max(pdf.get_y(), bas_logo + 2))
     pdf.set_font("helvetica", size=9)
     for libelle, valeur in _entete(donnees):
         pdf.set_font("helvetica", "B", 9)
