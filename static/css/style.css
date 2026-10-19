@@ -964,7 +964,10 @@ td.editable:hover {
   color: var(--couleur-texte-doux);
 }
 
+/* Ancre de la liste des actions : la ligne entière, pour que la liste ne déborde jamais du
+   panneau, quelle que soit la place de la pastille. */
 .fiche-entete__puces {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1023,18 +1026,15 @@ td.editable:hover {
   stroke-linejoin: round;
 }
 
-.actions-fiche__ancre {
-  position: relative;
-}
-
 .actions-fiche {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  right: 0;
   z-index: 3;
   display: flex;
   flex-direction: column;
-  width: min(360px, 80vw);
+  width: min(380px, 100%);
+  box-sizing: border-box;
   padding: var(--espace-3) var(--espace-4);
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
@@ -1284,6 +1284,7 @@ td.editable:hover {
 /* Pastille du menu : composants à voir pour les responsables. */
 .menu__compteur {
   margin-left: auto;
+  cursor: pointer;
   min-width: 1.4em;
   padding: 0 var(--espace-1);
   border-radius: 999px;
@@ -3169,4 +3170,24 @@ body:not(.peut-ensembles) .si-ensembles {
 .fiche-prix__montant .texte-doux {
   font-size: 0.85rem;
   font-weight: 400;
+}
+
+/* Menu réduit à ses icônes : la pastille devient un point sur l'icône, le nombre reste dans
+   l'infobulle. Le tiroir du téléphone garde la pastille complète. */
+@media (min-width: 801px) {
+  [data-menu="icones"] .menu__lien {
+    position: relative;
+  }
+
+  [data-menu="icones"] .menu__compteur {
+    position: absolute;
+    top: 6px;
+    right: 14px;
+    width: 9px;
+    min-width: 0;
+    height: 9px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
 }
