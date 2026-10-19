@@ -445,6 +445,7 @@ function ouvrirFicheComposant(id) {
     ensembles: etat.ensembles,
     fournisseurs: etat.fournisseurs,
     surChangement: apresChangement,
+    surDupliquer: ouvrirCreationComposant,
     surFermeture: () => {
       etat.ficheOuverte = null;
       majUrl();
@@ -467,11 +468,13 @@ async function exporterListe(evenement) {
   }
 }
 
-function ouvrirCreationComposant() {
+// modele : { composant, attributs } d'un composant à dupliquer, sinon création vierge.
+function ouvrirCreationComposant(modele = null) {
   ouvrirCreation({
     blocs: etat.blocs,
     fournisseurs: etat.fournisseurs,
-    blocInitial: etat.filtres.bloc,
+    blocInitial: modele?.composant.bloc_code ?? etat.filtres.bloc,
+    modele,
     surCree: async (composant) => {
       await apresChangement();
       ouvrirFicheComposant(composant.id);
@@ -509,7 +512,7 @@ export async function afficherComposants(conteneur, parametres) {
         "div",
         { class: "actions" },
         el("button", { type: "button", class: "bouton bouton--discret", title: "Classeur Excel de la liste affichée", onclick: exporterListe }, "Exporter"),
-        el("button", { type: "button", class: "bouton si-ecriture", onclick: ouvrirCreationComposant }, "+ Ajouter un composant"),
+        el("button", { type: "button", class: "bouton si-ecriture", onclick: () => ouvrirCreationComposant() }, "+ Ajouter un composant"),
       ),
     ),
     etat.indicateurs,

@@ -171,6 +171,11 @@ ensemble), ses lignes de devis et de commande, ses documents, ses mouvements de 
 son historique. « Modifier » ouvre les champs et les caractéristiques dans un même
 formulaire, enregistré en une fois.
 
+« Dupliquer » ouvre la création d'un nouveau composant, préremplie avec les champs et les
+caractéristiques de celui-ci, dans le même bloc : il reste à changer ce qui diffère. Les
+affectations, les documents, la quantité déjà disponible et le statut d'appro ne sont pas
+repris, et le nouveau composant reçoit son propre identifiant.
+
 L'historique est une frise, la plus récente en haut, qui rassemble tout ce qui concerne le
 composant, où que ce soit écrit : champs modifiés, caractéristiques, ajout à un devis,
 changements de statut de la commande, quantités reçues, mouvements de stock, affectations

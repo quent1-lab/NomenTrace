@@ -399,7 +399,7 @@ function ouvrirFicheArchivee(fiche, documents, surFermeture) {
   );
 }
 
-export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture }) {
+export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture, surDupliquer }) {
   let fiche;
   let documents;
   try {
@@ -417,7 +417,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
   const modifiable = ecritBloc(c.bloc_code);
   const rafraichir = async () => {
     await surChangement();
-    await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture });
+    await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture, surDupliquer });
   };
   const zoneChamps = el("div", {}, vueChamps(c, statutsFournisseurs(fournisseurs)));
   const boutonModifier = el("button", { type: "button", class: "bouton bouton--discret" }, "Modifier");
@@ -447,6 +447,12 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
       }
     },
   }, "Archiver");
+  const boutonDupliquer = el("button", {
+    type: "button",
+    class: "bouton bouton--discret si-ecriture",
+    title: "Créer un composant prérempli avec ces informations",
+    onclick: () => surDupliquer({ composant: c, attributs: fiche.attributs }),
+  }, "Dupliquer");
   const zoneReclassement = el("div");
   const boutonReclasser = el("button", {
     type: "button",
@@ -462,8 +468,8 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
     `${c.id} · ${c.designation}`,
     [
       modifiable
-        ? el("div", { class: "fiche__actions" }, boutonModifier, estAdmin() ? boutonReclasser : null, boutonArchiver)
-        : el("p", { class: "texte-doux texte-petit" }, `Lecture seule : le bloc ${c.bloc_code} ne vous est pas attribué.`),
+        ? el("div", { class: "fiche__actions" }, boutonModifier, boutonDupliquer, estAdmin() ? boutonReclasser : null, boutonArchiver)
+        : el("div", { class: "fiche__actions" }, el("p", { class: "texte-doux texte-petit" }, `Lecture seule : le bloc ${c.bloc_code} ne vous est pas attribué.`), boutonDupliquer),
       zoneReclassement,
       fiche.remplace.length
         ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
