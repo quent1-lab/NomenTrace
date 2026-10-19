@@ -34,6 +34,13 @@ publiées par étiquette, après le passage de l'intégration continue ; une ver
 répond pas est défaite d'elle-même, bases comprises. Installation, rôles, sauvegarde,
 restauration, mise à jour et retour arrière ont été vérifiés sur une vraie machine.
 
+Depuis, l'usage en équipe a apporté sa part. La fiche d'un composant montre son suivi, du
+chiffrage au montage, et les actions qui restent à faire ; la création se fait en deux
+étapes, la seconde pour les caractéristiques, les ensembles et les documents. Les
+responsables visent les composants qu'ils ont vus. La forme des champs est contrôlée, les
+demandes de devis portent le logo de l'établissement, et chaque ensemble distingue son
+coût matière de ce qu'il reste réellement à dépenser une fois le stock déduit.
+
 ## Plus tard
 
 Ces évolutions sont retenues, sans ordre ni date arrêtés.
