@@ -9,7 +9,7 @@ import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireN
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
-import { ecritBloc, estAdmin } from "../session.js";
+import { aPermission, ecritBloc, estAdmin } from "../session.js";
 import { afficherErreur, el, lienExterne, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
 import { champFournisseur, lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
@@ -332,6 +332,32 @@ function sectionCaracteristiques(valeurs) {
   return vue ? section("Caractéristiques", vue) : null;
 }
 
+// Visa d'un responsable : visible de tous, posé par l'administrateur et la permission achats.
+function ligneVisa(c, visa, surVise) {
+  const auteur = visa?.vise_par ? ` par ${visa.vise_par}` : "";
+  const texte = !visa
+    ? "Pas encore visé par un responsable."
+    : visa.a_jour
+      ? `Visé${auteur} le ${formatDate(visa.vise_le)}.`
+      : `Modifié depuis le visa${auteur} du ${formatDate(visa.vise_le)}.`;
+  const bouton = aPermission("achats") && !visa?.a_jour
+    ? el("button", {
+        type: "button",
+        class: "bouton bouton--petit bouton--discret",
+        onclick: async () => {
+          try {
+            await api.viserComposants([c.id]);
+            masquerErreur();
+            await surVise();
+          } catch (erreur) {
+            afficherErreur(erreur);
+          }
+        },
+      }, "Viser")
+    : null;
+  return el("p", { class: `visa ${visa?.a_jour ? "visa--valable" : "visa--a-voir"}` }, texte, bouton);
+}
+
 function sectionCommandes(lignes) {
   return section(
     "Lignes de commande",
@@ -471,6 +497,7 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
         ? el("div", { class: "fiche__actions" }, boutonModifier, boutonDupliquer, estAdmin() ? boutonReclasser : null, boutonArchiver)
         : el("div", { class: "fiche__actions" }, el("p", { class: "texte-doux texte-petit" }, `Lecture seule : le bloc ${c.bloc_code} ne vous est pas attribué.`), boutonDupliquer),
       zoneReclassement,
+      ligneVisa(c, fiche.visa, rafraichir),
       fiche.remplace.length
         ? el("p", { class: "lien-remplacement texte-doux" }, "Remplace ", fiche.remplace.flatMap((ancien, rang) => [rang ? ", " : "", lienComposant(ancien)]), " (reclassement : historique, commandes et stock restent sur l'ancien identifiant).")
         : null,

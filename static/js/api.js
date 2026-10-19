@@ -225,6 +225,8 @@ export const api = {
   createComposant: (valeurs) => requete("POST", "/api/composants", valeurs),
   patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),
   archiveComposant: (id) => requete("DELETE", `/api/composants/${encodeURIComponent(id)}`),
+  getCompteVisas: () => requete("GET", "/api/visas/compte"),
+  viserComposants: (composants) => requete("POST", "/api/visas", { composants }),
   putAttributsComposant: (id, valeurs) => requete("PUT", `/api/composants/${encodeURIComponent(id)}/attributs`, { valeurs }),
   reclasserComposant: (id, blocCode) =>
     requete("POST", `/api/composants/${encodeURIComponent(id)}/reclasser`, { bloc_code: blocCode }),

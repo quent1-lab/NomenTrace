@@ -122,6 +122,12 @@ class AttributValeurModif(Modele):
     actif: Literal[0, 1] | None = None
 
 
+class Visas(Modele):
+    """Composants à viser par la personne connectée."""
+
+    composants: list[str] = Field(min_length=1)
+
+
 class ValeursAttributs(Modele):
     """Caractéristiques d'un composant : {code: valeur} ; null efface la valeur."""
 

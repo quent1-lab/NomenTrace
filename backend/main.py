@@ -31,6 +31,7 @@ from backend.routes import (
     sante,
     session,
     utilisateurs,
+    visas,
 )
 from backend.routes import (
     sauvegardes as routes_sauvegardes,
@@ -69,6 +70,7 @@ MODULES = (
     nettoyage,
     routes_sauvegardes,
     recherche,
+    visas,
 )
 
 

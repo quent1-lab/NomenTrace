@@ -114,11 +114,13 @@ local, où il n'y a pas de comptes.
 | DELETE | `/api/composants/{id}` | Archivage |
 | POST | `/api/composants/{id}/reclasser` | Reclassement dans un autre bloc (`bloc_code`) |
 | PUT | `/api/composants/{id}/attributs` | Valeurs des caractéristiques, `null` efface |
+| POST | `/api/visas` | Visa de la personne connectée sur une liste de composants (`composants`), tout ou rien ; renvoie le nombre visé |
+| GET | `/api/visas/compte` | Nombre de composants sans visa valable (`a_voir`) |
 
 La liste accepte les filtres `q` (texte), `bloc`, `ensemble` (avec ses sous-ensembles,
 sauf si `ensemble_seul=true`), `mode_appro`, `statut_appro`, `statut_choix`,
-`criticite`, `fournisseur`, `a_chiffrer`, `non_affecte`, `ecart_affectation`, et le tri
-`tri` avec `ordre` (`asc` ou `desc`). Le paramètre `attr`, répétable, filtre sur un
+`criticite`, `fournisseur`, `a_chiffrer`, `non_affecte`, `ecart_affectation`, `a_voir`
+(sans visa valable), et le tri `tri` avec `ordre` (`asc` ou `desc`). Le paramètre `attr`, répétable, filtre sur un
 attribut : `attr=tension:egal:24`, `attr=materiau:vide`, `attr=materiau:renseigne`,
 `attr=tension:entre:12:48`. Le
 tri `tri=attr:tension` trie sur un attribut. Un code d'attribut inconnu est refusé.

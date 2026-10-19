@@ -181,6 +181,14 @@ ensemble), ses lignes de devis et de commande, ses documents, ses mouvements de 
 son historique. « Modifier » ouvre les champs et les caractéristiques dans un même
 formulaire, enregistré en une fois.
 
+Sous les boutons, une ligne indique le visa du composant. Un responsable, administrateur ou
+contributeur qui a la permission achats, vise un composant pour dire qu'il l'a vu tel qu'il
+est. Le visa se perd dès qu'un champ ou une caractéristique du composant change ; les
+affectations, les commandes, le stock et les documents ne le retirent pas. La case « À voir
+(sans visa) » de la liste ne garde que les composants à viser, avec un bouton qui vise toute
+la liste affichée, et le menu Composants porte pour les responsables le nombre de composants
+à voir. Chaque visa entre dans l'historique du composant.
+
 « Dupliquer » ouvre la création d'un nouveau composant, préremplie avec les champs et les
 caractéristiques de celui-ci, dans le même bloc : il reste à changer ce qui diffère. Les
 affectations, les documents, la quantité déjà disponible et le statut d'appro ne sont pas

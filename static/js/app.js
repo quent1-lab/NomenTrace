@@ -19,8 +19,8 @@ import { afficherParametres } from "./pages/parametres.js";
 import { afficherFicheFournisseur } from "./pages/fournisseur_detail.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
-import { demarrerRouteur } from "./router.js";
-import { chargerSession, libelleRole, modeLocal, utilisateur } from "./session.js";
+import { demarrerRouteur, lienRoute } from "./router.js";
+import { aPermission, chargerSession, libelleRole, modeLocal, utilisateur } from "./session.js";
 import { chargerListes } from "./valeurs.js";
 import { afficherErreur, el } from "./ui.js";
 
@@ -117,6 +117,37 @@ surEcriture(() => setTimeout(rafraichirEntete, 3500));
 setInterval(rafraichirEntete, 15000);
 window.addEventListener("nomentrace:projet", rafraichirEntete);
 
+// Pastille du menu Composants pour les responsables (administrateur, permission achats) :
+// nombre de composants sans visa valable, qui mène à la liste « À voir ».
+async function rafraichirVisas() {
+  if (!aPermission("achats")) return;
+  const lien = document.querySelector('.menu__lien[data-route="/composants"]');
+  let compte;
+  try {
+    compte = (await api.getCompteVisas()).a_voir;
+  } catch {
+    return; // L'en-tête signale déjà un serveur injoignable.
+  }
+  let pastille = lien.querySelector(".menu__compteur");
+  if (!compte) {
+    pastille?.remove();
+    return;
+  }
+  if (!pastille) {
+    pastille = el("span", { class: "menu__compteur" });
+    pastille.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.hash = lienRoute("/composants", { a_voir: 1 });
+    });
+    lien.append(pastille);
+  }
+  pastille.textContent = compte > 99 ? "99+" : String(compte);
+  pastille.title = `${compte} composant(s) à voir : cliquer pour la liste`;
+}
+
+surEcriture(() => setTimeout(rafraichirVisas, 300));
+setInterval(rafraichirVisas, 60000);
+
 // Nom de l'utilisateur, son rôle et la déconnexion ; rien en mode local, sans compte.
 function afficherUtilisateur() {
   const zone = document.getElementById("entete-utilisateur");
@@ -159,6 +190,7 @@ async function demarrer() {
     afficherErreur(erreur);
   }
   rafraichirEntete();
+  rafraichirVisas();
   demarrerRouteur(afficherRoute);
 }
 

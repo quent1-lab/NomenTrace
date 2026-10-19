@@ -302,6 +302,9 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("DELETE", "/api/composants/{identifiant}"): COMPOSANT,
     ("POST", "/api/composants/{identifiant}/reclasser"): ADMIN,
     ("PUT", "/api/composants/{identifiant}/attributs"): COMPOSANT,
+    # Visas : posés par l'administrateur et la permission achats, vus de tous
+    ("GET", "/api/visas/compte"): LECTURE,
+    ("POST", "/api/visas"): ACHAT,
     # Achats et stock
     ("GET", "/api/commandes"): LECTURE,
     ("GET", "/api/demandes-devis"): LECTURE,

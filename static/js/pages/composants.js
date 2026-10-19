@@ -7,7 +7,7 @@ import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, libelle, situationBudget } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
-import { ecritBloc } from "../session.js";
+import { aPermission, ecritBloc } from "../session.js";
 import { afficherErreur, classeBloc, el, enregistrerFichier, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
@@ -15,7 +15,7 @@ import { ouvrirFiche } from "./composants_fiche.js";
 import { lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
 
 const FILTRES_TEXTE = ["q", "bloc", "ensemble", "mode_appro", "statut_appro", "statut_choix", "criticite", "fournisseur"];
-const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation", "ensemble_seul"];
+const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation", "ensemble_seul", "a_voir"];
 
 let etat = null;
 
@@ -194,6 +194,7 @@ function barreFiltres() {
     selectFiltre("fournisseur", "Tous les fournisseurs", etat.fournisseurs.map((f) => [f.nom, f.nom])),
     caseFiltre("a_chiffrer", "À chiffrer uniquement"),
     caseFiltre("non_affecte", "Non affecté à un ensemble"),
+    caseFiltre("a_voir", "À voir (sans visa)"),
     etat.filtres.ecart_affectation ? caseFiltre("ecart_affectation", "Écart d'affectation") : null,
     el("button", { type: "button", class: "bouton bouton--discret", onclick: effacerFiltres }, "Tout effacer"),
   );
@@ -394,6 +395,25 @@ function rendrePied() {
     ),
   );
   etat.compteur.textContent = `${etat.composants.length} résultat(s)`;
+  // Visa en lot : seulement sur la liste « À voir », pour les responsables.
+  const nb = etat.composants.length;
+  etat.boutonViser.hidden = !(etat.filtres.a_voir && nb && aPermission("achats"));
+  etat.boutonViser.textContent = `Viser ${nb > 1 ? `les ${nb} composants affichés` : "le composant affiché"}`;
+}
+
+async function viserListe() {
+  const ids = etat.composants.map((c) => c.id);
+  if (!confirm(`Poser votre visa sur ${ids.length} composant(s) ? Ils sortiront de la liste « À voir » jusqu'à leur prochaine modification.`)) return;
+  etat.boutonViser.disabled = true;
+  try {
+    await api.viserComposants(ids);
+    masquerErreur();
+    await rechargerListe();
+  } catch (erreur) {
+    afficherErreur(erreur);
+  } finally {
+    etat.boutonViser.disabled = false;
+  }
 }
 
 // --- Indicateurs en tête d'écran ----------------------------------------------------------
@@ -498,6 +518,7 @@ export async function afficherComposants(conteneur, parametres) {
     corps: el("tbody"),
     pied: el("tfoot"),
     compteur: el("span", { class: "compteur" }),
+    boutonViser: el("button", { type: "button", class: "bouton bouton--petit", hidden: true, onclick: viserListe }),
     indicateurs: el("div", { class: "indicateurs" }),
   };
   etat.zoneFiltres = barreFiltres();
@@ -518,7 +539,7 @@ export async function afficherComposants(conteneur, parametres) {
     etat.indicateurs,
     etat.zoneFiltres,
     etat.zoneAttributs,
-    el("div", { class: "barre-resultats" }, etat.compteur, el("span", { class: "texte-doux" }, "Les colonnes soulignées se modifient sur place.")),
+    el("div", { class: "barre-resultats" }, etat.compteur, etat.boutonViser, el("span", { class: "texte-doux" }, "Les colonnes soulignées se modifient sur place.")),
     el("div", { class: "table-defilante" }, etat.table),
   );
   await Promise.all([rechargerListe(), rendreIndicateurs()]);

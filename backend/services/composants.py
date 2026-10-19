@@ -17,6 +17,7 @@ from backend.services import (
     obligatoires,
     parametres,
     saisie,
+    visas,
 )
 
 CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
@@ -81,6 +82,8 @@ class FiltresComposants:
     a_chiffrer: bool = False
     non_affecte: bool = False
     ecart_affectation: bool = False
+    # Composants sans visa valable d'un responsable.
+    a_voir: bool = False
     q: str | None = None
     tri: str = "id"
     ordre: str = "asc"
@@ -120,6 +123,8 @@ def _where(conn: sqlite3.Connection, filtres: FiltresComposants) -> tuple[str, l
         clauses.append("qte_affectee = 0")
     if filtres.ecart_affectation:
         clauses.append("nb_ensembles > 0 AND ecart_affectation <> 0")
+    if filtres.a_voir:
+        clauses.append(visas.CLAUSE_A_VOIR)
     if filtres.q:
         clauses.append(
             "(id LIKE ? OR fonction LIKE ? OR designation LIKE ? OR ref_fabricant LIKE ?"
@@ -154,9 +159,11 @@ def list_composants(conn: sqlite3.Connection, filtres: FiltresComposants) -> lis
     )
     lignes = db.fetch_all(conn, sql, (*params_source, *params))
     valeurs = attributs.valeurs_par_composant(conn)
+    vises = visas.ids_vises(conn)
     for ligne in lignes:
         ligne.pop("_tri", None)
         ligne["attributs"] = valeurs.get(ligne["id"], {})
+        ligne["vise"] = ligne["id"] in vises
     return lignes
 
 
@@ -204,6 +211,7 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
             )
         ],
         "attributs": attributs.get_valeurs(conn, identifiant),
+        "visa": visas.get_visa(conn, identifiant),
         "affectations": db.fetch_all(conn, affectations_sql, cle),
         "lignes_commande": db.fetch_all(
             conn,
@@ -333,7 +341,7 @@ def _message_conflit(conn: sqlite3.Connection, identifiant: str) -> str:
     derniere = db.fetch_one(
         conn,
         "SELECT utilisateur, horodatage FROM journal WHERE table_cible = 'composant'"
-        " AND cle_cible = ? ORDER BY id DESC LIMIT 1",
+        " AND cle_cible = ? AND champ IS NOT 'visa' ORDER BY id DESC LIMIT 1",
         (identifiant,),
     )
     auteur = f" par {derniere['utilisateur']}" if derniere and derniere["utilisateur"] else ""
