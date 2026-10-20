@@ -39,7 +39,9 @@ chiffrage au montage, et les actions qui restent à faire ; la création se fait
 étapes, la seconde pour les caractéristiques, les ensembles et les documents. Les
 responsables visent les composants qu'ils ont vus. La forme des champs est contrôlée, les
 demandes de devis portent le logo de l'établissement, et chaque ensemble distingue son
-coût matière de ce qu'il reste réellement à dépenser une fois le stock déduit.
+coût matière de ce qu'il reste réellement à dépenser une fois le stock déduit. Une équipe
+peut partir de son propre Excel : un modèle vierge et une consigne pour un outil d'IA,
+qui reprend le vocabulaire du projet, guident la conversion.
 
 ## Plus tard
 
