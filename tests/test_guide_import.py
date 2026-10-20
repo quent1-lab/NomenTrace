@@ -79,5 +79,9 @@ def test_consigne_reprend_le_vocabulaire_du_projet(client_essai: TestClient) -> 
     assert "Mode appro : " in consigne and "Achat" in consigne
     assert "Tension (V) : un nombre en V" in consigne
     assert "Laisse la colonne ID vide" in consigne
+    # Les blocs d'une équipe sont rarement explicites : l'IA propose et demande d'abord.
+    analyse = consigne.index("Avant de remplir")
+    assert analyse < consigne.index("Règles :")
+    assert "Attends mes réponses" in consigne and "N'invente aucun code de bloc" in consigne
     # Le dépôt est public : la consigne ne nomme aucun outil.
     assert "Claude" not in consigne and "ChatGPT" not in consigne

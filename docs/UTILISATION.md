@@ -431,8 +431,11 @@ Imports, guide la conversion en quatre temps.
    blocs, les listes de valeurs, les fournisseurs et les caractéristiques actuels du
    projet, et des règles : une ligne par composant, ne rien inventer, laisser la colonne
    ID vide, une adresse web seulement dans Lien produit, le prix tel qu'il est écrit avec
-   sa base HT ou TTC. L'IA rend le classeur complété et la liste des lignes qu'elle a
-   ignorées, trouvées douteuses ou regroupées.
+   sa base HT ou TTC. Elle demande d'abord à l'IA d'analyser le fichier sans rien remplir :
+   correspondance des colonnes, répartition proposée des composants entre les blocs du
+   projet (le fichier d'une équipe les nomme rarement ainsi), informations manquantes et
+   questions. On répond, puis l'IA rend le classeur complété et la liste des lignes qu'elle
+   a ignorées, trouvées douteuses ou regroupées.
 4. On dépose le classeur rendu comme n'importe quel fichier d'équipe. Rien n'est écrit
    avant la revue : c'est là qu'on corrige ce que l'IA a mal compris, en refusant une ligne
    ou une valeur à créer.

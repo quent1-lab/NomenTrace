@@ -87,7 +87,7 @@ function sectionGuideIA(blocs) {
       { class: "guide-ia__etapes" },
       etapeBlocs,
       el("li", {}, el("a", { class: "bouton bouton--discret", href: lienModele("vierge"), download: "" }, "Télécharger le modèle vierge"), " tous blocs, avec les listes du projet."),
-      el("li", {}, "Ouvrir l'outil d'IA conversationnel de votre choix, lui joindre votre Excel et le modèle vierge, puis coller la consigne. ", copier),
+      el("li", {}, "Ouvrir l'outil d'IA conversationnel de votre choix, lui joindre votre Excel et le modèle vierge, puis coller la consigne : il propose d'abord une répartition par bloc et pose ses questions, puis remplit le modèle après vos réponses. ", copier),
       el("li", {}, "Déposer le classeur qu'il rend dans « Déposer des fichiers de l'équipe » : rien n'est écrit avant que vous ayez relu et accepté les propositions."),
     ),
     el("p", { class: "texte-doux texte-petit" }, "La consigne reprend les blocs, les listes, les fournisseurs et les caractéristiques actuels du projet : copiez-la à nouveau s'ils ont changé. Vérifiez la liste des lignes que l'IA dit avoir ignorées ou regroupées."),

@@ -19,6 +19,22 @@ LISTES_MODELE: dict[str, str] = {
 }
 FOURNISSEURS_MAX = 80
 
+# Le fichier d'une équipe ne dit presque jamais le bloc de chaque composant : l'IA analyse
+# d'abord, propose sa répartition et pose ses questions, puis attend la réponse.
+AVANT = """Avant de remplir quoi que ce soit, analyse mon fichier et réponds-moi d'abord :
+a. Les colonnes de mon fichier que tu as reconnues, et vers quelle colonne du modèle chacune
+   va ; celles que tu ne sais pas où mettre.
+b. Les blocs : mon fichier ne les nomme sans doute pas comme Nomentrace. Propose un bloc de
+   la liste ci-dessous pour chaque groupe de composants (par catégorie, onglet, fonction ou
+   sous-système de mon fichier), avec ta raison, et signale ceux pour lesquels aucun bloc ne
+   convient. N'invente aucun code de bloc : un bloc inconnu fait refuser la ligne.
+c. Les informations qui manquent ou sont ambiguës : prix HT ou TTC, quantités par
+   composant ou par ensemble, rechange, stock déjà disponible, fournisseurs, unités des
+   caractéristiques, lignes qui ressemblent à des doublons ou à des sous-totaux.
+d. Tes questions, numérotées.
+Attends mes réponses. Ne remplis le modèle qu'après mon accord sur la répartition par bloc
+et sur tes questions."""
+
 REGLES = """Règles :
 1. Une ligne par composant différent. Ne fusionne pas deux références différentes ; si la
    même référence apparaît plusieurs fois, garde une seule ligne et additionne les
@@ -91,7 +107,9 @@ def build_prompt(conn: sqlite3.Connection) -> str:
         [
             f"Je te donne deux fichiers Excel : la nomenclature de mon équipe pour le projet "
             f"« {projet} », dans notre format, et le modèle vierge de l'outil Nomentrace. "
-            "Recopie chaque composant de mon fichier dans le modèle, en suivant les règles.",
+            "Recopie chaque composant de mon fichier dans le modèle, en suivant les règles, "
+            "mais pas tout de suite : commence par l'analyse ci-dessous.",
+            re.sub(r"\n\s{2,}", " ", AVANT),
             f"Colonnes du modèle : {colonnes}, puis les caractéristiques, Ensemble et Qté "
             "dans cet ensemble.",
             # Une règle par ligne : les retours à la ligne du code ne servent qu'à la lecture.
