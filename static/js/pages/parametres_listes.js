@@ -3,6 +3,7 @@
 import { api } from "../api.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { chargerListes, toutesLesListes } from "../valeurs.js";
+import { cadenas } from "./ensembles_commun.js";
 
 const LISTES = {
   mode_appro: {
@@ -76,7 +77,7 @@ function ligne(liste, valeurs, index) {
   const actif = el("input", { type: "checkbox", checked: Boolean(v.actif), disabled: Boolean(v.systeme), "aria-label": `${v.libelle} active` });
   actif.addEventListener("change", () => executer(() => api.patchValeurListe(liste, v.code, { actif: actif.checked ? 1 : 0 })));
   const supprimer = v.systeme
-    ? el("span", { class: "etiquette", title: "Valeur utilisée par les calculs : ni supprimable ni désactivable" }, "système")
+    ? cadenas("Valeur système, utilisée par les calculs : ni supprimable ni désactivable")
     : el("button", {
         type: "button",
         class: "bouton-icone",
@@ -95,7 +96,7 @@ function ligne(liste, valeurs, index) {
     el("td", {}, champLibelle(liste, v)),
     el("td", { class: "code texte-doux" }, v.code),
     liste === "type_mouvement" ? el("td", {}, selectSens(liste, v)) : null,
-    el("td", {}, el("label", { class: "filtre-case" }, actif, "active")),
+    el("td", { class: "centre", title: v.systeme ? "Valeur système, toujours active" : "Proposée à la saisie" }, actif),
     el("td", { class: "nombre" }, supprimer),
   );
 }
@@ -117,17 +118,21 @@ function formulaireAjout(liste) {
 
 function sectionListe(liste, valeurs) {
   const { titre, aide } = LISTES[liste];
-  const entetes = ["", "Libellé affiché", "Code stocké", liste === "type_mouvement" ? "Sens" : null, "", ""].filter((t) => t !== null);
+  const entetes = ["", "Libellé affiché", "Code stocké", liste === "type_mouvement" ? "Sens" : null, "Active", ""].filter((t) => t !== null);
   return el(
     "section",
     { class: "panneau" },
     el("h2", {}, titre),
     el("p", { class: "texte-doux texte-petit" }, aide),
     el(
-      "table",
-      { class: "table table--dense table--listes" },
-      el("thead", {}, el("tr", {}, entetes.map((t) => el("th", {}, t)))),
-      el("tbody", {}, valeurs.map((_, i) => ligne(liste, valeurs, i))),
+      "div",
+      { class: "table-listes__cadre" },
+      el(
+        "table",
+        { class: "table table--dense table--listes" },
+        el("thead", {}, el("tr", {}, entetes.map((t) => el("th", { class: t === "Active" ? "centre" : "" }, t)))),
+        el("tbody", {}, valeurs.map((_, i) => ligne(liste, valeurs, i))),
+      ),
     ),
     formulaireAjout(liste),
   );

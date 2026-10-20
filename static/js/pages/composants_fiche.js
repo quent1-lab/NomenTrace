@@ -193,6 +193,17 @@ function etapeSuivi({ titre, valeur, fait = null, total = null, note = "", neutr
   );
 }
 
+// Lien vers la page produit, en pastille avec un globe : repérable d'un coup d'œil.
+const GLOBE = ["M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", "M3 12h18", "M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9", "M12 3c-2.5 2.6-3.8 5.6-3.8 9s1.3 6.4 3.8 9"];
+function boutonPageProduit(adresse) {
+  const lien = lienExterne(adresse, "Page produit");
+  if (lien.tagName !== "A") return lien;
+  lien.classList.add("lien-page-produit");
+  lien.title = adresse;
+  lien.prepend(icone(GLOBE));
+  return lien;
+}
+
 function prochaineLivraison(lignes) {
   const dates = lignes
     .filter((l) => l.type === "Commande" && l.qte_recue < l.qte_commandee && l.statut_ligne !== "Annulee")
@@ -261,7 +272,7 @@ function blocPrixFournisseur(c, statuts) {
       el("div", { class: "texte-doux texte-petit" }, "Fournisseur"),
       el("div", { class: "fiche-prix__fournisseur" }, c.fournisseur_nom ? lienFournisseur(c.fournisseur_nom, statuts.get(c.fournisseur_nom)) : "—"),
       reference ? el("div", {}, `Réf. ${reference}`) : null,
-      c.lien_produit ? el("div", {}, lienExterne(c.lien_produit, "Page produit")) : null,
+      c.lien_produit ? el("div", {}, boutonPageProduit(c.lien_produit)) : null,
     ),
   );
 }

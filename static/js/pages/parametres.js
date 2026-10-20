@@ -55,7 +55,7 @@ function sectionEtablissement(parametres) {
   const retour = el("div");
   const formulaire = el(
     "form",
-    { class: "formulaire formulaire--page", novalidate: true },
+    { class: "formulaire formulaire--reglages", novalidate: true },
     CHAMPS_ETABLISSEMENT.map(([cle, libelle, type]) =>
       ligneChamp(libelle, type === "zone" ? champZone(cle, parametres[cle] ?? "") : champTexte(cle, parametres[cle] ?? "")),
     ),
@@ -79,9 +79,13 @@ function sectionEtablissement(parametres) {
     }
   });
   if (!estAdmin()) formulaire.querySelectorAll("input, textarea, button").forEach((champ) => { champ.disabled = true; });
+  return el("section", { class: "panneau" }, el("h2", {}, "Établissement"), el("p", { class: "texte-doux texte-petit" }, "Repris dans l'en-tête des demandes de devis."), formulaire);
+}
+
+function sectionLogo() {
   const zoneLogo = el("div", { class: "logo-etablissement" });
   rendreLogo(zoneLogo);
-  return el("section", { class: "panneau" }, el("h2", {}, "Établissement"), el("p", { class: "texte-doux texte-petit" }, "Repris dans l'en-tête des demandes de devis."), formulaire, zoneLogo);
+  return el("section", { class: "panneau" }, zoneLogo);
 }
 
 // Logo en tête des demandes de devis : aperçu, envoi d'une image PNG ou JPEG, retrait.
@@ -116,7 +120,7 @@ async function rendreLogo(zone) {
     }
   };
   zone.replaceChildren(
-    el("h3", {}, "Logo"),
+    el("h2", {}, "Logo"),
     infos.present
       ? el("img", { class: "logo-etablissement__apercu", src: `/api/parametres/logo?v=${encodeURIComponent(infos.modifie_le)}`, alt: "Logo de l'établissement" })
       : el("p", { class: "texte-doux texte-petit" }, "Aucun logo : les demandes de devis n'en portent pas."),
@@ -190,7 +194,7 @@ async function afficherOngletProjet(cible) {
   const retour = el("div");
   const formulaire = el(
     "form",
-    { class: "formulaire formulaire--page", novalidate: true },
+    { class: "formulaire formulaire--reglages", novalidate: true },
     ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true }),
     ligneChamp("Préfixe des identifiants", prefixe, {
       requis: true,
@@ -245,7 +249,18 @@ async function afficherOngletProjet(cible) {
       afficherErreur(erreur);
     }
   });
-  cible.replaceChildren(formulaire, sectionEtablissement(parametres), sectionObligatoires(parametres));
+  // Panneaux en colonnes qui se remplissent l'une après l'autre : pas de trou sous un
+  // panneau court, quelle que soit la largeur de l'écran.
+  cible.replaceChildren(
+    el(
+      "div",
+      { class: "grille-reglages" },
+      el("section", { class: "panneau" }, el("h2", {}, "Projet"), formulaire),
+      sectionEtablissement(parametres),
+      sectionLogo(),
+      sectionObligatoires(parametres),
+    ),
+  );
 }
 
 // --- Export et sauvegardes --------------------------------------------------------------------

@@ -90,6 +90,16 @@ export async function afficherOngletHistorique(cible) {
     }
   });
 
+  const cadre = el(
+    "div",
+    { class: "table-defilante table-defilante--historique" },
+    el(
+      "table",
+      { class: "table table--dense table--parametres" },
+      el("thead", {}, el("tr", {}, ["Date", "Élément", "Clé", "Détail", "Par"].map((t) => el("th", {}, t)))),
+      corps,
+    ),
+  );
   cible.replaceChildren(
     el(
       "div",
@@ -98,18 +108,22 @@ export async function afficherOngletHistorique(cible) {
       exporter,
     ),
     el("div", { class: "filtres" }, texte, choixTable, choixOrigine, date("du", "Du "), date("au", "au ")),
-    compte,
-    el(
-      "div",
-      { class: "table-defilante" },
-      el(
-        "table",
-        { class: "table table--dense table--parametres" },
-        el("thead", {}, el("tr", {}, ["Date", "Élément", "Clé", "Détail", "Par"].map((t) => el("th", {}, t)))),
-        corps,
-      ),
-    ),
-    el("div", { class: "actions" }, precedent, suivant),
+    el("div", { class: "barre-pagination" }, compte, el("div", { class: "actions" }, precedent, suivant)),
+    cadre,
   );
+  ajusterHauteur(cadre);
   await charger();
+}
+
+// Le tableau prend la hauteur qui reste jusqu'au bas de la fenêtre et défile seul : la page,
+// elle, tient dans l'écran, pagination comprise (placée au-dessus du tableau).
+function ajusterHauteur(cadre) {
+  const ajuster = () => {
+    if (!cadre.isConnected) return window.removeEventListener("resize", ajuster);
+    // Marge du bas : le rembourrage du contenu sous le tableau, et un peu d'air.
+    const reste = window.innerHeight - cadre.getBoundingClientRect().top - 40;
+    cadre.style.maxHeight = `${Math.max(240, reste)}px`;
+  };
+  window.addEventListener("resize", ajuster);
+  requestAnimationFrame(ajuster);
 }

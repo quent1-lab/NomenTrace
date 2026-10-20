@@ -121,7 +121,7 @@ d'approvisionnement (Achat, Fourni par un partenaire, Fabrication atelier…), s
 d'approvisionnement et de choix, criticités, types de mouvement de stock. Renommer une
 valeur ne change que son libellé ; une valeur désactivée n'est plus proposée à la saisie
 mais reste valable sur les composants qui la portent. Quelques valeurs dont dépendent les
-calculs (Achat, Bloquant, Réception achat…) sont marquées système : on peut les renommer,
+calculs (Achat, Bloquant, Réception achat…) sont marquées système, d'un cadenas : on peut les renommer,
 pas les supprimer.
 
 Paramètres › Attributs crée des caractéristiques libres pour les composants : une tension,

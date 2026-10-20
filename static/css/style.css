@@ -57,7 +57,12 @@
   box-sizing: border-box;
 }
 
+/* En-tête, bandeaux puis cadre en colonne : le cadre prend juste la hauteur qui reste,
+   quelle que soit celle de l'en-tête (une hauteur supposée laissait 2 px de défilement). */
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   margin: 0;
   font-family: var(--police);
   font-size: var(--taille-texte);
@@ -160,8 +165,8 @@ h2 {
 
 .cadre {
   display: grid;
+  flex: 1;
   grid-template-columns: var(--largeur-menu) 1fr;
-  min-height: calc(100vh - 44px);
 }
 
 .menu {
@@ -1228,6 +1233,28 @@ td.editable:hover {
   font-weight: 600;
 }
 
+.lien-page-produit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border: 1px solid var(--couleur-ardoise);
+  border-radius: 999px;
+  color: var(--couleur-ardoise-fonce);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.lien-page-produit:hover {
+  background: var(--couleur-ardoise-clair);
+}
+
+.lien-page-produit .icone-fiche {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
 .fiche-prix__fournisseur {
   font-size: 1.05rem;
   font-weight: 600;
@@ -1423,10 +1450,8 @@ td.editable:hover {
   font-size: var(--taille-petit);
 }
 
-.logo-etablissement {
-  margin-top: var(--espace-4);
-  padding-top: var(--espace-3);
-  border-top: 1px solid var(--couleur-bordure);
+.logo-etablissement h2 {
+  margin-top: 0;
 }
 
 .logo-etablissement .actions-formulaire {
@@ -1793,19 +1818,54 @@ td.editable:hover {
   vertical-align: middle;
 }
 
-.grille-listes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
-  gap: var(--espace-4);
-  align-items: start;
+/* Listes de valeurs et réglages du projet : colonnes remplies l'une après l'autre (comme un
+   journal), pour qu'un panneau court ne laisse pas de trou sous lui. */
+.grille-listes,
+.grille-reglages {
+  columns: 3 420px;
+  column-gap: var(--espace-4);
 }
 
-.grille-listes > * {
-  min-width: 0;
+.grille-reglages {
+  columns: 2 520px;
+}
+
+.grille-listes > *,
+.grille-reglages > * {
+  display: block;
+  margin: 0 0 var(--espace-4);
+  break-inside: avoid;
+}
+
+.onglet-parametres .grille-reglages > .panneau + .panneau {
+  margin-top: 0;
+}
+
+.formulaire--reglages .ligne-champ {
+  grid-template-columns: 170px minmax(0, 1fr);
+}
+
+/* Le tableau d'une liste tient dans son panneau ; au pire, il défile dans son cadre. */
+.table-listes__cadre {
+  overflow-x: auto;
+}
+
+.table--listes {
+  width: 100%;
 }
 
 .table--listes .champ {
-  min-width: 120px;
+  width: 100%;
+  min-width: 130px;
+}
+
+/* Le code stocké passe à la ligne plutôt que de rogner le libellé modifiable. */
+.table--listes th {
+  white-space: nowrap;
+}
+
+.table--listes .centre {
+  text-align: center;
 }
 
 .table--listes .ordre {
@@ -2223,6 +2283,26 @@ td.editable:hover {
   align-items: center;
   gap: var(--espace-2);
   margin-bottom: var(--espace-2);
+}
+
+.barre-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-2);
+}
+
+.barre-pagination p {
+  margin: 0;
+}
+
+.table-defilante--historique thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--couleur-surface);
 }
 
 .table-defilante--nettoyage {
