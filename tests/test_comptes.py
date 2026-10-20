@@ -807,6 +807,20 @@ def test_export_excel_sans_formule(admin: TestClient) -> None:
         assert "f" not in types, chemin
 
 
+# --- Projet dans l'adresse (phase 15a-1) -------------------------------------------------------
+
+
+def test_droits_appliques_sous_le_prefixe_du_projet(admin: TestClient, lecteur: TestClient) -> None:
+    bloc = {"code": "OPT", "nom": "Optique"}
+    assert lecteur.get(f"/p/{PROJET}/api/session").json()["utilisateur"]["role"] == "lecteur"
+    assert lecteur.post(f"/p/{PROJET}/api/blocs", json=bloc).status_code == 403
+    assert admin.post(f"/p/{PROJET}/api/blocs", json=bloc).status_code == 201
+
+
+def test_sans_connexion_le_prefixe_ne_donne_rien(app: FastAPI) -> None:
+    assert navigateur(app).get(f"/p/{PROJET}/api/composants").status_code == 401
+
+
 # --- Mode local ---------------------------------------------------------------------------------
 
 

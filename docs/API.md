@@ -8,6 +8,13 @@ En mode local, FastAPI publie une description interactive sur
 
 ## Conventions
 
+Chaque route se demande aussi sous l'adresse de son projet, `/p/<code>/api/...`, où
+`<code>` est le code d'adresse du projet : c'est ainsi que l'interface les appelle. Le
+préfixe est retiré avant tout traitement, si bien que les routes, les droits et le contrôle
+d'origine sont ceux décrits ici. Un code inconnu ou mal formé (autre chose que des
+minuscules, des chiffres et des tirets) reçoit 404. Une adresse sans préfixe vise le projet
+de l'instance (`NOMENTRACE_PROJET`). Hors de l'API, `/` renvoie vers `/p/<code>/`.
+
 Les corps de requête et les réponses sont en JSON, sauf les dépôts de fichiers
 (`multipart/form-data`) et les téléchargements (classeurs Excel, archive zip, documents).
 Un champ inconnu dans un corps est refusé. Les montants sont en euros, hors taxes sauf

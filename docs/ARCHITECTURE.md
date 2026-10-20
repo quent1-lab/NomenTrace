@@ -78,6 +78,17 @@ schéma est plus récent que le code (`db.SchemaTropRecent`) : une version anté
 démarre pas sur une base migrée par une plus récente, ce qui déclenche le retour arrière
 du script de mise à jour.
 
+Le projet de chaque requête est lu dans son adresse. `backend/aiguillage.py` est la couche
+la plus extérieure : pour `/p/<code>/...`, il vérifie le code (motif d'adresse, projet
+connu), retire le préfixe et pose le code dans `request.state.projet`, que les routes
+lisent par la dépendance `deps.get_projet`. Toutes les autres couches (contrôle d'origine,
+droits, export programmé) voient donc les adresses habituelles en `/api/`. Un code refusé
+reçoit 404 sans qu'aucune base soit ouverte : le code d'adresse ne sert jamais de chemin de
+fichier. Une adresse sans préfixe porte le projet de l'instance, et `/` renvoie vers
+`/p/<code>/`. Côté navigateur, `api.js` lit le préfixe dans l'adresse de la page et le
+place devant chaque appel et chaque lien vers le serveur ; les fichiers de l'interface et la
+page de connexion restent à la racine, communs à tous les projets.
+
 Les routes qui reçoivent des fichiers (documents joints, imports Excel, liste de
 fournisseurs) sont asynchrones pour lire l'envoi, puis confient le traitement
 (empreinte, écriture, lecture des classeurs) à `run_in_threadpool` : fait dans la boucle
@@ -355,6 +366,7 @@ plusieurs workers.
 Pour héberger plusieurs projets sur un même serveur, la piste retenue est une base par
 projet, avec son dossier d'échange, plutôt qu'une colonne de projet dans chaque table. Le
 code reste mono-base, et aucune donnée ne peut passer d'un projet à l'autre par un filtre
-oublié. Il faudra choisir la base selon le projet demandé (c'est `get_conn` qui s'en
-chargera) et appliquer les migrations à chaque base. Les comptes sont déjà dans une base
+oublié. Le projet est déjà porté par l'adresse de chaque requête ; reste à choisir la base
+selon ce projet (c'est `get_conn` qui s'en chargera) et à appliquer les migrations à chaque
+base. Les comptes sont déjà dans une base
 commune où les rôles sont attribués projet par projet (`acces.projet`).

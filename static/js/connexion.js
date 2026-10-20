@@ -13,10 +13,13 @@ function afficherMessage(texte) {
   message.hidden = !texte;
 }
 
-// Après connexion, retour à l'écran demandé : seulement une route de l'application (#/…).
+// Après connexion, retour à l'écran demandé : seulement un projet (/p/<code>/) et une route
+// de l'application (#/…), jamais une autre adresse.
+const MOTIF_RETOUR = /^(\/p\/[a-z0-9][a-z0-9-]*)?\/(#\/[\w\-/?=&%.]*)?$/;
+
 function entrer() {
   const retour = new URLSearchParams(window.location.search).get("retour") ?? "";
-  window.location.assign(/^#\/[\w\-/?=&%.]*$/.test(retour) ? `/${retour}` : "/");
+  window.location.assign(MOTIF_RETOUR.test(retour) ? retour : "/");
 }
 
 function lireJeton() {

@@ -9,12 +9,20 @@ export class ErreurApi extends Error {
 
 const ecouteursEcriture = new Set();
 
+// Projet de la page, lu dans son adresse (/p/<code>/) : chaque appel et chaque lien vers le
+// serveur en porte le préfixe. Sans préfixe (page de connexion), l'adresse reste nue.
+const PREFIXE_PROJET = window.location.pathname.match(/^\/p\/[a-z0-9][a-z0-9-]*(?=\/)/)?.[0] ?? "";
+
+function adresse(chemin) {
+  return PREFIXE_PROJET + chemin;
+}
+
 // Session expirée ou absente : retour à la page de connexion, qui ramènera ensuite à l'écran
 // en cours. Rien depuis la page de connexion elle-même, dont les refus s'affichent sur place.
 export function allerConnexion() {
   if (window.location.pathname.endsWith("/connexion.html")) return;
-  const retour = encodeURIComponent(window.location.hash || "");
-  window.location.assign(`/connexion.html${retour ? `?retour=${retour}` : ""}`);
+  const retour = encodeURIComponent(`${PREFIXE_PROJET}/${window.location.hash}`);
+  window.location.assign(`/connexion.html?retour=${retour}`);
 }
 
 // Permet à l'interface de réagir après chaque écriture réussie (état de l'export).
@@ -30,7 +38,7 @@ async function requete(methode, chemin, corps) {
   }
   let reponse;
   try {
-    reponse = await fetch(chemin, options);
+    reponse = await fetch(adresse(chemin), options);
   } catch {
     throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
   }
@@ -61,7 +69,7 @@ function requeteFormulaire(chemin, donnees, progression = null) {
     xhr.addEventListener("loadend", () => {
       envoisEnCours -= 1;
     });
-    xhr.open("POST", chemin);
+    xhr.open("POST", adresse(chemin));
     xhr.responseType = "json";
     if (progression) {
       xhr.upload.addEventListener("progress", (e) => {
@@ -91,7 +99,7 @@ function requeteFormulaire(chemin, donnees, progression = null) {
 async function requeteFichier(chemin) {
   let reponse;
   try {
-    reponse = await fetch(chemin);
+    reponse = await fetch(adresse(chemin));
   } catch {
     throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
   }
@@ -111,7 +119,7 @@ async function requeteFichier(chemin) {
 async function requeteFormulaireFichier(chemin, donnees) {
   let reponse;
   try {
-    reponse = await fetch(chemin, { method: "POST", body: donnees });
+    reponse = await fetch(adresse(chemin), { method: "POST", body: donnees });
   } catch {
     throw new ErreurApi("Le serveur Nomentrace ne répond pas : vérifier qu'il est lancé.", 0);
   }
@@ -128,13 +136,18 @@ async function requeteFormulaireFichier(chemin, donnees) {
 
 // Adresses de téléchargement des modèles à remplir (liens, pas des appels fetch).
 export function lienModele(type, code) {
-  if (type === "vierge") return "/api/modeles/vierge";
-  return `/api/${type === "bloc" ? "blocs" : "ensembles"}/${encodeURIComponent(code)}/modele`;
+  if (type === "vierge") return adresse("/api/modeles/vierge");
+  return adresse(`/api/${type === "bloc" ? "blocs" : "ensembles"}/${encodeURIComponent(code)}/modele`);
 }
 
 // Adresse d'ouverture d'un document joint (lien, pas un appel fetch).
 export function lienFichierDocument(id) {
-  return `/api/documents/${id}/fichier`;
+  return adresse(`/api/documents/${id}/fichier`);
+}
+
+// Adresse de l'image du logo ; la date de modification déjoue le cache après un changement.
+export function lienLogo(modifieLe) {
+  return adresse(`/api/parametres/logo?v=${encodeURIComponent(modifieLe)}`);
 }
 
 function avecParametres(chemin, parametres = {}) {

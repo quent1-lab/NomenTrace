@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
+from backend.aiguillage import AiguillageProjet
 from backend.deps import verifier_acces
 from backend.erreurs import ErreurMetier
 from backend.routes import (
@@ -250,6 +251,8 @@ def create_app(
         app.include_router(module.router, dependencies=[Depends(verifier_acces)])
     # Installé en dernier, donc exécuté en premier : les refus d'origine passent avant tout.
     install_securite(app, local)
+    # Plus extérieur encore : le préfixe /p/<code> est retiré avant toute autre couche.
+    app.add_middleware(AiguillageProjet, projets=frozenset({projet}), defaut=projet)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")
     return app
 

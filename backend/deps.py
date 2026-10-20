@@ -14,6 +14,14 @@ from backend.services.droits import Utilisateur
 COOKIE_SESSION = "nomentrace_session"
 
 
+def get_projet(request: Request) -> str:
+    """Code du projet de la requête, posé par l'aiguillage d'après l'adresse /p/<code>/."""
+    return request.state.projet
+
+
+Projet = Annotated[str, Depends(get_projet)]
+
+
 def get_conn_comptes(request: Request) -> Iterator[sqlite3.Connection]:
     """Connexion à la base des comptes pour la durée de la requête."""
     conn = db.connect(request.app.state.chemin_comptes)
@@ -39,7 +47,7 @@ def get_utilisateur(request: Request) -> Utilisateur | None:
         utilisateur_id = authentification.get_session(conn, jeton)
         if utilisateur_id is None:
             return None
-        return comptes.get_utilisateur(conn, utilisateur_id, request.app.state.code_projet)
+        return comptes.get_utilisateur(conn, utilisateur_id, get_projet(request))
     finally:
         conn.close()
 

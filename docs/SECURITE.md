@@ -20,6 +20,10 @@ par leur empreinte. Toute écriture doit venir d'une page de l'outil (contrôle 
 l'outil. Le SQL passe par des paramètres liés, et les rares noms de colonne insérés dans
 une requête sont d'abord comparés à une liste écrite dans le code.
 
+Le projet d'une requête vient de son adresse (`/p/<code>/`). Le code est comparé à un motif
+strict et à la liste des projets connus avant toute autre chose ; refusé, il reçoit 404 et
+aucun fichier n'est ouvert ni créé.
+
 Le mode local, sans compte, n'accepte que les requêtes émises depuis le poste et adressées
 à `127.0.0.1` ou `localhost`.
 

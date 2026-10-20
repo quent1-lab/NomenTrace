@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from backend.deps import COOKIE_SESSION, Connecte, get_conn, get_conn_comptes
+from backend.deps import COOKIE_SESSION, Connecte, get_conn, get_conn_comptes, get_projet
 from backend.erreurs import ErreurMetier
 from backend.models import Connexion, InvitationAcceptation, InvitationVerification
 from backend.services import authentification, comptes, parametres
@@ -23,7 +23,7 @@ def _ouvrir(
     request: Request, reponse: Response, conn: sqlite3.Connection, utilisateur_id: int
 ) -> dict:
     """Ouvre la session si le compte a accès au projet, et pose le cookie."""
-    utilisateur = comptes.get_utilisateur(conn, utilisateur_id, request.app.state.code_projet)
+    utilisateur = comptes.get_utilisateur(conn, utilisateur_id, get_projet(request))
     if utilisateur.role is None:
         raise ErreurMetier("Votre compte n'a pas accès à ce projet.", 403)
     precedente = request.cookies.get(COOKIE_SESSION)

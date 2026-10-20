@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
-from backend.deps import Connecte, exiger_mode_connecte, get_conn, get_conn_comptes
+from backend.deps import Connecte, exiger_mode_connecte, get_conn, get_conn_comptes, get_projet
 from backend.models import UtilisateurCreation, UtilisateurModif
 from backend.services import blocs, comptes
 
@@ -20,7 +20,7 @@ ConnComptes = Annotated[sqlite3.Connection, Depends(get_conn_comptes)]
 
 @router.get("")
 def read_utilisateurs(request: Request, conn: ConnComptes) -> list[dict]:
-    return comptes.list_utilisateurs(conn, request.app.state.code_projet)
+    return comptes.list_utilisateurs(conn, get_projet(request))
 
 
 @router.post("", status_code=201)
@@ -28,9 +28,7 @@ def create_utilisateur(
     corps: UtilisateurCreation, request: Request, moi: Connecte, conn: ConnComptes, projet: Conn
 ) -> dict:
     blocs.check_codes(projet, corps.blocs)
-    return comptes.create_utilisateur(
-        conn, request.app.state.code_projet, corps.model_dump(), moi.nom
-    )
+    return comptes.create_utilisateur(conn, get_projet(request), corps.model_dump(), moi.nom)
 
 
 @router.patch("/{identifiant}")
@@ -40,9 +38,9 @@ def update_utilisateur(
     if corps.blocs is not None:
         blocs.check_codes(projet, corps.blocs)
     modifs = corps.model_dump(exclude_unset=True)
-    return comptes.patch_utilisateur(conn, request.app.state.code_projet, identifiant, modifs)
+    return comptes.patch_utilisateur(conn, get_projet(request), identifiant, modifs)
 
 
 @router.post("/{identifiant}/invitation")
 def renew_invitation(identifiant: int, request: Request, moi: Connecte, conn: ConnComptes) -> dict:
-    return comptes.renew_invitation(conn, request.app.state.code_projet, identifiant, moi.nom)
+    return comptes.renew_invitation(conn, get_projet(request), identifiant, moi.nom)

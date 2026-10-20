@@ -1,7 +1,7 @@
 // Écran paramètres (#/parametres?onglet=…) : projet, blocs, ensembles, fournisseurs, listes de
 // valeurs, export et sauvegardes.
 
-import { api } from "../api.js";
+import { api, lienLogo } from "../api.js";
 import { formatDate, formatNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { lienRoute, remplacerRoute } from "../router.js";
@@ -122,7 +122,7 @@ async function rendreLogo(zone) {
   zone.replaceChildren(
     el("h2", {}, "Logo"),
     infos.present
-      ? el("img", { class: "logo-etablissement__apercu", src: `/api/parametres/logo?v=${encodeURIComponent(infos.modifie_le)}`, alt: "Logo de l'établissement" })
+      ? el("img", { class: "logo-etablissement__apercu", src: lienLogo(infos.modifie_le), alt: "Logo de l'établissement" })
       : el("p", { class: "texte-doux texte-petit" }, "Aucun logo : les demandes de devis n'en portent pas."),
     estAdmin()
       ? el("div", { class: "actions-formulaire" },
