@@ -416,6 +416,31 @@ L'application se fait en une seule transaction, après une sauvegarde. Si la bas
 entre l'analyse et l'application sur un champ concerné, la ligne est refusée plutôt
 qu'écrasée.
 
+### Partir de son propre Excel
+
+Une équipe qui tient déjà sa nomenclature dans son propre classeur n'a pas à la recopier à
+la main. L'encadré « Partir de votre propre Excel, avec une IA », en haut de l'écran
+Imports, guide la conversion en quatre temps.
+
+1. Les blocs du projet doivent exister (Paramètres › Blocs) : l'import refuse un composant
+   sans bloc. Fournisseurs et valeurs de liste inconnus, eux, sont proposés à la création.
+2. « Télécharger le modèle vierge » donne un modèle sans composant, valable pour tous les
+   blocs : la colonne Bloc de chaque ligne dit où ranger le composant.
+3. On ouvre l'outil d'IA conversationnel de son choix, on lui joint son Excel et le modèle
+   vierge, et on colle la consigne que donne « Copier la consigne ». Elle reprend les
+   blocs, les listes de valeurs, les fournisseurs et les caractéristiques actuels du
+   projet, et des règles : une ligne par composant, ne rien inventer, laisser la colonne
+   ID vide, une adresse web seulement dans Lien produit, le prix tel qu'il est écrit avec
+   sa base HT ou TTC. L'IA rend le classeur complété et la liste des lignes qu'elle a
+   ignorées, trouvées douteuses ou regroupées.
+4. On dépose le classeur rendu comme n'importe quel fichier d'équipe. Rien n'est écrit
+   avant la revue : c'est là qu'on corrige ce que l'IA a mal compris, en refusant une ligne
+   ou une valeur à créer.
+
+La consigne dépend du projet : la recopier après avoir ajouté un bloc, une valeur de liste
+ou une caractéristique. Mieux vaut convertir un premier extrait d'une vingtaine de lignes,
+le relire dans l'écran de revue, puis le fichier entier.
+
 Les doublons sont repérés en trois temps : même référence fabricant une fois normalisée,
 référence de l'un citée dans le texte de l'autre, puis ressemblance des libellés. Deux
 libellés qui ne diffèrent que par un nombre (« convertisseur 12 V » et « convertisseur

@@ -9,7 +9,13 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.deps import Auteur, Connecte, get_conn
 from backend.models import ApplicationImport
-from backend.services import import_analyse, import_application, import_depots, modeles
+from backend.services import (
+    guide_import,
+    import_analyse,
+    import_application,
+    import_depots,
+    modeles,
+)
 
 router = APIRouter(prefix="/api", tags=["import"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -30,6 +36,17 @@ def read_modele_bloc(code: str, request: Request, conn: Conn) -> FileResponse:
 def read_modele_ensemble(code: str, request: Request, conn: Conn) -> FileResponse:
     dossier = request.app.state.dossier_echange / "modeles"
     return _telecharger(modeles.generate_modele_ensemble(conn, dossier, code))
+
+
+@router.get("/modeles/vierge")
+def read_modele_vierge(request: Request, conn: Conn) -> FileResponse:
+    dossier = request.app.state.dossier_echange / "modeles"
+    return _telecharger(modeles.generate_modele_vierge(conn, dossier))
+
+
+@router.get("/modeles/consigne-ia")
+def read_consigne_ia(conn: Conn) -> dict:
+    return {"consigne": guide_import.build_prompt(conn)}
 
 
 @router.get("/imports")

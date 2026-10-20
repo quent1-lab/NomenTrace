@@ -183,7 +183,7 @@ def _verrouiller_id(feuille: Worksheet, nb_colonnes: int, derniere: int) -> None
     )
 
 
-def _consignes(classeur: Workbook, titre: str, ensemble: bool) -> None:
+def _consignes(classeur: Workbook, titre: str, ensemble: bool, bloc_requis: bool = False) -> None:
     feuille = classeur.create_sheet("Consignes")
     lignes = [
         titre,
@@ -192,7 +192,7 @@ def _consignes(classeur: Workbook, titre: str, ensemble: bool) -> None:
         "modifier ce qui a changé, ne rien toucher sinon.",
         "Colonne ID (grisée) : verrouillée, c'est Nomentrace qui attribue les identifiants.",
         "Nouveau composant : utiliser une ligne vide, remplir au minimum Fonction, Désignation, "
-        "Mode appro et Qté besoin" + (", ainsi que le Bloc." if ensemble else "."),
+        "Mode appro et Qté besoin" + (", ainsi que le Bloc." if ensemble or bloc_requis else "."),
         "Fournisseur, Mode appro, statuts, criticité"
         + ("" if ensemble else ", Ensemble")
         + " : une valeur absente de la liste est acceptée ; sa création sera proposée à l'import.",
@@ -237,6 +237,7 @@ def _meta(classeur: Workbook, conn: sqlite3.Connection, type_modele: str, code: 
 def _construire(
     conn: sqlite3.Connection, lignes: list[dict], type_modele: str, code: str, titre: str
 ) -> Workbook:
+    """Classeur du modèle : composants, listes, validations, consignes, identification."""
     ensemble = type_modele == "ensemble"
     definitions = attributs.list_attributs(conn, actifs_seulement=True)
     colonnes = [*COLONNES, *_colonnes_attributs(definitions)]
@@ -270,7 +271,7 @@ def _construire(
                 cellule.number_format = "0%"
     plages = _feuille_listes(classeur, conn, libelles, definitions)
     _validations(feuille, colonnes, plages, derniere)
-    _consignes(classeur, titre, ensemble)
+    _consignes(classeur, titre, ensemble, bloc_requis=type_modele == "vierge")
     _meta(classeur, conn, type_modele, code)
     return classeur
 
@@ -297,6 +298,13 @@ def generate_modele_bloc(conn: sqlite3.Connection, dossier: Path, code: str) -> 
     )
     titre = f"Modèle du bloc {code} · {bloc['nom']}"
     return _enregistrer(_construire(conn, lignes, "bloc", code, titre), dossier, "bloc", code)
+
+
+def generate_modele_vierge(conn: sqlite3.Connection, dossier: Path) -> Path:
+    """Modèle sans composant ni bloc imposé : pour partir de l'Excel d'une équipe, tous blocs
+    mêlés, la colonne Bloc de chaque ligne disant où ranger le composant."""
+    titre = "Modèle vierge · tous blocs"
+    return _enregistrer(_construire(conn, [], "vierge", "tous", titre), dossier, "vierge", "tous")
 
 
 def generate_modele_ensemble(conn: sqlite3.Connection, dossier: Path, code: str) -> Path:

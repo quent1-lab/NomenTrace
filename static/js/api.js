@@ -128,6 +128,7 @@ async function requeteFormulaireFichier(chemin, donnees) {
 
 // Adresses de téléchargement des modèles à remplir (liens, pas des appels fetch).
 export function lienModele(type, code) {
+  if (type === "vierge") return "/api/modeles/vierge";
   return `/api/${type === "bloc" ? "blocs" : "ensembles"}/${encodeURIComponent(code)}/modele`;
 }
 
@@ -273,6 +274,7 @@ export const api = {
   retirerDocument: (id) => requete("DELETE", `/api/documents/${id}`),
 
   getImports: () => requete("GET", "/api/imports"),
+  getConsigneIA: () => requete("GET", "/api/modeles/consigne-ia"),
   getImport: (depot) => requete("GET", `/api/imports/${depot}`),
   deposerImport: (donnees, progression) => requeteFormulaire("/api/imports", donnees, progression),
   appliquerImport: (depot, decisions) => requete("POST", `/api/imports/${depot}/appliquer`, { decisions }),

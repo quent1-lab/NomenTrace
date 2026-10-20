@@ -189,6 +189,8 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 
 | Méthode | Chemin | Rôle |
 |---|---|---|
+| GET | `/api/modeles/vierge` | Modèle vierge, sans composant, tous blocs |
+| GET | `/api/modeles/consigne-ia` | Consigne de conversion d'un Excel d'équipe au modèle vierge, avec le vocabulaire du projet (`consigne`) |
 | GET | `/api/blocs/{code}/modele` | Modèle Excel d'un bloc |
 | GET, POST | `/api/imports` | Dépôts passés ; dépôt et analyse de fichiers |
 | GET | `/api/imports/{depot}` | Propositions d'un dépôt |

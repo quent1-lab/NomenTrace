@@ -2,7 +2,7 @@
 
 import { api, lienModele } from "../api.js";
 import { formatDate } from "../format.js";
-import { naviguer } from "../router.js";
+import { lienRoute, naviguer } from "../router.js";
 import { modeLocal, peutEcrire } from "../session.js";
 import { afficherErreur, afficherInformation, el, masquerErreur, suiviEnvoi } from "../ui.js";
 
@@ -49,6 +49,49 @@ function sectionModeles(blocs, ensembles) {
       "Celui d'un ensemble ajoute la colonne « Qté dans cet ensemble », pour la personne qui monte cette partie."),
     el("div", { class: "formulaire-ligne" }, choixBloc, lienBloc),
     ligneEnsemble,
+  );
+}
+
+// Partir de l'Excel d'une équipe : l'outil d'IA de son choix recopie le fichier dans le
+// modèle vierge, guidé par une consigne qui reprend le vocabulaire du projet.
+function sectionGuideIA(blocs) {
+  const zoneConsigne = el("div");
+  const copier = el("button", { type: "button", class: "bouton" }, "Copier la consigne");
+  copier.addEventListener("click", async () => {
+    let consigne;
+    try {
+      ({ consigne } = await api.getConsigneIA());
+    } catch (erreur) {
+      return afficherErreur(erreur);
+    }
+    const zone = el("textarea", { class: "champ champ--zone consigne-ia", readonly: true, rows: "12", "aria-label": "Consigne pour l'outil d'IA" });
+    zone.value = consigne;
+    try {
+      await navigator.clipboard.writeText(consigne);
+      zoneConsigne.replaceChildren(el("p", { class: "message message-ok" }, "Consigne copiée. La voici aussi, pour la relire :"), zone);
+    } catch {
+      // Presse-papiers refusé par le navigateur : la consigne reste à sélectionner à la main.
+      zoneConsigne.replaceChildren(el("p", { class: "texte-doux texte-petit" }, "Sélectionner la consigne ci-dessous et la copier :"), zone);
+      zone.select();
+    }
+  });
+  const etapeBlocs = blocs.length
+    ? el("li", {}, `Les blocs du projet existent (${blocs.length}) : l'IA rangera chaque composant dans l'un d'eux.`)
+    : el("li", { class: "texte-surveiller" }, "Créer d'abord les blocs dans ", el("a", { href: lienRoute("/parametres", { onglet: "blocs" }) }, "Paramètres › Blocs"), " : l'import refuse un composant sans bloc.");
+  return el(
+    "section",
+    { class: "panneau guide-ia" },
+    el("h2", {}, "Partir de votre propre Excel, avec une IA"),
+    el(
+      "ol",
+      { class: "guide-ia__etapes" },
+      etapeBlocs,
+      el("li", {}, el("a", { class: "bouton bouton--discret", href: lienModele("vierge"), download: "" }, "Télécharger le modèle vierge"), " tous blocs, avec les listes du projet."),
+      el("li", {}, "Ouvrir l'outil d'IA conversationnel de votre choix, lui joindre votre Excel et le modèle vierge, puis coller la consigne. ", copier),
+      el("li", {}, "Déposer le classeur qu'il rend dans « Déposer des fichiers de l'équipe » : rien n'est écrit avant que vous ayez relu et accepté les propositions."),
+    ),
+    el("p", { class: "texte-doux texte-petit" }, "La consigne reprend les blocs, les listes, les fournisseurs et les caractéristiques actuels du projet : copiez-la à nouveau s'ils ont changé. Vérifiez la liste des lignes que l'IA dit avoir ignorées ou regroupées."),
+    zoneConsigne,
   );
 }
 
@@ -122,6 +165,7 @@ export async function afficherImports(conteneur) {
   const [blocs, ensembles, depots] = await Promise.all([api.getBlocs(), api.getEnsembles(), api.getImports()]);
   conteneur.replaceChildren(
     el("h1", {}, "Imports"),
+    sectionGuideIA(blocs),
     el("div", { class: "grille-2" }, sectionModeles(blocs, ensembles), peutEcrire() ? sectionDepot() : null),
     sectionHistorique(depots),
   );

@@ -1400,6 +1400,29 @@ td.editable:hover {
   width: auto;
 }
 
+/* Écran Imports : guide pour partir de l'Excel d'une équipe avec une IA. */
+.guide-ia {
+  margin-bottom: var(--espace-4);
+}
+
+.guide-ia__etapes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  margin: 0 0 var(--espace-3);
+  padding-left: var(--espace-5);
+}
+
+.guide-ia__etapes .bouton {
+  margin: 0 var(--espace-2);
+}
+
+.consigne-ia {
+  width: 100%;
+  font-family: monospace;
+  font-size: var(--taille-petit);
+}
+
 .logo-etablissement {
   margin-top: var(--espace-4);
   padding-top: var(--espace-3);

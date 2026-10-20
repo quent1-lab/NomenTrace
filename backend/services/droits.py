@@ -340,6 +340,8 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("GET", "/api/imports"): LECTURE,
     ("POST", "/api/imports"): ECRITURE,
     ("GET", "/api/imports/{depot}"): LECTURE,
+    ("GET", "/api/modeles/vierge"): LECTURE,
+    ("GET", "/api/modeles/consigne-ia"): LECTURE,
     ("POST", "/api/imports/{depot}/appliquer"): ECRITURE,
     ("POST", "/api/imports/{depot}/abandonner"): ECRITURE,
     # Nettoyage
