@@ -1,22 +1,45 @@
 """Restauration d'une archive complète sur le serveur, application arrêtée.
 
-L'archive est celle de la sauvegarde nocturne (base du projet, base des comptes, documents
-avec leur corbeille). Rien n'est perdu en la restaurant : les deux bases courantes sont
-d'abord sauvegardées, et le dossier des documents courant est mis de côté, pas effacé.
-Les migrations manquantes s'appliqueront au prochain démarrage de l'application.
+Deux formats sont acceptés. L'archive du serveur (depuis la phase 15a-2) contient la base
+commune `comptes.db` et, pour chaque projet, `projets/<code>/nomentrace.db` et ses
+documents sous `projets/<code>/documents/`. L'archive d'un seul projet (sauvegardes
+nocturnes d'avant 15a-2, archive téléchargée depuis l'interface) a sa base et ses documents
+à la racine, avec ou sans `comptes.db` : elle va au projet désigné, par défaut celui de
+l'instance.
+
+Rien n'est perdu en restaurant : les bases courantes sont d'abord sauvegardées, les
+dossiers de documents courants mis de côté, pas effacés. Les projets inscrits avant la
+restauration restent inscrits, même absents de l'archive. Les migrations manquantes
+s'appliqueront au prochain démarrage de l'application.
 """
 
 import logging
+import re
 import sqlite3
 import tempfile
 import zipfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 
+from backend import db
+from backend.aiguillage import code_valide
 from backend.erreurs import ErreurMetier
-from backend.services import sauvegardes
+from backend.services import comptes, projets, sauvegardes
 
 journal_log = logging.getLogger(__name__)
+
+MOTIF_BASE_PROJET = re.compile(r"^projets/([^/]+)/nomentrace\.db$")
+
+
+@dataclass(frozen=True)
+class Cible:
+    """Où installer ce que l'archive contient."""
+
+    chemin_comptes: Path
+    dossier_data: Path
+    dossier_echange: Path
+    ancienne_base: Path
 
 
 def _membres_surs(archive: zipfile.ZipFile) -> list[str]:
@@ -26,15 +49,32 @@ def _membres_surs(archive: zipfile.ZipFile) -> list[str]:
         chemin = PurePosixPath(nom)
         if chemin.is_absolute() or ".." in chemin.parts or "\\" in nom or ":" in nom:
             raise ErreurMetier(f"Archive refusée : chemin suspect « {nom} ».")
-    if sauvegardes.NOM_BASE_ARCHIVE not in noms:
-        raise ErreurMetier(
-            f"Archive refusée : elle ne contient pas « {sauvegardes.NOM_BASE_ARCHIVE} »."
-        )
     return noms
 
 
+def _projets_de_l_archive(noms: list[str], projet: str) -> dict[str, tuple[str, str]]:
+    """Code → (base, dossier des documents) dans l'archive, selon son format."""
+    par_projet = {m.group(1): m.group(0) for nom in noms if (m := MOTIF_BASE_PROJET.match(nom))}
+    if par_projet and sauvegardes.NOM_BASE_ARCHIVE in noms:
+        raise ErreurMetier("Archive refusée : elle mêle les deux formats d'archive.")
+    if not par_projet:
+        if sauvegardes.NOM_BASE_ARCHIVE not in noms:
+            raise ErreurMetier(
+                f"Archive refusée : elle ne contient ni « {sauvegardes.NOM_BASE_ARCHIVE} » ni"
+                " base de projet."
+            )
+        return {projet: (sauvegardes.NOM_BASE_ARCHIVE, sauvegardes.DOSSIER_DOCUMENTS_ARCHIVE)}
+    for code in par_projet:
+        if not code_valide(code):
+            raise ErreurMetier(f"Archive refusée : code de projet invalide « {code} ».")
+    return {
+        code: (base, f"{sauvegardes.DOSSIER_PROJETS_ARCHIVE}/{code}/documents")
+        for code, base in sorted(par_projet.items())
+    }
+
+
 def _verifier_comptes(chemin: Path) -> None:
-    """Contrôle que la base des comptes extraite est lisible et intègre."""
+    """Contrôle que la base commune extraite est lisible et intègre."""
     try:
         connexion = sqlite3.connect(chemin)
         try:
@@ -80,47 +120,96 @@ def _remplacer_documents(extraits: Path, dossier_documents: Path) -> str | None:
     return mis_de_cote
 
 
-def restore_archive(
-    archive: Path,
-    chemin_base: Path,
-    chemin_comptes: Path,
-    dossier_sauvegardes: Path,
-    dossier_documents: Path,
-    avec_documents: bool = True,
+def _codes_inscrits(chemin_comptes: Path) -> list[str]:
+    """Projets inscrits dans la base commune en place (aucun si elle n'a pas de registre)."""
+    if not chemin_comptes.is_file():
+        return []
+    conn = db.connect(chemin_comptes)
+    try:
+        return projets.list_codes(conn) if db.table_existe(conn, "projet") else []
+    finally:
+        conn.close()
+
+
+def _restaurer_comptes(extraite: Path, cible: Cible) -> str | None:
+    """Remplace la base commune, puis la remet à jour et y garde les projets d'avant."""
+    avant = _codes_inscrits(cible.chemin_comptes)
+    securite = _remplacer_base(
+        extraite,
+        cible.chemin_comptes,
+        cible.dossier_echange / "sauvegardes" / projets.SAUVEGARDES_COMPTES,
+    )
+    comptes.prepare_base(cible.chemin_comptes)
+    conn = db.connect(cible.chemin_comptes)
+    try:
+        for code in avant:
+            projets.inscrire(conn, code)
+    finally:
+        conn.close()
+    return securite
+
+
+def _restaurer_projet(
+    extraits: Path, code: str, membres: tuple[str, str], cible: Cible, avec_documents: bool
 ) -> dict:
-    """Remplace les bases (et les documents) par le contenu d'une archive complète."""
+    """Remplace la base (et les documents) d'un projet par ceux de l'archive."""
+    emp = projets.emplacements(cible.dossier_data, cible.dossier_echange, code)
+    base, documents = membres
+    resultat = {
+        "version_schema": sauvegardes.verifier_base(extraits / base),
+        "securite_base": _remplacer_base(extraits / base, emp.base, emp.sauvegardes),
+        "documents_mis_de_cote": None,
+    }
+    if avec_documents:
+        resultat["documents_mis_de_cote"] = _remplacer_documents(
+            extraits / documents, emp.documents
+        )
+    return resultat
+
+
+def _inscrire(cible: Cible, codes: list[str]) -> None:
+    comptes.prepare_base(cible.chemin_comptes)
+    conn = db.connect(cible.chemin_comptes)
+    try:
+        for code in codes:
+            projets.inscrire(conn, code)
+    finally:
+        conn.close()
+
+
+def restore_archive(archive: Path, cible: Cible, projet: str, avec_documents: bool = True) -> dict:
+    """Remplace la base commune et les projets contenus dans l'archive.
+
+    `projet` désigne le projet qui reçoit une archive d'un seul projet. L'ancienne base
+    unique, si elle n'a pas encore été recopiée, est marquée : l'archive fait foi.
+    """
     try:
         zip_ouvert = zipfile.ZipFile(archive)
     except (OSError, zipfile.BadZipFile) as erreur:
         message = f"« {archive.name} » n'est pas une archive lisible ({erreur})."
         raise ErreurMetier(message) from erreur
-    # Extraction à côté des documents : le déplacement final reste sur le même disque.
-    dossier_documents.parent.mkdir(parents=True, exist_ok=True)
-    with zip_ouvert, tempfile.TemporaryDirectory(dir=dossier_documents.parent) as temporaire:
+    cible.dossier_echange.mkdir(parents=True, exist_ok=True)
+    with zip_ouvert, tempfile.TemporaryDirectory(dir=cible.dossier_echange) as temporaire:
         noms = _membres_surs(zip_ouvert)
+        a_restaurer = _projets_de_l_archive(noms, projet)
         zip_ouvert.extractall(temporaire)
         extraits = Path(temporaire)
-        version = sauvegardes.verifier_base(extraits / sauvegardes.NOM_BASE_ARCHIVE)
+        # Tout est contrôlé avant la première écriture.
+        for base, _ in a_restaurer.values():
+            sauvegardes.verifier_base(extraits / base)
         avec_comptes = sauvegardes.NOM_COMPTES_ARCHIVE in noms
         if avec_comptes:
             _verifier_comptes(extraits / sauvegardes.NOM_COMPTES_ARCHIVE)
-        resultat = {
-            "version_schema": version,
-            "securite_base": _remplacer_base(
-                extraits / sauvegardes.NOM_BASE_ARCHIVE, chemin_base, dossier_sauvegardes
-            ),
-            "comptes": avec_comptes,
-            "documents_mis_de_cote": None,
-        }
+        resultat: dict = {"comptes": avec_comptes, "securite_comptes": None, "projets": {}}
         if avec_comptes:
-            resultat["securite_comptes"] = _remplacer_base(
-                extraits / sauvegardes.NOM_COMPTES_ARCHIVE,
-                chemin_comptes,
-                dossier_sauvegardes / "comptes",
+            resultat["securite_comptes"] = _restaurer_comptes(
+                extraits / sauvegardes.NOM_COMPTES_ARCHIVE, cible
             )
-        if avec_documents:
-            resultat["documents_mis_de_cote"] = _remplacer_documents(
-                extraits / sauvegardes.DOSSIER_DOCUMENTS_ARCHIVE, dossier_documents
+        for code, membres in a_restaurer.items():
+            resultat["projets"][code] = _restaurer_projet(
+                extraits, code, membres, cible, avec_documents
             )
+    _inscrire(cible, list(a_restaurer))
+    projets.marquer_si_besoin(cible.ancienne_base)
     journal_log.warning("Archive %s restaurée : %s", archive.name, resultat)
     return resultat

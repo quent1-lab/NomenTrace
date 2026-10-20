@@ -39,7 +39,11 @@ def test_ecriture_prefixee_admise_et_exportee(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     signaux: list[bool] = []
-    monkeypatch.setattr(client.app.state.export, "signaler", lambda: signaux.append(True))
+    monkeypatch.setattr(
+        client.app.state.exports[client.app.state.code_projet],
+        "signaler",
+        lambda: signaux.append(True),
+    )
     reponse = client.post(f"{_prefixe(client)}/api/blocs", json={"code": "MEC", "nom": "Méca"})
     assert reponse.status_code == 201, reponse.text
     assert [b["code"] for b in client.get(f"{_prefixe(client)}/api/blocs").json()] == ["MEC"]

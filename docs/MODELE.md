@@ -1,6 +1,7 @@
 # Modèle de données de Nomentrace
 
-Ce document décrit la base SQLite (`data/nomentrace.db`) : les tables, les vues de calcul
+Ce document décrit la base SQLite d'un projet (`data/projets/<code>/nomentrace.db`) : les
+tables, les vues de calcul
 et les définitions des indicateurs. Le schéma est construit par les migrations numérotées
 de `backend/migrations/` ; la table `schema_version` retient la dernière appliquée.
 L'usage des écrans est décrit dans [UTILISATION.md](UTILISATION.md), l'organisation du
@@ -276,13 +277,13 @@ est conservé mais ignoré.
 qu'une répartition récursive s'y exprime mal. Il est recalculé à chaque
 lecture, sans arrondi et sans rien stocker, par `backend/services/ensembles_arbre.py`.
 
-## Base des comptes
+## Base commune
 
-Les comptes vivent dans une base SQLite séparée (`data/comptes.db`), avec ses propres
-migrations dans `backend/migrations_comptes/`. Aucune clé étrangère ne la relie à la base
-du projet : le journal garde le nom de l'auteur tel qu'il était, en texte. Séparer les deux
-bases permettra à plusieurs projets de partager un jour les mêmes comptes, et empêche une
-restauration de la base du projet de toucher aux comptes.
+Les comptes et le registre des projets vivent dans une base SQLite séparée
+(`data/comptes.db`), avec ses propres migrations dans `backend/migrations_comptes/`. Aucune
+clé étrangère ne la relie aux bases des projets : le journal garde le nom de l'auteur tel
+qu'il était, en texte. Plusieurs projets partagent ainsi les mêmes comptes, et la
+restauration de la base d'un projet ne touche pas aux comptes.
 
 | Table | Rôle | Clé |
 |---|---|---|
@@ -293,9 +294,12 @@ restauration de la base du projet de toucher aux comptes.
 | `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`, `attributs`. | `utilisateur_id`, `projet`, `permission` |
 | `invitation` | Liens d'invitation : empreinte SHA-256 du jeton, `expire_le` (72 heures), `utilisee_le`. | `id` |
 | `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |
+| `projet` | Registre des projets servis : `code` (minuscules, chiffres et tirets, 40 au plus), `cree_le`, `archive`. Chaque projet inscrit a sa base `data/projets/<code>/nomentrace.db` et son dossier `echange/projets/<code>/`. | `code` |
 
-Le code du projet (`projet`) vient de `NOMENTRACE_PROJET`, pas du nom du projet, qui peut
-changer.
+Le code d'un projet est celui de son adresse, `/p/<code>/`, et celui que portent `acces`,
+`utilisateur_bloc` et `utilisateur_permission`. Il est figé à la création ; le nom du
+projet, qui peut changer, reste dans la base du projet. Le projet de l'instance vient de
+`NOMENTRACE_PROJET` et est inscrit au premier lancement.
 
 ## Historique
 

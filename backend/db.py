@@ -21,15 +21,21 @@ class Connexion(sqlite3.Connection):
     utilisateur: str | None = None
 
 
-def connect(chemin: Path | None = None, utilisateur: str | None = None) -> Connexion:
+def connect(chemin: Path, utilisateur: str | None = None, *, creer: bool = True) -> Connexion:
     """Ouvre une connexion en mode autocommit, clés étrangères actives et journal WAL.
 
     Les transactions sont ouvertes explicitement avec `transaction()`. Une écriture
-    concurrente attend jusqu'à 5 s que la base se libère avant d'échouer.
+    concurrente attend jusqu'à 5 s que la base se libère avant d'échouer. Sans `creer`, la
+    base doit exister : une requête n'ouvre jamais une base vide à la place d'un projet.
     """
-    cible = chemin or config.CHEMIN_BASE
-    cible.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(cible, isolation_level=None, check_same_thread=False, factory=Connexion)
+    if creer:
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        cible = str(chemin)
+    else:
+        cible = f"{chemin.resolve().as_uri()}?mode=rw"
+    conn = sqlite3.connect(
+        cible, isolation_level=None, check_same_thread=False, factory=Connexion, uri=not creer
+    )
     conn.row_factory = sqlite3.Row
     conn.utilisateur = utilisateur
     conn.execute("PRAGMA foreign_keys = ON")

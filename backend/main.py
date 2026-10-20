@@ -5,6 +5,7 @@ import sqlite3
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -13,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
-from backend.aiguillage import AiguillageProjet
+from backend.aiguillage import AiguillageProjet, code_valide
 from backend.deps import verifier_acces
 from backend.erreurs import ErreurMetier
 from backend.routes import (
@@ -38,7 +39,7 @@ from backend.routes import (
     sauvegardes as routes_sauvegardes,
 )
 from backend.securite import install_securite
-from backend.services import authentification, comptes, sauvegardes
+from backend.services import authentification, comptes, projets, sauvegardes
 from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger("nomentrace")
@@ -148,83 +149,98 @@ def _install_error_handlers(app: FastAPI) -> None:
         )
 
 
-def _prepare_base(base: Path, dossier_sauvegardes: Path) -> None:
-    """Sauvegarde puis migrations, au démarrage. Une base neuve démarre vide."""
-    sauvegardes.create_sauvegarde(base, dossier_sauvegardes)
-    conn = db.connect(base)
-    try:
-        version = db.apply_migrations(conn)
-        journal_log.info("Base %s prête, schéma version %d", base, version)
-    finally:
-        conn.close()
+def _preparer_comptes(chemin: Path, dossier_sauvegardes: Path) -> None:
+    """Sauvegarde et migrations de la base commune (comptes et registre des projets).
 
-
-def _prepare_comptes(chemin: Path, dossier_sauvegardes: Path, projet: str) -> None:
-    """Sauvegarde et migrations de la base des comptes ; signale l'absence d'administrateur.
-
-    Ses sauvegardes vont dans un sous-dossier : elles ne se mêlent pas à celles du projet et
-    ne peuvent pas être restaurées à sa place depuis l'interface.
+    Ses sauvegardes vont dans un dossier à part : elles ne se mêlent pas à celles des
+    projets et ne peuvent pas être restaurées à leur place depuis l'interface.
     """
-    sauvegardes.create_sauvegarde(chemin, dossier_sauvegardes / "comptes")
+    sauvegardes.create_sauvegarde(chemin, dossier_sauvegardes)
     version = comptes.prepare_base(chemin)
-    conn = db.connect(chemin)
+    journal_log.info("Base commune %s prête, schéma version %d", chemin, version)
+
+
+def _preparer_projets(etat: Any, ancienne_base: Path) -> None:
+    """Projet de l'instance (migration de l'ancienne base au besoin), puis chaque projet.
+
+    Le registre est rempli sur place : l'aiguillage en garde la référence.
+    """
+    _preparer_comptes(etat.chemin_comptes, etat.dossier_echange / "sauvegardes" / "comptes")
+    conn = db.connect(etat.chemin_comptes)
     try:
-        if comptes.count_admins(conn, projet) == 0:
+        instance = projets.emplacements(etat.dossier_data, etat.dossier_echange, etat.code_projet)
+        projets.assurer_projet_instance(conn, ancienne_base, etat.dossier_echange, instance)
+        charge = projets.charger_registre(conn, etat.dossier_data, etat.dossier_echange)
+        if not etat.mode_local and comptes.count_admins(conn, etat.code_projet) == 0:
             journal_log.warning(
                 "Aucun administrateur pour le projet « %s » : en créer un avec "
                 "« python -m backend.comptes creer-admin ADRESSE --nom NOM ».",
-                projet,
+                etat.code_projet,
             )
     finally:
         conn.close()
-    journal_log.info("Base des comptes %s prête, schéma version %d", chemin, version)
+    etat.registre.projets.update(charge.projets)
+    etat.registre.hors_ligne.update(charge.hors_ligne)
+    for code, emp in charge.projets.items():
+        etat.exports[code] = PlanificateurExport(emp.base, emp.exports)
 
 
 def create_app(
-    chemin_base: Path | None = None,
+    dossier_data: Path | None = None,
     dossier_echange: Path | None = None,
     *,
     mode_local: bool | None = None,
     chemin_comptes: Path | None = None,
     code_projet: str | None = None,
+    chemin_ancienne_base: Path | None = None,
 ) -> FastAPI:
     """Construit l'application.
 
-    Les tests passent une base, un dossier d'échange et une base des comptes temporaires. Sans
-    mode local explicite, la connexion est exigée.
+    Les tests passent un dossier de données, un dossier d'échange et une base commune
+    temporaires. Sans mode local explicite, la connexion est exigée.
     """
     _configure_logging()
-    base = chemin_base or config.CHEMIN_BASE
+    data = dossier_data or config.DOSSIER_DATA
     echange = dossier_echange or config.DOSSIER_ECHANGE
     local = config.MODE_LOCAL if mode_local is None else mode_local
-    fichier_comptes = chemin_comptes or config.CHEMIN_COMPTES
     projet = code_projet or config.CODE_PROJET
-    export = PlanificateurExport(base, echange / "exports")
+    if not code_valide(projet):
+        raise ValueError(
+            f"NOMENTRACE_PROJET doit contenir des minuscules, des chiffres et des tirets"
+            f" (lu : « {projet} »)."
+        )
+    # Un dossier de données explicite (tests) porte aussi sa base commune et son ancienne base.
+    if chemin_ancienne_base is None:
+        chemin_ancienne_base = (
+            data / projets.NOM_BASE if dossier_data else config.CHEMIN_ANCIENNE_BASE
+        )
+    if chemin_comptes is None:
+        chemin_comptes = data / "comptes.db" if dossier_data else config.CHEMIN_COMPTES
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        _prepare_base(base, echange / "sauvegardes")
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        _preparer_projets(application.state, chemin_ancienne_base)
         if local:
             journal_log.warning(
                 "Mode local : aucune connexion demandée, requêtes acceptées depuis ce poste seul."
             )
-        else:
-            _prepare_comptes(fichier_comptes, echange / "sauvegardes", projet)
-        export.start()
-        export.signaler()
+        for export in application.state.exports.values():
+            export.start()
+            export.signaler()
         yield
-        export.stop()
+        for export in application.state.exports.values():
+            export.stop()
 
     # La documentation interactive de l'API n'est publiée qu'en mode local.
     documentation = {} if local else {"docs_url": None, "redoc_url": None, "openapi_url": None}
     app = FastAPI(title="Nomentrace", lifespan=lifespan, **documentation)
-    app.state.chemin_base = base
-    app.state.export = export
-    app.state.dossier_documents = echange / "documents"
+    app.state.dossier_data = data
     app.state.dossier_echange = echange
     app.state.mode_local = local
-    app.state.chemin_comptes = fichier_comptes
+    app.state.chemin_comptes = chemin_comptes
     app.state.code_projet = projet
+    app.state.registre = projets.Registre()
+    app.state.exports = {}
     app.state.limiteurs = authentification.Limiteurs()
     _install_error_handlers(app)
 
@@ -232,14 +248,16 @@ def create_app(
     async def _signaler_modification(
         request: Request, suite: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        """Toute écriture réussie sur l'API programme un export Excel."""
+        """Toute écriture réussie sur l'API programme l'export Excel de son projet."""
         reponse = await suite(request)
         if not request.url.path.startswith("/api/"):
             # Fichiers de l'interface revalidés à chaque chargement : après une mise à jour,
             # le navigateur ne doit pas garder d'anciens modules JavaScript en cache.
             reponse.headers["Cache-Control"] = "no-cache"
+        export = app.state.exports.get(getattr(request.state, "projet", None))
         if (
-            request.method in METHODES_ECRITURE
+            export is not None
+            and request.method in METHODES_ECRITURE
             and request.url.path.startswith("/api/")
             and not request.url.path.startswith(SANS_EXPORT)
             and reponse.status_code < 400
@@ -252,7 +270,7 @@ def create_app(
     # Installé en dernier, donc exécuté en premier : les refus d'origine passent avant tout.
     install_securite(app, local)
     # Plus extérieur encore : le préfixe /p/<code> est retiré avant toute autre couche.
-    app.add_middleware(AiguillageProjet, projets=frozenset({projet}), defaut=projet)
+    app.add_middleware(AiguillageProjet, registre=app.state.registre, defaut=projet)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")
     return app
 

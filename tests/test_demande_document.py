@@ -1,6 +1,7 @@
 """Document de demande de devis envoyé au fournisseur, en PDF et en Excel."""
 
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import unquote
 
 from fastapi.testclient import TestClient
@@ -52,14 +53,16 @@ def test_pdf_de_la_demande(client_essai: TestClient) -> None:
     assert reponse.content.startswith(b"%PDF")
 
 
-def test_ligne_annulee_absente_et_texte_hors_latin1(client_essai: TestClient) -> None:
+def test_ligne_annulee_absente_et_texte_hors_latin1(
+    client_essai: TestClient, chemin_base: Path
+) -> None:
     numero = _demande(client_essai)
     lignes = client_essai.get(f"/api/commandes/{numero}/lignes").json()
     client_essai.patch(
         f"/api/commandes/{numero}/lignes/{lignes[0]['id']}", json={"statut_ligne": "Annulee"}
     )
     client_essai.patch("/api/composants/ESSAI-AGI-001", json={"designation": "Cœur – « essai »"})
-    conn = db.connect(client_essai.app.state.chemin_base)
+    conn = db.connect(chemin_base)
     donnees = demande_document.get_donnees(conn, numero, {"nom": "A", "mail": None}, None)
     conn.close()
     assert donnees["lignes"][0]["designation"] == "Cœur – « essai »"
@@ -68,8 +71,8 @@ def test_ligne_annulee_absente_et_texte_hors_latin1(client_essai: TestClient) ->
     assert demande_document.build_pdf(donnees).startswith(b"%PDF")
 
 
-def test_demandeur_connecte(client_essai: TestClient) -> None:
-    conn = db.connect(client_essai.app.state.chemin_base)
+def test_demandeur_connecte(client_essai: TestClient, chemin_base: Path) -> None:
+    conn = db.connect(chemin_base)
     personne = Utilisateur(
         id=3, identifiant="camille@ecole.test", nom="Camille", role="contributeur"
     )

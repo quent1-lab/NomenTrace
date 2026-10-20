@@ -12,13 +12,16 @@ def _chemin(variable: str, defaut: Path) -> Path:
     return Path(valeur) if valeur else defaut
 
 
-DOSSIER_DATA: Path = _chemin("NOMENTRACE_DATA", RACINE / "data")
-CHEMIN_BASE: Path = _chemin("NOMENTRACE_BASE", DOSSIER_DATA / "nomentrace.db")
+# Ancienne base unique (avant la phase 15a-2), source de la migration vers une base par
+# projet. Le serveur ne définit que NOMENTRACE_BASE : son dossier est celui des données.
+_ANCIENNE_BASE: str | None = os.environ.get("NOMENTRACE_BASE") or None
+DOSSIER_DATA: Path = _chemin(
+    "NOMENTRACE_DATA", Path(_ANCIENNE_BASE).parent if _ANCIENNE_BASE else RACINE / "data"
+)
+CHEMIN_ANCIENNE_BASE: Path = (
+    Path(_ANCIENNE_BASE) if _ANCIENNE_BASE else DOSSIER_DATA / "nomentrace.db"
+)
 DOSSIER_ECHANGE: Path = _chemin("NOMENTRACE_ECHANGE", RACINE / "echange")
-DOSSIER_EXPORTS: Path = DOSSIER_ECHANGE / "exports"
-DOSSIER_IMPORTS: Path = DOSSIER_ECHANGE / "imports"
-DOSSIER_MODELES: Path = DOSSIER_ECHANGE / "modeles"
-DOSSIER_SAUVEGARDES: Path = DOSSIER_ECHANGE / "sauvegardes"
 DOSSIER_MIGRATIONS: Path = RACINE / "backend" / "migrations"
 DOSSIER_MIGRATIONS_COMPTES: Path = RACINE / "backend" / "migrations_comptes"
 DOSSIER_STATIC: Path = RACINE / "static"
@@ -50,8 +53,9 @@ PORT: int = lire_port(os.environ.get("NOMENTRACE_PORT"))
 # Au-delà, Uvicorn répond 503 aussitôt plutôt que d'empiler les requêtes.
 CONCURRENCE_MAX: int = lire_concurrence(os.environ.get("NOMENTRACE_CONCURRENCE"))
 
-# Comptes : base distincte de celle du projet, partagée un jour par plusieurs projets. Chaque
-# instance sert un projet, désigné par un code stable (le nom du projet, lui, peut changer).
+# Base commune : comptes, rôles par projet et registre des projets. Le projet de l'instance,
+# servi à la racine et créé au premier lancement, est désigné par un code stable, celui de
+# son adresse /p/<code>/ (le nom du projet, lui, peut changer).
 CHEMIN_COMPTES: Path = _chemin("NOMENTRACE_COMPTES", DOSSIER_DATA / "comptes.db")
 CODE_PROJET: str = os.environ.get("NOMENTRACE_PROJET") or "principal"
 

@@ -57,9 +57,15 @@ def create_sauvegarde(chemin_base: Path, dossier: Path) -> Path | None:
     return cible
 
 
+def _ordre(chemin: Path) -> tuple[str, int]:
+    """Horodatage puis rang : « _120000-2.db » vient après « _120000.db », prise la même seconde."""
+    horodatage, _, rang = chemin.stem.removeprefix(PREFIXE).partition("-")
+    return horodatage, int(rang) if rang.isdigit() else 1
+
+
 def list_sauvegardes(dossier: Path) -> list[Path]:
     """Renvoie les sauvegardes, les plus récentes en premier."""
-    return sorted(dossier.glob(f"{PREFIXE}*.db"), reverse=True)
+    return sorted(dossier.glob(f"{PREFIXE}*.db"), key=_ordre, reverse=True)
 
 
 def describe_sauvegardes(dossier: Path) -> list[dict]:
@@ -154,6 +160,7 @@ def restore_sauvegarde(
 NOM_BASE_ARCHIVE: str = "nomentrace.db"
 NOM_COMPTES_ARCHIVE: str = "comptes.db"
 DOSSIER_DOCUMENTS_ARCHIVE: str = "documents"
+DOSSIER_PROJETS_ARCHIVE: str = "projets"
 FICHIERS_IGNORES: frozenset[str] = frozenset({".gitkeep"})
 
 
@@ -162,15 +169,15 @@ def nom_archive(maintenant: datetime | None = None) -> str:
     return f"nomentrace_archive_{(maintenant or datetime.now()):%Y%m%d_%H%M}.zip"
 
 
-def _ajouter_documents(archive: zipfile.ZipFile, dossier_documents: Path) -> int:
-    """Ajoute tout le dossier des documents sous documents/ ; renvoie le nombre de fichiers."""
+def _ajouter_documents(archive: zipfile.ZipFile, dossier_documents: Path, prefixe: str) -> int:
+    """Ajoute tout le dossier des documents sous `prefixe` ; renvoie le nombre de fichiers."""
     nombre = 0
     if not dossier_documents.is_dir():
         return nombre
     for chemin in sorted(dossier_documents.rglob("*")):
         if chemin.is_file() and chemin.name not in FICHIERS_IGNORES:
             relatif = chemin.relative_to(dossier_documents).as_posix()
-            archive.write(chemin, f"{DOSSIER_DOCUMENTS_ARCHIVE}/{relatif}")
+            archive.write(chemin, f"{prefixe}/{relatif}")
             nombre += 1
     return nombre
 
@@ -191,37 +198,65 @@ def _copie_coherente(source: Path) -> Path:
     return Path(temporaire)
 
 
-def build_archive(
-    chemin_base: Path, dossier_documents: Path, chemin_comptes: Path | None = None
-) -> Path:
-    """Archive complète dans un fichier temporaire : copie cohérente de la base et documents.
-
-    Les bases sont copiées par l'API de sauvegarde de sqlite3, jamais en lisant le fichier
-    ouvert. La base des comptes n'y entre que si elle est demandée : l'archive téléchargée
-    depuis l'interface ne la contient pas, la sauvegarde nocturne du serveur si. L'appelant
-    supprime l'archive une fois envoyée.
-    """
-    descripteur, zip_temporaire = tempfile.mkstemp(prefix="nomentrace_archive_", suffix=".zip")
+def _zip_temporaire() -> Path:
+    descripteur, chemin = tempfile.mkstemp(prefix="nomentrace_archive_", suffix=".zip")
     os.close(descripteur)
-    copies: list[Path] = []
+    return Path(chemin)
+
+
+def _ajouter_base(archive: zipfile.ZipFile, source: Path, nom: str) -> None:
+    """Ajoute une copie cohérente d'une base (API de sauvegarde, journal WAL compris)."""
+    copie = _copie_coherente(source)
     try:
-        copies.append(_copie_coherente(chemin_base))
+        archive.write(copie, nom)
+    finally:
+        copie.unlink(missing_ok=True)
+
+
+def build_archive(chemin_base: Path, dossier_documents: Path) -> Path:
+    """Archive d'un projet dans un fichier temporaire : base et documents, à la racine.
+
+    C'est l'archive téléchargée depuis l'interface. Les bases sont copiées par l'API de
+    sauvegarde de sqlite3, jamais en lisant le fichier ouvert. L'appelant la supprime.
+    """
+    zip_temporaire = _zip_temporaire()
+    try:
         with zipfile.ZipFile(zip_temporaire, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.write(copies[0], NOM_BASE_ARCHIVE)
-            if chemin_comptes is not None and chemin_comptes.is_file():
-                copies.append(_copie_coherente(chemin_comptes))
-                archive.write(copies[-1], NOM_COMPTES_ARCHIVE)
-            nombre = _ajouter_documents(archive, dossier_documents)
+            _ajouter_base(archive, chemin_base, NOM_BASE_ARCHIVE)
+            nombre = _ajouter_documents(archive, dossier_documents, DOSSIER_DOCUMENTS_ARCHIVE)
+    except OSError, sqlite3.Error:
+        journal_log.exception("Archive du projet impossible")
+        zip_temporaire.unlink(missing_ok=True)
+        raise
+    journal_log.info("Archive du projet construite : base et %d document(s)", nombre)
+    return zip_temporaire
+
+
+def build_archive_serveur(chemin_comptes: Path, projets: list[tuple[str, Path, Path]]) -> Path:
+    """Archive complète du serveur : base commune, puis base et documents de chaque projet.
+
+    `projets` donne, pour chaque projet, son code, sa base et son dossier de documents.
+    Disposition : comptes.db, projets/<code>/nomentrace.db, projets/<code>/documents/….
+    """
+    zip_temporaire = _zip_temporaire()
+    try:
+        with zipfile.ZipFile(zip_temporaire, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            if chemin_comptes.is_file():
+                _ajouter_base(archive, chemin_comptes, NOM_COMPTES_ARCHIVE)
+            nombre = 0
+            for code, base, documents in projets:
+                racine = f"{DOSSIER_PROJETS_ARCHIVE}/{code}"
+                _ajouter_base(archive, base, f"{racine}/{NOM_BASE_ARCHIVE}")
+                nombre += _ajouter_documents(
+                    archive, documents, f"{racine}/{DOSSIER_DOCUMENTS_ARCHIVE}"
+                )
     except OSError, sqlite3.Error:
         journal_log.exception("Archive complète impossible")
-        Path(zip_temporaire).unlink(missing_ok=True)
+        zip_temporaire.unlink(missing_ok=True)
         raise
-    finally:
-        for copie in copies:
-            copie.unlink(missing_ok=True)
     journal_log.info(
-        "Archive complète construite : base%s et %d document(s)",
-        ", comptes" if len(copies) > 1 else "",
+        "Archive complète construite : base commune, %d projet(s), %d document(s)",
+        len(projets),
         nombre,
     )
-    return Path(zip_temporaire)
+    return zip_temporaire

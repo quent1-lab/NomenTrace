@@ -3,11 +3,11 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from backend.deps import get_conn
+from backend.deps import Emplacements, get_conn
 from backend.models import DocumentModif
 from backend.services import documents
 
@@ -16,7 +16,7 @@ Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 
 
 async def _deposer(
-    request: Request,
+    emp: Emplacements,
     conn: sqlite3.Connection,
     fichiers: list[UploadFile],
     meta: dict,
@@ -29,8 +29,7 @@ async def _deposer(
     contenus = [
         (f.filename or "document", await f.read(documents.TAILLE_MAX + 1)) for f in fichiers
     ]
-    dossier = request.app.state.dossier_documents
-    return await run_in_threadpool(documents.add_documents, conn, dossier, contenus, meta)
+    return await run_in_threadpool(documents.add_documents, conn, emp.documents, contenus, meta)
 
 
 @router.get("/commandes/{numero}/documents")
@@ -41,14 +40,14 @@ def read_documents_commande(numero: str, conn: Conn) -> list[dict]:
 @router.post("/commandes/{numero}/documents", status_code=201)
 async def create_documents_commande(
     numero: str,
-    request: Request,
+    emp: Emplacements,
     conn: Conn,
     fichiers: Annotated[list[UploadFile], File()],
     type_document: Annotated[str, Form()],
     commentaire: Annotated[str | None, Form()] = None,
 ) -> dict:
     meta = {"commande_numero": numero, "type_document": type_document, "commentaire": commentaire}
-    return await _deposer(request, conn, fichiers, meta)
+    return await _deposer(emp, conn, fichiers, meta)
 
 
 @router.get("/composants/{identifiant}/documents")
@@ -59,19 +58,19 @@ def read_documents_composant(identifiant: str, conn: Conn) -> list[dict]:
 @router.post("/composants/{identifiant}/documents", status_code=201)
 async def create_documents_composant(
     identifiant: str,
-    request: Request,
+    emp: Emplacements,
     conn: Conn,
     fichiers: Annotated[list[UploadFile], File()],
     type_document: Annotated[str, Form()],
     commentaire: Annotated[str | None, Form()] = None,
 ) -> dict:
     meta = {"composant_id": identifiant, "type_document": type_document, "commentaire": commentaire}
-    return await _deposer(request, conn, fichiers, meta)
+    return await _deposer(emp, conn, fichiers, meta)
 
 
 @router.get("/documents/{identifiant}/fichier")
-def read_fichier(identifiant: int, request: Request, conn: Conn) -> FileResponse:
-    fichier = documents.get_fichier(conn, request.app.state.dossier_documents, identifiant)
+def read_fichier(identifiant: int, emp: Emplacements, conn: Conn) -> FileResponse:
+    fichier = documents.get_fichier(conn, emp.documents, identifiant)
     return FileResponse(
         fichier["chemin"],
         media_type=fichier["type_mime"] or "application/octet-stream",

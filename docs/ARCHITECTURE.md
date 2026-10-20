@@ -43,6 +43,7 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 | `backend/db.py` | Connexion, transactions, helpers de requête, migrations |
 | `backend/deps.py` | Dépendances FastAPI : utilisateur de la requête, connexions SQLite, contrôle des droits |
 | `backend/securite.py` | Contrôle d'origine des écritures, restriction du mode local, en-têtes de sécurité |
+| `backend/aiguillage.py` | Projet de la requête lu dans l'adresse `/p/<code>/` |
 | `backend/__main__.py` | Lancement par `python -m backend` : adresse, port, options d'Uvicorn |
 | `backend/comptes.py` | Ligne de commande : premier administrateur et secours |
 | `backend/sauvegarde.py` | Ligne de commande du serveur : archive complète et restauration |
@@ -52,7 +53,7 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 | `backend/routes/` | Une route par fichier de domaine, sans logique ni SQL |
 | `backend/services/` | La logique métier, un fichier par domaine |
 | `backend/migrations/` | Le schéma, en fichiers SQL numérotés |
-| `backend/migrations_comptes/` | Le schéma de la base des comptes |
+| `backend/migrations_comptes/` | Le schéma de la base commune (comptes, registre des projets) |
 | `static/js/` | Modules partagés (API, format, routeur, édition, panneau…) |
 | `static/js/pages/` | Un module par écran |
 | `static/css/style.css` | Toute la feuille de style, écrite à la main |
@@ -64,11 +65,27 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 ## Le serveur
 
 `create_app()` dans `backend/main.py` construit l'application. Elle reçoit en option le
-chemin de la base, du dossier d'échange et de la base des comptes, et le mode (local ou
-connecté), ce qui permet aux tests de tout faire tourner sur des fichiers temporaires.
-Sans mode local explicite, la connexion est exigée. Au démarrage, la fonction `lifespan`
-sauvegarde la base, applique les migrations manquantes, fait de même pour la base des
-comptes en mode connecté, puis lance le fil d'export Excel.
+dossier des bases, le dossier d'échange, la base commune, le code du projet de l'instance
+et le mode (local ou connecté), ce qui permet aux tests de tout faire tourner sur des
+fichiers temporaires. Sans mode local explicite, la connexion est exigée.
+
+Chaque projet a sa base, `data/projets/<code>/nomentrace.db`, et son dossier
+`echange/projets/<code>/` ; le registre des projets est la table `projet` de la base
+commune. `services/projets.py` porte ces emplacements (`EmplacementsProjet`) et le
+registre en mémoire (`Registre` : projets en ligne et hors ligne). Au démarrage, la
+fonction `lifespan` sauvegarde et migre la base commune, s'assure que le projet de
+l'instance existe, puis sauvegarde et migre chaque projet inscrit, un par un : un échec
+met ce projet seul hors ligne (ses routes répondent 503), les autres démarrent. Elle lance
+enfin un fil d'export Excel par projet.
+
+S'assurer du projet de l'instance suit une règle écrite en tête de `services/projets.py`.
+L'ancienne base unique d'avant la version 1.10 (`NOMENTRACE_BASE`), si elle n'est pas
+encore marquée, est recopiée par l'API de sauvegarde de SQLite (journal WAL compris), avec
+les dossiers repris de l'échange, dans des dossiers temporaires renommés à la fin ; puis
+elle est marquée (`schema_version` à 999), ce qui fait refuser l'ancien code, et le projet
+est inscrit. Une copie interrompue est reprise entière. Une ancienne base non marquée alors
+que le projet est inscrit fait refuser le démarrage. Une base de projet n'est jamais créée
+par une requête : `get_conn` l'ouvre en `mode=rw`, et `db.connect` exige un chemin.
 
 `python -m backend` (`backend/__main__.py`) lance Uvicorn avec les réglages de
 l'environnement. En mode connecté, il ne croit les en-têtes `X-Forwarded-*` que de
@@ -252,12 +269,14 @@ commande supprime des fiches de document ; leurs fichiers partent alors dans
 `corbeille.verifier_documents()` compare la base et le disque, remet en place ce qui
 manque et range ce qui est de trop.
 
-`sauvegardes.build_archive()` construit l'archive complète : copie cohérente de la base
-par l'API de sauvegarde de SQLite, documents et corbeille, et la base des comptes quand on
-la demande, ce que fait seule la ligne de commande du serveur. `restauration.restore_archive()`
-la remet en place, application arrêtée : elle refuse une archive au chemin suspect, sans
-base ou à la base illisible avant de rien toucher, sauvegarde les deux bases en place et
-met de côté le dossier des documents au lieu de l'effacer.
+`sauvegardes.build_archive()` construit l'archive d'un projet : copie cohérente de sa
+base par l'API de sauvegarde de SQLite, documents et corbeille. `build_archive_serveur()`,
+appelée par la ligne de commande du serveur, y ajoute la base commune et range chaque
+projet sous `projets/<code>/`. `restauration.restore_archive()` remet en place l'un ou
+l'autre format, application arrêtée : elle refuse une archive au chemin suspect, sans base,
+mêlant les deux formats ou à la base illisible avant de rien toucher, sauvegarde les bases
+en place, met de côté les dossiers de documents au lieu de les effacer, et garde inscrits
+les projets absents de l'archive.
 
 L'export Excel complet est confié à `PlanificateurExport`, un fil unique qui attend deux
 secondes de calme après la dernière écriture avant d'exporter, pour ne pas réécrire le
@@ -363,10 +382,8 @@ SQLite en mode WAL supporte bien une quinzaine d'utilisateurs, à condition que 
 dans le processus : l'application doit tourner en un seul processus Uvicorn, sans
 plusieurs workers.
 
-Pour héberger plusieurs projets sur un même serveur, la piste retenue est une base par
-projet, avec son dossier d'échange, plutôt qu'une colonne de projet dans chaque table. Le
-code reste mono-base, et aucune donnée ne peut passer d'un projet à l'autre par un filtre
-oublié. Le projet est déjà porté par l'adresse de chaque requête ; reste à choisir la base
-selon ce projet (c'est `get_conn` qui s'en chargera) et à appliquer les migrations à chaque
-base. Les comptes sont déjà dans une base
-commune où les rôles sont attribués projet par projet (`acces.projet`).
+Plusieurs projets sur un même serveur ont chacun leur base et leur dossier d'échange,
+plutôt qu'une colonne de projet dans chaque table : le code des services reste mono-base,
+et aucune donnée ne peut passer d'un projet à l'autre par un filtre oublié. Les comptes
+sont dans la base commune, où les rôles sont attribués projet par projet
+(`acces.projet`).

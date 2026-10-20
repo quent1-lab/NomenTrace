@@ -29,19 +29,19 @@ def _supprimer_commande(client: TestClient, numero: str) -> None:
     assert reponse.json()["supprimes"] == [numero], reponse.text
 
 
-def _documents(dossier_echange: Path, sous_dossier: str) -> list[Path]:
-    racine = dossier_echange / "documents" / sous_dossier
+def _documents(echange_projet: Path, sous_dossier: str) -> list[Path]:
+    racine = echange_projet / "documents" / sous_dossier
     return sorted(f for f in racine.rglob("*") if f.is_file()) if racine.is_dir() else []
 
 
 def test_suppression_range_le_fichier_dans_la_corbeille(
-    client_essai: TestClient, dossier_echange: Path
+    client_essai: TestClient, echange_projet: Path
 ) -> None:
     numero = _commande(client_essai)
     _deposer(client_essai, f"/api/commandes/{numero}/documents", "devis.pdf", PDF)
     _supprimer_commande(client_essai, numero)
-    assert _documents(dossier_echange, "commandes") == []
-    corbeille = _documents(dossier_echange, "_corbeille")
+    assert _documents(echange_projet, "commandes") == []
+    corbeille = _documents(echange_projet, "_corbeille")
     assert len(corbeille) == 1
     assert corbeille[0].name.endswith("_devis.pdf")
     assert corbeille[0].read_bytes() == PDF
@@ -49,7 +49,7 @@ def test_suppression_range_le_fichier_dans_la_corbeille(
 
 
 def test_restauration_remet_le_fichier_supprime(
-    client_essai: TestClient, dossier_echange: Path
+    client_essai: TestClient, echange_projet: Path
 ) -> None:
     numero = _commande(client_essai)
     _deposer(client_essai, f"/api/commandes/{numero}/documents", "devis.pdf", PDF)
@@ -67,7 +67,7 @@ def test_restauration_remet_le_fichier_supprime(
 
 
 def test_restauration_range_les_fichiers_inconnus_puis_les_retrouve(
-    client_essai: TestClient, dossier_echange: Path
+    client_essai: TestClient, echange_projet: Path
 ) -> None:
     avant = client_essai.post("/api/sauvegardes").json()["nom"]
     _deposer(client_essai, f"/api/composants/{COMPOSANT}/documents", "fiche.pdf", AUTRE_PDF)
@@ -76,30 +76,30 @@ def test_restauration_range_les_fichiers_inconnus_puis_les_retrouve(
     # Retour à un état où le document n'existait pas : son fichier part à la corbeille.
     reponse = client_essai.post(f"/api/sauvegardes/{avant}/restaurer").json()
     assert reponse["documents"]["ranges_corbeille"] == 1
-    assert _documents(dossier_echange, "composants") == []
+    assert _documents(echange_projet, "composants") == []
 
     # Retour à l'état suivant : le fichier est remis en place.
     reponse = client_essai.post(f"/api/sauvegardes/{apres}/restaurer").json()
     assert reponse["documents"]["remis"] == ["fiche.pdf"]
-    assert [f.read_bytes() for f in _documents(dossier_echange, "composants")] == [AUTRE_PDF]
+    assert [f.read_bytes() for f in _documents(echange_projet, "composants")] == [AUTRE_PDF]
 
 
-def test_fichier_introuvable_signale(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_fichier_introuvable_signale(client_essai: TestClient, echange_projet: Path) -> None:
     _deposer(client_essai, f"/api/composants/{COMPOSANT}/documents", "fiche.pdf", PDF)
     sauvegarde = client_essai.post("/api/sauvegardes").json()["nom"]
-    for fichier in _documents(dossier_echange, "composants"):
+    for fichier in _documents(echange_projet, "composants"):
         fichier.unlink()
     reponse = client_essai.post(f"/api/sauvegardes/{sauvegarde}/restaurer").json()
     assert [m["nom"] for m in reponse["documents"]["manquants"]] == ["fiche.pdf"]
 
 
-def test_vider_la_corbeille(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_vider_la_corbeille(client_essai: TestClient, echange_projet: Path) -> None:
     numero = _commande(client_essai)
     _deposer(client_essai, f"/api/commandes/{numero}/documents", "devis.pdf", PDF)
     _supprimer_commande(client_essai, numero)
 
     reponse = client_essai.post("/api/sauvegardes/corbeille/vider")
     assert reponse.json()["effaces"] == 1
-    assert _documents(dossier_echange, "_corbeille") == []
+    assert _documents(echange_projet, "_corbeille") == []
     journal = client_essai.get("/api/journal", params={"table_cible": "document"}).json()
     assert any(j["champ"] == "corbeille videe" for j in journal)

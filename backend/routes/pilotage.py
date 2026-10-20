@@ -3,11 +3,11 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from backend.arrondi import round_output
-from backend.deps import get_conn
+from backend.deps import Emplacements, Export, get_conn
 from backend.erreurs import Introuvable
 from backend.models import ParametresModif
 from backend.services import export_excel, historique, journal, logo, parametres, pilotage
@@ -104,15 +104,15 @@ def read_export_historique(conn: Conn, filtres: Annotated[FiltresJournal, Depend
 
 
 @router.post("/export")
-def create_export(request: Request) -> dict:
-    reussi = request.app.state.export.export_now()
+def create_export(export: Export) -> dict:
+    reussi = export.export_now()
     return {"statut": "ok" if reussi else "en_attente"}
 
 
 @router.get("/export/classeur")
-def read_export_classeur(request: Request) -> Response:
+def read_export_classeur(emp: Emplacements) -> Response:
     """Classeur d'export complet, régénéré à la demande ; rien n'est écrit dans echange/."""
-    contenu = export_excel.build_export_bytes(request.app.state.chemin_base)
+    contenu = export_excel.build_export_bytes(emp.base)
     nom = export_excel.nom_telechargement()
     return Response(
         contenu,

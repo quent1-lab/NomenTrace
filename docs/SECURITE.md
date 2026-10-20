@@ -22,7 +22,8 @@ une requête sont d'abord comparés à une liste écrite dans le code.
 
 Le projet d'une requête vient de son adresse (`/p/<code>/`). Le code est comparé à un motif
 strict et à la liste des projets connus avant toute autre chose ; refusé, il reçoit 404 et
-aucun fichier n'est ouvert ni créé.
+aucun fichier n'est ouvert ni créé. Chaque projet a sa propre base : une requête n'atteint
+que celle du projet de son adresse, ouverte sans jamais pouvoir la créer.
 
 Le mode local, sans compte, n'accepte que les requêtes émises depuis le poste et adressées
 à `127.0.0.1` ou `localhost`.

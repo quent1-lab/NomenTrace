@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sauvegarde nocturne, lancée par nomentrace-sauvegarde.service : archive complète (base
-# du projet, base des comptes, documents et corbeille), chiffrée par age pour les clés
+# commune, puis base, documents et corbeille de chaque projet), chiffrée par age pour les clés
 # publiques configurées, puis envoyée dans le bucket par la demande pré-authentifiée.
 # L'archive en clair ne quitte jamais le serveur et n'y reste pas.
 set -euo pipefail

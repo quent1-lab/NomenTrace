@@ -342,11 +342,11 @@ def test_depot_applique_une_seule_fois(client_essai: TestClient) -> None:
     assert reponse.status_code == 400
 
 
-def test_sauvegarde_avant_application(client_essai: TestClient, dossier_echange: Path) -> None:
-    avant = len(list((dossier_echange / "sauvegardes").glob("*.db")))
+def test_sauvegarde_avant_application(client_essai: TestClient, echange_projet: Path) -> None:
+    avant = len(list((echange_projet / "sauvegardes").glob("*.db")))
     depot = _deposer(client_essai, [("obs.xlsx", _modele(client_essai, "/api/blocs/OBS/modele"))])
     _appliquer(client_essai, depot, {})
-    assert len(list((dossier_echange / "sauvegardes").glob("*.db"))) == avant + 1
+    assert len(list((echange_projet / "sauvegardes").glob("*.db"))) == avant + 1
 
 
 def test_rien_n_est_ecrit_hors_tables_d_import(conn_essai: sqlite3.Connection) -> None:

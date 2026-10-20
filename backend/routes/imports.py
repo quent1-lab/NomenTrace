@@ -3,11 +3,11 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from backend.deps import Auteur, Connecte, get_conn
+from backend.deps import Auteur, Connecte, Emplacements, get_conn
 from backend.models import ApplicationImport
 from backend.services import (
     guide_import,
@@ -27,21 +27,18 @@ def _telecharger(chemin: object) -> FileResponse:
 
 
 @router.get("/blocs/{code}/modele")
-def read_modele_bloc(code: str, request: Request, conn: Conn) -> FileResponse:
-    dossier = request.app.state.dossier_echange / "modeles"
-    return _telecharger(modeles.generate_modele_bloc(conn, dossier, code))
+def read_modele_bloc(code: str, emp: Emplacements, conn: Conn) -> FileResponse:
+    return _telecharger(modeles.generate_modele_bloc(conn, emp.modeles, code))
 
 
 @router.get("/ensembles/{code}/modele")
-def read_modele_ensemble(code: str, request: Request, conn: Conn) -> FileResponse:
-    dossier = request.app.state.dossier_echange / "modeles"
-    return _telecharger(modeles.generate_modele_ensemble(conn, dossier, code))
+def read_modele_ensemble(code: str, emp: Emplacements, conn: Conn) -> FileResponse:
+    return _telecharger(modeles.generate_modele_ensemble(conn, emp.modeles, code))
 
 
 @router.get("/modeles/vierge")
-def read_modele_vierge(request: Request, conn: Conn) -> FileResponse:
-    dossier = request.app.state.dossier_echange / "modeles"
-    return _telecharger(modeles.generate_modele_vierge(conn, dossier))
+def read_modele_vierge(emp: Emplacements, conn: Conn) -> FileResponse:
+    return _telecharger(modeles.generate_modele_vierge(conn, emp.modeles))
 
 
 @router.get("/modeles/consigne-ia")
@@ -56,19 +53,18 @@ def read_depots(conn: Conn) -> list[dict]:
 
 @router.post("/imports", status_code=201)
 async def create_depot(
-    request: Request,
+    emp: Emplacements,
     conn: Conn,
     fichiers: Annotated[list[UploadFile], File()],
     auteur: Auteur,
     depose_par: Annotated[str | None, Form()] = None,
 ) -> dict:
     contenus = [(f.filename or "fichier.xlsx", await f.read()) for f in fichiers]
-    dossier = request.app.state.dossier_echange / "imports"
     # La lecture des classeurs est longue : hors de la boucle, pour ne pas figer le serveur.
     depot = await run_in_threadpool(
         import_analyse.analyse_depot,
         conn,
-        dossier,
+        emp.imports,
         contenus,
         auteur or (depose_par or "").strip() or None,
     )
@@ -82,12 +78,12 @@ def read_depot(depot: int, conn: Conn) -> dict:
 
 @router.post("/imports/{depot}/appliquer")
 def apply_depot(
-    depot: int, corps: ApplicationImport, request: Request, conn: Conn, utilisateur: Connecte
+    depot: int, corps: ApplicationImport, emp: Emplacements, conn: Conn, utilisateur: Connecte
 ) -> dict:
     return import_application.apply_depot(
         conn,
-        request.app.state.chemin_base,
-        request.app.state.dossier_echange / "sauvegardes",
+        emp.base,
+        emp.sauvegardes,
         depot,
         corps.decisions,
         utilisateur,

@@ -11,6 +11,7 @@ l'instance, ce qui garde valables les onglets ouverts et le contrôle de santé.
 
 import json
 import re
+from typing import Any
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -28,10 +29,15 @@ def code_valide(code: str) -> bool:
 class AiguillageProjet:
     """Middleware ASGI : retire /p/<code> du chemin et pose le projet de la requête."""
 
-    def __init__(self, app: ASGIApp, projets: frozenset[str], defaut: str) -> None:
+    def __init__(self, app: ASGIApp, registre: Any, defaut: str) -> None:
         self.app = app
-        self.projets = projets
+        # Registre des projets (services.projets.Registre), rempli au démarrage : en ligne
+        # ou hors ligne, un projet inscrit est connu ; hors ligne, ses routes répondent 503.
+        self.registre = registre
         self.defaut = defaut
+
+    def connu(self, code: str) -> bool:
+        return code in self.registre.projets or code in self.registre.hors_ligne
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -45,7 +51,7 @@ class AiguillageProjet:
             await self.app(_avec_projet(scope, chemin, self.defaut), receive, send)
             return
         code, barre, reste = chemin[len(PREFIXE) :].partition("/")
-        if not code_valide(code) or code not in self.projets:
+        if not code_valide(code) or not self.connu(code):
             await _introuvable(send)
             return
         if not barre:

@@ -11,8 +11,8 @@ PDF = b"%PDF-1.4\n% document de test\n"
 COMPOSANT_LIBRE = "ESSAI-ALI-006"  # ni commande, ni mouvement, ni document dans le jeu d'essai
 
 
-def _sauvegardes(dossier_echange: Path) -> int:
-    return len(list((dossier_echange / "sauvegardes").glob("nomentrace_*.db")))
+def _sauvegardes(echange_projet: Path) -> int:
+    return len(list((echange_projet / "sauvegardes").glob("nomentrace_*.db")))
 
 
 def _lot(client: TestClient, cible: str, cles: list[str], action: str, simuler: bool = False):
@@ -53,17 +53,17 @@ def _deposer(client: TestClient, chemin: str, type_doc: str) -> None:
 
 
 def test_composant_sans_trace_supprime_avec_ses_affectations(
-    client_essai: TestClient, dossier_echange: Path
+    client_essai: TestClient, echange_projet: Path
 ) -> None:
     ensemble = _ensemble(client_essai)
     corps = {"composant_id": COMPOSANT_LIBRE, "qte": 1}
     client_essai.post(f"/api/ensembles/{ensemble}/affectations", json=corps)
-    avant = _sauvegardes(dossier_echange)
+    avant = _sauvegardes(echange_projet)
 
     recap = _lot(client_essai, "composants", [COMPOSANT_LIBRE], "supprimer").json()
 
     assert recap == {"supprimes": [COMPOSANT_LIBRE], "archives": [], "refuses": []}
-    assert _sauvegardes(dossier_echange) == avant + 1
+    assert _sauvegardes(echange_projet) == avant + 1
     assert client_essai.get(f"/api/composants/{COMPOSANT_LIBRE}").status_code == 404
     assert client_essai.get(f"/api/ensembles/{ensemble}/composants").json() == []
     ligne = next(
@@ -76,11 +76,11 @@ def test_composant_sans_trace_supprime_avec_ses_affectations(
     assert resume["affectations"] == [{"ensemble_code": ensemble, "qte": 1}]
 
 
-def test_simulation_ne_touche_a_rien(client_essai: TestClient, dossier_echange: Path) -> None:
-    avant = _sauvegardes(dossier_echange)
+def test_simulation_ne_touche_a_rien(client_essai: TestClient, echange_projet: Path) -> None:
+    avant = _sauvegardes(echange_projet)
     recap = _lot(client_essai, "composants", [COMPOSANT_LIBRE], "supprimer", simuler=True)
     assert recap.json()["supprimes"] == [COMPOSANT_LIBRE]
-    assert _sauvegardes(dossier_echange) == avant
+    assert _sauvegardes(echange_projet) == avant
     assert client_essai.get(f"/api/composants/{COMPOSANT_LIBRE}").status_code == 200
 
 
@@ -115,18 +115,18 @@ def test_archiver_en_lot(client_essai: TestClient) -> None:
 
 
 def test_commande_supprimee_avec_lignes_et_documents(
-    client_essai: TestClient, dossier_echange: Path
+    client_essai: TestClient, echange_projet: Path
 ) -> None:
     numero, _ = _commande(client_essai)
     _deposer(client_essai, f"/api/commandes/{numero}/documents", "Devis")
-    fichiers = list((dossier_echange / "documents" / "commandes").rglob("*.pdf"))
+    fichiers = list((echange_projet / "documents" / "commandes").rglob("*.pdf"))
     assert len(fichiers) == 1
-    avant = _sauvegardes(dossier_echange)
+    avant = _sauvegardes(echange_projet)
 
     recap = _lot(client_essai, "commandes", [numero], "supprimer").json()
 
     assert recap["supprimes"] == [numero]
-    assert _sauvegardes(dossier_echange) == avant + 1
+    assert _sauvegardes(echange_projet) == avant + 1
     assert client_essai.get(f"/api/commandes/{numero}").status_code == 404
     assert not fichiers[0].exists()
     ligne = next(
@@ -178,11 +178,11 @@ def _supprimer(client: TestClient, type_entite: str, cle: str):
     return client.delete(f"/api/nettoyage/entites/{type_entite}/{cle}")
 
 
-def test_fournisseur_inutilise_supprime(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_fournisseur_inutilise_supprime(client_essai: TestClient, echange_projet: Path) -> None:
     client_essai.post("/api/fournisseurs", json={"nom": "Fournisseur inutile"})
-    avant = _sauvegardes(dossier_echange)
+    avant = _sauvegardes(echange_projet)
     assert _supprimer(client_essai, "fournisseur", "Fournisseur inutile").status_code == 200
-    assert _sauvegardes(dossier_echange) == avant + 1
+    assert _sauvegardes(echange_projet) == avant + 1
     assert client_essai.get("/api/fournisseurs/Fournisseur inutile").status_code == 404
     lignes = _journal(client_essai, "fournisseur", "Fournisseur inutile")
     assert lignes[0]["champ"] == "suppression"
@@ -271,13 +271,13 @@ def test_entite_inconnue(client_essai: TestClient) -> None:
 # --- Journal -----------------------------------------------------------------------------------
 
 
-def test_vider_le_journal(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_vider_le_journal(client_essai: TestClient, echange_projet: Path) -> None:
     client_essai.patch(f"/api/composants/{COMPOSANT_LIBRE}", json={"qte_besoin": 2})
-    avant = _sauvegardes(dossier_echange)
+    avant = _sauvegardes(echange_projet)
     assert client_essai.post("/api/nettoyage/journal/purge", json={}).status_code == 422
     reponse = client_essai.post("/api/nettoyage/journal/purge", json={"confirmer": True})
     assert reponse.json()["lignes_supprimees"] >= 1
-    assert _sauvegardes(dossier_echange) == avant + 1
+    assert _sauvegardes(echange_projet) == avant + 1
     journal = client_essai.get("/api/journal").json()
     assert len(journal) == 1
     assert journal[0]["champ"] == "purge"

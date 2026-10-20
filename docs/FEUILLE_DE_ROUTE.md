@@ -68,14 +68,14 @@ Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvren
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.
 
-Plusieurs projets sur un même serveur. La piste retenue est une base par projet, avec son
-dossier de documents, d'exports et de sauvegardes, plutôt qu'une colonne de projet dans
-chaque table : aucune donnée ne peut alors passer d'un projet à l'autre. Les comptes
-vivraient dans une base commune, avec des rôles attribués projet par projet ; un
-utilisateur ne verrait ni n'atteindrait, même par une adresse tapée à la main, les projets
-où il n'a pas de rôle. Les rôles sont déjà rangés projet par projet dans la base des
-comptes, et chaque projet a déjà son adresse, `/p/<code>/`, d'où le serveur tire le projet
-de chaque requête.
+Plusieurs projets sur un même serveur. Le socle est en place : chaque projet a sa base,
+son dossier de documents, d'exports et de sauvegardes, et son adresse, `/p/<code>/`, d'où
+le serveur tire le projet de chaque requête ; aucune donnée ne peut passer d'un projet à
+l'autre. Les comptes vivent dans une base commune, avec des rôles attribués projet par
+projet. Restent la création de projets depuis l'interface, rangés par organisme et par
+dossier, la page d'accueil qui mène chacun à son projet, et les droits hérités du dossier
+et de l'organisme ; puis les commandes communes à plusieurs projets et le catalogue
+partagé.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles

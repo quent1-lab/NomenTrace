@@ -7,9 +7,10 @@
 #   sudo bash /opt/nomentrace/deploiement/mettre_a_jour.sh --auto    minuterie : seulement
 #                                                                    une étiquette plus récente
 #
-# Étapes : arrêt du service, copie des deux bases, passage à la version voulue, dépendances,
-# redémarrage, contrôle de /api/sante. En cas d'échec : retour au code précédent et remise
-# des bases copiées, car une mise à jour de schéma appliquée ne se défait pas autrement.
+# Étapes : arrêt du service, copie du dossier des données (toutes les bases), passage à la
+# version voulue, dépendances, redémarrage, contrôle de /api/sante. En cas d'échec : retour
+# au code précédent et remise des bases copiées, car une mise à jour de schéma appliquée ne
+# se défait pas autrement.
 set -euo pipefail
 
 APP=/opt/nomentrace
@@ -50,34 +51,32 @@ installer_code() {
 	installer_unites
 }
 
-chemin_base() {
-	if [[ $1 == base ]]; then echo "$NOMENTRACE_BASE"; else echo "$NOMENTRACE_COMPTES"; fi
+# Dossier des données : base commune, ancienne base unique et bases des projets (projets/).
+dossier_donnees() {
+	if [[ -n ${NOMENTRACE_DATA:-} ]]; then
+		echo "$NOMENTRACE_DATA"
+	else
+		dirname "$NOMENTRACE_BASE"
+	fi
 }
 
-# Copie des bases, service arrêté : fichier principal et éventuels journaux WAL.
+# Copie du dossier des données entier, service arrêté : toutes les bases et leurs journaux
+# WAL, quel que soit le nombre de projets.
 copier_bases() {
-	local cible="$1" nom chemin suffixe
-	for nom in base comptes; do
-		chemin="$(chemin_base "$nom")"
-		mkdir -p "$cible/$nom"
-		for suffixe in "" -wal -shm; do
-			if [[ -e "$chemin$suffixe" ]]; then cp -a "$chemin$suffixe" "$cible/$nom/"; fi
-		done
-	done
+	local cible="$1"
+	mkdir -p "$cible/donnees"
+	cp -a "$(dossier_donnees)/." "$cible/donnees/"
 }
 
-# Fichier par fichier : copier « dossier/. » donnerait au dossier des données le propriétaire
-# et les droits du dossier de copie (root), et SQLite, sous nomentrace, ne pourrait plus y
-# créer ses fichiers -wal et -shm.
+# Le dossier des données est vidé puis chaque entrée de la copie y est remise une à une :
+# ce qu'a créé la version défaite disparaît, et le dossier garde son propriétaire et ses
+# droits. Copier « donnees/. » lui donnerait ceux du dossier de copie (root), et SQLite,
+# sous nomentrace, ne pourrait plus y créer ses fichiers -wal et -shm.
 remettre_bases() {
-	local source="$1" nom chemin fichier
-	for nom in base comptes; do
-		chemin="$(chemin_base "$nom")"
-		rm -f "$chemin" "$chemin-wal" "$chemin-shm"
-		for fichier in "$source/$nom"/*; do
-			if [[ -f $fichier ]]; then cp -a "$fichier" "$(dirname "$chemin")/"; fi
-		done
-	done
+	local source="$1" donnees
+	donnees="$(dossier_donnees)"
+	find "$donnees" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+	find "$source/donnees" -mindepth 1 -maxdepth 1 -exec cp -a {} "$donnees/" \;
 }
 
 # Remet à zéro le compteur de démarrages : après une version qui plantait en boucle, systemd

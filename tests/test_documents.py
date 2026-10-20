@@ -27,7 +27,7 @@ def _deposer(client: TestClient, chemin: str, fichiers: list[tuple[str, bytes]],
     )
 
 
-def test_devis_joint_a_une_commande(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_devis_joint_a_une_commande(client_essai: TestClient, echange_projet: Path) -> None:
     numero = _commande_avec_ligne(client_essai)
     reponse = _deposer(
         client_essai, f"/api/commandes/{numero}/documents", [("Devis Mouser.pdf", PDF)], "Devis"
@@ -35,7 +35,7 @@ def test_devis_joint_a_une_commande(client_essai: TestClient, dossier_echange: P
     assert reponse.status_code == 201
     document = reponse.json()["documents"][0]
     assert document["chemin"] == f"commandes/{numero}/Devis_Mouser.pdf"
-    assert (dossier_echange / "documents" / document["chemin"]).read_bytes() == PDF
+    assert (echange_projet / "documents" / document["chemin"]).read_bytes() == PDF
     fichier = client_essai.get(f"/api/documents/{document['id']}/fichier")
     assert fichier.content == PDF
     assert fichier.headers["content-type"] == "application/pdf"
@@ -83,7 +83,7 @@ def test_extension_refusee(client_essai: TestClient) -> None:
     assert "non accepté" in reponse.json()["erreur"]
 
 
-def test_nom_de_fichier_assaini(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_nom_de_fichier_assaini(client_essai: TestClient, echange_projet: Path) -> None:
     numero = _commande_avec_ligne(client_essai)
     reponse = _deposer(
         client_essai,
@@ -93,7 +93,7 @@ def test_nom_de_fichier_assaini(client_essai: TestClient, dossier_echange: Path)
     )
     document = reponse.json()["documents"][0]
     assert document["chemin"] == f"commandes/{numero}/evil_devis.pdf"
-    assert (dossier_echange / "documents" / document["chemin"]).is_file()
+    assert (echange_projet / "documents" / document["chemin"]).is_file()
 
 
 def test_meme_nom_suffixe(client_essai: TestClient) -> None:
@@ -104,14 +104,14 @@ def test_meme_nom_suffixe(client_essai: TestClient) -> None:
     assert reponse.json()["documents"][0]["chemin"].endswith("devis-2.pdf")
 
 
-def test_retrait_archive_le_document(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_retrait_archive_le_document(client_essai: TestClient, echange_projet: Path) -> None:
     numero = _commande_avec_ligne(client_essai)
     document = _deposer(
         client_essai, f"/api/commandes/{numero}/documents", [("devis.pdf", PDF)], "Devis"
     ).json()["documents"][0]
     assert client_essai.delete(f"/api/documents/{document['id']}").status_code == 200
     assert client_essai.get(f"/api/commandes/{numero}/documents").json() == []
-    assert (dossier_echange / "documents" / document["chemin"]).is_file()
+    assert (echange_projet / "documents" / document["chemin"]).is_file()
     assert client_essai.get(f"/api/documents/{document['id']}/fichier").status_code == 404
 
 

@@ -237,10 +237,12 @@ def test_deux_sauvegardes_dans_la_meme_seconde(tmp_path: Path) -> None:
     conn = db.connect(base)
     db.apply_migrations(conn)
     conn.close()
-    premiere = sauvegardes.create_sauvegarde(base, tmp_path / "s")
-    seconde = sauvegardes.create_sauvegarde(base, tmp_path / "s")
-    assert premiere != seconde
-    assert len(sauvegardes.list_sauvegardes(tmp_path / "s")) == 2
+    prises = [sauvegardes.create_sauvegarde(base, tmp_path / "s") for _ in range(3)]
+    assert len(set(prises)) == 3
+    # Bug évité : « _HHMMSS.db » passait avant « _HHMMSS-2.db » dans l'ordre des noms, si
+    # bien que la plus récente n'était pas en tête et que la purge gardait la mauvaise.
+    if len({chemin.stem[:26] for chemin in prises}) == 1:
+        assert sauvegardes.list_sauvegardes(tmp_path / "s") == prises[::-1]
 
 
 # --- Modèles Excel ----------------------------------------------------------------------

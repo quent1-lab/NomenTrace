@@ -10,6 +10,8 @@ from backend import db
 from backend.erreurs import ErreurMetier
 from backend.services import authentification, comptes, droits
 from backend.services.droits import Utilisateur
+from backend.services.export_excel import PlanificateurExport
+from backend.services.projets import EmplacementsProjet
 
 COOKIE_SESSION = "nomentrace_session"
 
@@ -20,6 +22,30 @@ def get_projet(request: Request) -> str:
 
 
 Projet = Annotated[str, Depends(get_projet)]
+
+
+def get_emplacements(request: Request) -> EmplacementsProjet:
+    """Base et dossiers du projet de la requête ; 503 s'il est hors ligne."""
+    code = get_projet(request)
+    emp = request.app.state.registre.projets.get(code)
+    if emp is None:
+        raise ErreurMetier(
+            f"Le projet « {code} » est hors ligne : sa base n'a pas pu être préparée au"
+            " démarrage. Voir le journal du serveur.",
+            503,
+        )
+    return emp
+
+
+Emplacements = Annotated[EmplacementsProjet, Depends(get_emplacements)]
+
+
+def get_export(request: Request, emp: Emplacements) -> PlanificateurExport:
+    """Planificateur de l'export Excel du projet de la requête."""
+    return request.app.state.exports[emp.code]
+
+
+Export = Annotated[PlanificateurExport, Depends(get_export)]
 
 
 def get_conn_comptes(request: Request) -> Iterator[sqlite3.Connection]:
@@ -55,9 +81,12 @@ def get_utilisateur(request: Request) -> Utilisateur | None:
 UtilisateurRequete = Annotated[Utilisateur | None, Depends(get_utilisateur)]
 
 
-def get_conn(request: Request, utilisateur: UtilisateurRequete) -> Iterator[sqlite3.Connection]:
-    """Connexion à la base du projet ; ses écritures sont journalisées au nom de l'utilisateur."""
-    conn = db.connect(request.app.state.chemin_base, utilisateur.nom if utilisateur else None)
+def get_conn(emp: Emplacements, utilisateur: UtilisateurRequete) -> Iterator[sqlite3.Connection]:
+    """Connexion à la base du projet ; ses écritures sont journalisées au nom de l'utilisateur.
+
+    La base doit exister : une requête n'en crée jamais une vide.
+    """
+    conn = db.connect(emp.base, utilisateur.nom if utilisateur else None, creer=False)
     try:
         yield conn
     finally:

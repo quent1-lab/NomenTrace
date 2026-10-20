@@ -22,7 +22,7 @@ Internet ──443──▶ Caddy (HTTPS, certificat Let's Encrypt)
                     ▼
                  Nomentrace (service systemd « nomentrace », utilisateur nomentrace)
                     │
-                    ├── /var/lib/nomentrace/data      base du projet, base des comptes
+                    ├── /var/lib/nomentrace/data      bases des projets, base commune
                     └── /var/lib/nomentrace/echange   documents, exports, sauvegardes
 
 chaque nuit : archive complète ─ chiffrée (age) ─▶ bucket Object Storage, 30 jours
@@ -225,8 +225,8 @@ Dans l'outil, renseigner ensuite Paramètres › Projet (nom, préfixe, budget).
 
 ## 7. La sauvegarde nocturne
 
-Chaque nuit vers 2 h 30, le serveur construit l'archive complète : base du projet, base
-des comptes, documents joints et leur corbeille. Il la chiffre, puis l'envoie dans un
+Chaque nuit vers 2 h 30, le serveur construit l'archive complète : base commune (comptes
+et registre des projets), puis base, documents joints et corbeille de chaque projet. Il la chiffre, puis l'envoie dans un
 bucket, c'est-à-dire un espace de stockage de fichiers d'Oracle (Object Storage), séparé
 de la VM : si la machine est perdue, les sauvegardes restent. L'archive en clair ne
 quitte jamais la VM et n'y reste pas.
@@ -353,15 +353,18 @@ déchiffrer sur le serveur ; la clé y est alors à effacer aussitôt (`shred -u
 
 Le script arrête le service, vérifie l'archive (une base endommagée, venue d'une version
 plus récente ou un chemin suspect sont refusés avant toute modification), sauvegarde les
-deux bases en place, remplace les bases et le dossier des documents, puis redémarre. Les
-documents remplacés ne sont pas effacés : ils sont mis de côté dans
-`/var/lib/nomentrace/echange/documents_avant_restauration_…`. Avec `--sans-documents`,
-seules les bases sont remplacées. Une archive venue d'une version plus ancienne reçoit
-les mises à jour de schéma au redémarrage.
+bases en place, remplace la base commune, puis la base et le dossier des documents de
+chaque projet de l'archive, et redémarre. Les documents remplacés ne sont pas effacés : ils
+sont mis de côté dans `/var/lib/nomentrace/echange/projets/<code>/documents_avant_restauration_…`.
+Avec `--sans-documents`, seules les bases sont remplacées. Une archive venue d'une version
+plus ancienne reçoit les mises à jour de schéma au redémarrage ; un projet inscrit absent
+de l'archive reste inscrit.
 
-L'archive téléchargée depuis l'interface (Paramètres › Export et sauvegardes) se restaure
-de la même façon ; elle ne contient pas la base des comptes, qui est alors gardée telle
-quelle.
+Une archive d'un seul projet se restaure de la même façon : celle téléchargée depuis
+l'interface (Paramètres › Export et sauvegardes), ou une sauvegarde nocturne d'avant la
+version 1.10, dont la base et les documents sont à la racine. Elle va au projet de
+l'instance, ou à celui de `--projet CODE`. Sans base des comptes dans l'archive, celle en
+place est gardée telle quelle.
 
 ## 9. Mettre à jour
 
@@ -388,7 +391,8 @@ sudo bash /opt/nomentrace/deploiement/mettre_a_jour.sh v1.1     # version préci
 sudo bash /opt/nomentrace/deploiement/mettre_a_jour.sh main     # tête de main, pour un essai
 ```
 
-Le script arrête le service quelques secondes, copie les deux bases dans
+Le script arrête le service quelques secondes, copie le dossier des bases
+(`/var/lib/nomentrace/data`, toutes les bases de projet comprises) dans
 `/var/backups/nomentrace/`, installe la version et ses dépendances, redémarre, et attend
 jusqu'à une minute que `/api/sante` réponde. Si elle ne répond pas, il revient au code
 précédent, remet les bases copiées, puisque la nouvelle version a pu les migrer, et
@@ -435,6 +439,20 @@ Le retour automatique couvre la version qui ne démarre pas. Une régression dé
 jours après se corrige plutôt par une nouvelle version. Une version antérieure refuse de
 démarrer sur une base déjà migrée par une plus récente ; y revenir impose de restaurer une
 sauvegarde prise avant la mise à jour, et de perdre ce qui a été saisi depuis.
+
+### Passage à une base par projet (version 1.10)
+
+Au premier démarrage de la version 1.10, l'ancienne base `data/nomentrace.db` est recopiée
+dans `data/projets/principal/` (le code vient de `NOMENTRACE_PROJET`), avec les documents,
+modèles, imports et sauvegardes du dossier d'échange, sous `echange/projets/principal/`.
+L'ancienne base est ensuite marquée, et une version 1.9 refuse d'y démarrer. Rien n'est
+à changer dans `/etc/nomentrace/nomentrace.env` : `NOMENTRACE_BASE` désigne désormais
+l'ancienne base, et son dossier celui des bases. Si cette mise à jour échoue, le script de
+la version 1.9 remet l'ancienne base telle qu'elle était, non marquée, et la copie sera
+reprise à la mise à jour suivante. Les adresses deviennent `/p/principal/…` ; l'ancienne
+adresse de la page y renvoie. L'ancienne base et l'ancien dossier d'échange (`documents`,
+`imports`, `modeles`, `sauvegardes` à la racine de `echange/`) peuvent être supprimés une
+fois la nouvelle version éprouvée.
 
 ## 10. Au quotidien
 

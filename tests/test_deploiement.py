@@ -36,32 +36,66 @@ def test_les_services_peuvent_ecrire_dans_les_donnees(nom: str) -> None:
 BASH = shutil.which("bash") if sys.platform != "win32" else None
 
 
+def _ecrire(racine: Path, fichiers: dict[str, bytes]) -> None:
+    for relatif, contenu in fichiers.items():
+        (racine / relatif).parent.mkdir(parents=True, exist_ok=True)
+        (racine / relatif).write_bytes(contenu)
+
+
+def _contenu(racine: Path) -> dict[str, bytes]:
+    return {
+        chemin.relative_to(racine).as_posix(): chemin.read_bytes()
+        for chemin in racine.rglob("*")
+        if chemin.is_file()
+    }
+
+
+def _script(fonction: str, argument: Path, donnees: Path) -> None:
+    script = config.RACINE / "deploiement" / "mettre_a_jour.sh"
+    environnement = {**os.environ, "NOMENTRACE_BASE": str(donnees / "nomentrace.db")}
+    environnement.pop("NOMENTRACE_DATA", None)
+    commande = f'source "{script}" && {fonction} "{argument}"'
+    subprocess.run([BASH, "-c", commande], env=environnement, check=True)
+
+
+AVANT = {
+    "nomentrace.db": b"ancienne",
+    "comptes.db": b"comptes avant",
+    "projets/principal/nomentrace.db": b"projet avant",
+    "projets/principal/nomentrace.db-wal": b"wal avant",
+}
+
+
+@pytest.mark.skipif(BASH is None, reason="scripts de déploiement : Linux seulement")
+def test_mise_a_jour_copie_toutes_les_bases(tmp_path: Path) -> None:
+    """Depuis la phase 15a-2, une base par projet : la copie prend tout le dossier."""
+    donnees = tmp_path / "data"
+    _ecrire(donnees, AVANT)
+    _script("copier_bases", tmp_path / "instantane", donnees)
+    assert _contenu(tmp_path / "instantane" / "donnees") == AVANT
+
+
 @pytest.mark.skipif(BASH is None, reason="scripts de déploiement : Linux seulement")
 def test_retour_arriere_garde_les_droits_du_dossier_des_donnees(tmp_path: Path) -> None:
     """Bug évité : le retour arrière d'une mise à jour copiait « instantane/base/. » dans le
     dossier des données, qui prenait alors le propriétaire et les droits du dossier de
-    copie ; SQLite ne pouvait plus y écrire et le service ne redémarrait pas."""
+    copie ; SQLite ne pouvait plus y écrire et le service ne redémarrait pas. Et rien de ce
+    qu'a créé la version défaite ne reste, sans imbriquer projets/ dans projets/."""
     donnees = tmp_path / "data"
     donnees.mkdir()
     donnees.chmod(0o750)
-    (donnees / "nomentrace.db").write_bytes(b"apres")
-    (donnees / "nomentrace.db-wal").write_bytes(b"wal")
-    (donnees / "comptes.db").write_bytes(b"comptes apres")
     instantane = tmp_path / "instantane"
-    (instantane / "base").mkdir(parents=True)
-    (instantane / "comptes").mkdir()
-    (instantane / "base").chmod(0o700)
-    (instantane / "base" / "nomentrace.db").write_bytes(b"avant")
-    (instantane / "comptes" / "comptes.db").write_bytes(b"comptes avant")
-    script = config.RACINE / "deploiement" / "mettre_a_jour.sh"
-    commande = f'source "{script}" && remettre_bases "{instantane}"'
-    environnement = {
-        **os.environ,
-        "NOMENTRACE_BASE": str(donnees / "nomentrace.db"),
-        "NOMENTRACE_COMPTES": str(donnees / "comptes.db"),
-    }
-    subprocess.run([BASH, "-c", commande], env=environnement, check=True)
+    _ecrire(instantane / "donnees", AVANT)
+    (instantane / "donnees").chmod(0o700)
+    _ecrire(
+        donnees,
+        {
+            "nomentrace.db": b"ancienne marquee",
+            "comptes.db": b"comptes apres",
+            "projets/principal/nomentrace.db": b"projet apres",
+            "projets/neuf/nomentrace.db": b"cree par la version defaite",
+        },
+    )
+    _script("remettre_bases", instantane, donnees)
     assert stat.S_IMODE(donnees.stat().st_mode) == 0o750
-    assert (donnees / "nomentrace.db").read_bytes() == b"avant"
-    assert (donnees / "comptes.db").read_bytes() == b"comptes avant"
-    assert not (donnees / "nomentrace.db-wal").exists()
+    assert _contenu(donnees) == AVANT

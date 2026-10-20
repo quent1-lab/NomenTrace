@@ -44,12 +44,17 @@ def chemin_comptes(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def code_projet() -> str:
+    return PROJET
+
+
+@pytest.fixture
 def app(
-    conn_essai: sqlite3.Connection, chemin_base: Path, dossier_echange: Path, chemin_comptes: Path
+    conn_essai: sqlite3.Connection, dossier_data: Path, dossier_echange: Path, chemin_comptes: Path
 ) -> Iterator[FastAPI]:
     conn_essai.close()
     application = create_app(
-        chemin_base,
+        dossier_data,
         dossier_echange=dossier_echange,
         mode_local=False,
         chemin_comptes=chemin_comptes,
@@ -630,7 +635,7 @@ def test_permission_ensembles_sans_budget(app: FastAPI, admin: TestClient) -> No
 
 
 def test_import_limite_aux_blocs_du_contributeur(app: FastAPI, contributeur: TestClient) -> None:
-    conn = db.connect(app.state.chemin_base)
+    conn = db.connect(app.state.registre.projets[PROJET].base)
     lot = db.insert_row(
         conn,
         "import_lot",
@@ -665,7 +670,7 @@ def test_import_limite_aux_blocs_du_contributeur(app: FastAPI, contributeur: Tes
     resultat = reponse.json()
     assert resultat["appliquees"] == 1
     assert len(resultat["refus"]) == 1 and "ALI" in resultat["refus"][0]
-    conn = db.connect(app.state.chemin_base)
+    conn = db.connect(app.state.registre.projets[PROJET].base)
     notes = dict(
         conn.execute(
             "SELECT id, note_technique FROM composant WHERE id IN (?, ?)", tuple(lignes)
@@ -736,7 +741,7 @@ def test_modification_concurrente_signalee(app: FastAPI, admin: TestClient) -> N
     creer_compte(app, "ihm@ecole.test", "contributeur", blocs=("IHM",))
     autre = connecter(app, "ihm@ecole.test")
     lu = admin.get("/api/composants/ESSAI-IHM-001").json()["composant"]["modifie_le"]
-    conn = db.connect(app.state.chemin_base)
+    conn = db.connect(app.state.registre.projets[PROJET].base)
     conn.execute(
         "UPDATE composant SET modifie_le = '2026-02-02T08:00:00' WHERE id = 'ESSAI-IHM-001'"
     )
@@ -832,9 +837,9 @@ def test_mode_local_refuse_hors_boucle_locale() -> None:
 
 
 def test_mode_local_refuse_autre_poste_et_autre_nom(
-    chemin_base: Path, dossier_echange: Path
+    dossier_data: Path, dossier_echange: Path
 ) -> None:
-    app = create_app(chemin_base, dossier_echange=dossier_echange, mode_local=True)
+    app = create_app(dossier_data, dossier_echange=dossier_echange, mode_local=True)
     with TestClient(app, base_url="http://127.0.0.1:8000", client=("192.168.1.20", 5000)) as poste:
         assert poste.get("/api/composants").status_code == 403
     # Nom de domaine détourné vers 127.0.0.1 (DNS rebinding) : l'hôte n'est pas local.
@@ -852,7 +857,7 @@ def test_mode_local_journalise_local(client: TestClient) -> None:
 
 def test_mode_connecte_par_defaut(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(config, "MODE_LOCAL", False)
-    app = create_app(tmp_path / "p.db", tmp_path / "e", chemin_comptes=tmp_path / "c.db")
+    app = create_app(tmp_path / "d", tmp_path / "e")
     assert app.state.mode_local is False
 
 

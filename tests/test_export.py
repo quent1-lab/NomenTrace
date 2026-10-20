@@ -10,9 +10,9 @@ from openpyxl import load_workbook
 from backend.services import export_excel, sauvegardes
 
 
-def test_export_lisible_par_openpyxl(client_essai: TestClient, dossier_echange: Path) -> None:
+def test_export_lisible_par_openpyxl(client_essai: TestClient, echange_projet: Path) -> None:
     assert client_essai.post("/api/export").json() == {"statut": "ok"}
-    classeur = load_workbook(dossier_echange / "exports" / "nomenclature.xlsx", read_only=True)
+    classeur = load_workbook(echange_projet / "exports" / "nomenclature.xlsx", read_only=True)
     assert classeur.sheetnames[:4] == ["Pilotage", "Blocs", "Ensembles", "Affectations"]
     assert "composant" in classeur.sheetnames
     pilotage = classeur["Pilotage"]
@@ -24,7 +24,7 @@ def test_export_lisible_par_openpyxl(client_essai: TestClient, dossier_echange: 
 
 
 def test_export_verrouille_passe_en_attente(
-    client_essai: TestClient, dossier_echange: Path, monkeypatch: pytest.MonkeyPatch
+    client_essai: TestClient, echange_projet: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def remplacement_refuse(_source: str, _cible: object) -> None:
         raise PermissionError("fichier ouvert dans Excel")
@@ -32,7 +32,7 @@ def test_export_verrouille_passe_en_attente(
     monkeypatch.setattr(export_excel.os, "replace", remplacement_refuse)
     assert client_essai.post("/api/export").json() == {"statut": "en_attente"}
     assert client_essai.get("/api/sante").json()["export_en_attente"] is True
-    assert list((dossier_echange / "exports").glob("*.tmp")) == []
+    assert list((echange_projet / "exports").glob("*.tmp")) == []
     monkeypatch.undo()
     assert client_essai.post("/api/export").json() == {"statut": "ok"}
     assert client_essai.get("/api/sante").json()["export_en_attente"] is False

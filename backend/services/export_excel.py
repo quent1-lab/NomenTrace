@@ -84,7 +84,7 @@ def _colonnes(conn: sqlite3.Connection, sql: str) -> list[str]:
 
 def build_workbook(chemin_base: Path) -> Workbook:
     """Construit le classeur complet à partir d'une connexion de lecture dédiée."""
-    conn = db.connect(chemin_base)
+    conn = db.connect(chemin_base, creer=False)
     try:
         classeur = Workbook()
         pilotage = classeur.active
