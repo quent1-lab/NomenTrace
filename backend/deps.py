@@ -34,6 +34,24 @@ ROUTES_REFERENCE: tuple[str, ...] = (
     "/api/journal",
     "/api/historique",
 )
+# Sous la référence d'un organisme : la liste des fournisseurs, et les listes en lecture
+# (l'écran les charge au démarrage).
+ROUTES_ORGANISME: tuple[str, ...] = (
+    "/api/session",
+    "/api/sante",
+    "/api/fournisseurs",
+    "/api/nettoyage/entites/fournisseur/",
+    "/api/journal",
+    "/api/historique",
+)
+
+
+def _route_de_reference(request: Request, code: str) -> bool:
+    chemin = request.scope["path"]
+    if code.startswith("org-"):
+        lecture_listes = request.method == "GET" and chemin.startswith("/api/listes")
+        return chemin.startswith(ROUTES_ORGANISME) or lecture_listes
+    return chemin.startswith(ROUTES_REFERENCE)
 
 
 def get_emplacements(request: Request) -> EmplacementsProjet:
@@ -41,8 +59,8 @@ def get_emplacements(request: Request) -> EmplacementsProjet:
     code = get_projet(request)
     registre = request.app.state.registre
     emp = registre.projets.get(code)
-    if code in registre.references and not request.scope["path"].startswith(ROUTES_REFERENCE):
-        raise Introuvable("La référence d'un dossier ne sert que ses réglages communs.")
+    if code in registre.references and not _route_de_reference(request, code):
+        raise Introuvable("Une référence ne sert que ses réglages communs.")
     if emp is None:
         raise ErreurMetier(
             f"Le projet « {code} » est hors ligne : sa base n'a pas pu être préparée au"

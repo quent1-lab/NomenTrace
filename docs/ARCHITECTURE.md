@@ -150,6 +150,11 @@ inverse), créé ou réglé, propagation après chaque écriture réussie sur un
 middleware d'écriture), reprise des projets en retard au démarrage. Le verrou est en base,
 par des déclencheurs : aucune route ne peut l'oublier. `services/duplication.py` prépare la
 base neuve d'un projet repris d'un modèle (listes locales, ensembles) avant son inscription.
+`services/fournisseurs_communs.py` ajoute à la synchronisation la liste de l'organisme,
+attachée sous un second schéma : il rejoue d'abord les renommages non encore appliqués au
+projet (journal à identifiants aléatoires, cascade vers composants et commandes, fusion si le
+nouveau nom existe), aligne les noms qui ne diffèrent que par la casse ou les accents, puis
+accorde les fiches. L'union d'un projet qui entre dans l'organisme précède sa synchronisation.
 
 Certaines règles ont besoin du corps de la requête : le bloc d'un composant créé, le
 composant d'une affectation, les champs de budget d'un ensemble, le statut d'un

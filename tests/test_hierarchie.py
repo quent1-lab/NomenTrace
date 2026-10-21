@@ -75,13 +75,23 @@ def ranger(app: FastAPI, code: str, modifs: dict) -> dict:
         conn.close()
 
 
-def _structure(app: FastAPI) -> None:
+def creer_organisme(app: FastAPI, code: str, nom: str) -> None:
+    """Organisme et sa référence (liste des fournisseurs), mise en ligne comme le fait la route."""
     conn = _comptes(app)
     try:
-        hierarchie.create_organisme(conn, SERVEUR, "meca", "Mécatronique")
-        hierarchie.create_organisme(conn, SERVEUR, "autre", "Autre école")
+        etat = app.state
+        _, emp = hierarchie.create_organisme(
+            conn, SERVEUR, code, nom, (etat.dossier_data, etat.dossier_echange)
+        )
+        etat.registre.references.add(emp.code)
+        projets.mettre_en_ligne(etat.registre, etat.exports, emp)
     finally:
         conn.close()
+
+
+def _structure(app: FastAPI) -> None:
+    creer_organisme(app, "meca", "Mécatronique")
+    creer_organisme(app, "autre", "Autre école")
     creer_dossier(app, "meca", {"code": "spoc", "nom": "SPOC 2027", "nom_projet": "SPOC"})
     ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
     creer_dossier(app, "autre", {"code": "autre-dossier", "nom": "Autre"})

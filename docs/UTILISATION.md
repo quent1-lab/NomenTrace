@@ -546,6 +546,16 @@ tant que la différence n'est pas réglée. Sorti d'un dossier, un projet garde 
 redevenus les siens. La colonne « Réglages communs » de la page du dossier dit si chaque
 projet est à jour.
 
+Les fournisseurs sont communs à tout l'organisme. Leur liste se tient depuis la page de
+l'organisme, bouton « Fournisseurs », par ses administrateurs aux profils « Gestion
+complète » et « Achats et stock » : création, fiches, validation, renommage, archivage,
+comparaison avec un classeur. Chaque modification est recopiée dans tous les projets de
+l'organisme, où la liste se consulte sans se modifier ; un fournisseur nouveau s'ajoute donc
+d'abord à la liste de l'organisme. Un renommage suit les composants et les commandes de
+chaque projet. Un fournisseur retiré de la liste reste archivé dans les projets qui le
+citent. Au rangement d'un projet, ses fournisseurs absents de la liste la rejoignent ; pour
+un nom déjà présent, majuscules et accents mis à part, la fiche de l'organisme fait foi.
+
 ## Gérer les comptes
 
 Paramètres › Utilisateurs, réservé à l'administrateur, liste les comptes avec leur rôle,

@@ -51,14 +51,18 @@ def get_utilisateur(conn: sqlite3.Connection, utilisateur_id: int, projet: str) 
     direct = get_droits_directs(conn, utilisateur_id, projet)
     ligne = db.fetch_one(
         conn,
-        "SELECT u.admin_serveur,"
-        " (SELECT ao.profil FROM projet p JOIN dossier d ON d.code = p.dossier"
-        "  JOIN acces_organisme ao ON ao.organisme = d.organisme AND ao.utilisateur_id = u.id"
-        "  WHERE p.code = ?) AS profil"
+        "SELECT u.admin_serveur, (SELECT organisme FROM projet WHERE code = ?) AS liste,"
+        " (SELECT ao.profil FROM projet p LEFT JOIN dossier d ON d.code = p.dossier"
+        "  JOIN acces_organisme ao ON ao.organisme = COALESCE(d.organisme, p.organisme)"
+        "  AND ao.utilisateur_id = u.id WHERE p.code = ?) AS profil"
         " FROM utilisateur u WHERE u.id = ?",
-        (projet, utilisateur_id),
+        (projet, projet, utilisateur_id),
     )
-    return droits.combiner(direct, ligne["profil"], bool(ligne["admin_serveur"]))
+    profil = ligne["profil"]
+    if ligne["liste"] is not None and profil == droits.ACHATS_STOCK:
+        # Liste des fournisseurs de l'organisme : le profil achats la règle entière.
+        profil = droits.GESTION
+    return droits.combiner(direct, profil, bool(ligne["admin_serveur"]))
 
 
 def get_droits_directs(conn: sqlite3.Connection, utilisateur_id: int, projet: str) -> Utilisateur:

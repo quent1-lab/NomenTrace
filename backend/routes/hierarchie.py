@@ -37,8 +37,16 @@ def read_accueil(request: Request, compte: Compte, conn: ConnComptes) -> dict:
 
 
 @router.post("/organismes", status_code=201)
-def create_organisme(corps: OrganismeCreation, compte: Compte, conn: ConnComptes) -> dict:
-    return hierarchie.create_organisme(conn, compte, corps.code, corps.nom)
+def create_organisme(
+    corps: OrganismeCreation, request: Request, compte: Compte, conn: ConnComptes
+) -> dict:
+    etat = request.app.state
+    organisme, emp = hierarchie.create_organisme(
+        conn, compte, corps.code, corps.nom, (etat.dossier_data, etat.dossier_echange)
+    )
+    etat.registre.references.add(emp.code)
+    projets.mettre_en_ligne(etat.registre, etat.exports, emp)
+    return organisme
 
 
 @router.get("/organismes/{code}")
@@ -109,8 +117,7 @@ def create_projet(
         conn, compte, code, corps.model_dump(), (etat.dossier_data, etat.dossier_echange)
     )
     projets.mettre_en_ligne(etat.registre, etat.exports, emp)
-    reference.initialiser_si_neuve(etat.registre, code)
-    reference.accorder(conn, etat.registre, emp.code, code)
+    reference.apres_creation(conn, etat.registre, emp.code, code)
     return {"code": emp.code, "invitation": invitation}
 
 

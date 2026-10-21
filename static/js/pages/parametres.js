@@ -11,19 +11,21 @@ import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
-import { aPermission, dossierReference, estAdmin, modeLocal, reglagesImposes } from "../session.js";
+import { aPermission, dossierReference, estAdmin, modeLocal, reglagesImposes, typeReference } from "../session.js";
 
 // [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur,
 // sauf Attributs, ouvert aussi aux contributeurs qui ont la permission.
-// La référence d'un dossier (paramètres communs) n'a que ses réglages imposés.
+// La référence d'un dossier (paramètres communs) n'a que ses réglages imposés ; celle d'un
+// organisme, que sa liste de fournisseurs.
 const horsReference = () => !dossierReference();
+const horsOrganisme = () => typeReference() !== "organisme";
 const ONGLETS = [
-  ["projet", "Projet", afficherOngletProjet, () => true],
-  ["blocs", "Blocs", afficherOngletBlocs, () => true],
+  ["projet", "Projet", afficherOngletProjet, horsOrganisme],
+  ["blocs", "Blocs", afficherOngletBlocs, horsOrganisme],
   ["ensembles", "Ensembles", afficherOngletEnsembles, horsReference],
-  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, horsReference],
-  ["listes", "Listes de valeurs", afficherListes, estAdmin],
-  ["attributs", "Attributs", afficherOngletAttributs, () => aPermission("attributs")],
+  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, () => !dossierReference() || !horsOrganisme()],
+  ["listes", "Listes de valeurs", afficherListes, () => estAdmin() && horsOrganisme()],
+  ["attributs", "Attributs", afficherOngletAttributs, () => aPermission("attributs") && horsOrganisme()],
   ["utilisateurs", "Utilisateurs", afficherOngletUtilisateurs, () => estAdmin() && !modeLocal() && horsReference()],
   ["historique", "Historique", afficherOngletHistorique, () => true],
   ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes, horsReference],
@@ -488,7 +490,7 @@ async function afficherOngletSauvegardes(cible) {
 export async function afficherParametres(conteneur, parametres) {
   const demande = parametres?.get("onglet");
   const visibles = ONGLETS.filter(([, , , visible]) => visible());
-  const courant = visibles.some(([code]) => code === demande) ? demande : "projet";
+  const courant = visibles.some(([code]) => code === demande) ? demande : visibles[0][0];
   const corps = el("div", { class: "onglet-parametres" });
   const barre = el(
     "nav",
@@ -517,7 +519,9 @@ export async function afficherParametres(conteneur, parametres) {
     el("a", { class: "bouton bouton--discret si-admin", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
   );
   const bandeau = reglagesImposes()
-    ? message(`Blocs, listes imposées, attributs, établissement, logo, TVA, nom et budget sont fixés par le dossier « ${reglagesImposes()} ».`)
+    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, nom et budget sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
+    : typeReference() === "organisme"
+    ? message(`Liste des fournisseurs de l'organisme « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
     : dossierReference()
       ? message(`Paramètres communs du dossier « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
       : null;

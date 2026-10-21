@@ -24,10 +24,12 @@ import {
   aPermission,
   chargerSession,
   codeDossier,
+  codeOrganisme,
   dossierReference,
   libelleRole,
   modeLocal,
   nomEquipe,
+  typeReference,
   utilisateur,
 } from "./session.js";
 import { chargerListes } from "./valeurs.js";
@@ -90,10 +92,12 @@ function marquerMenu(chemin) {
 async function afficherRoute({ chemin, parametres }) {
   detruireGraphiques();
   fermerPanneau({ silencieux: true });
-  if (dossierReference() && chemin !== "/parametres") {
-    // La référence d'un dossier n'a que ses réglages : tout le reste mène aux paramètres.
-    remplacerRoute("/parametres", parametres ? Object.fromEntries(parametres) : {});
-    return afficherRoute({ chemin: "/parametres", parametres });
+  const ficheFournisseur = typeReference() === "organisme" && chemin.startsWith("/fournisseurs/");
+  if (dossierReference() && chemin !== "/parametres" && !ficheFournisseur) {
+    // Une référence n'a que ses réglages : tout le reste mène aux paramètres.
+    const voulus = typeReference() === "organisme" ? { onglet: "fournisseurs" } : {};
+    remplacerRoute("/parametres", parametres?.size ? Object.fromEntries(parametres) : voulus);
+    return afficherRoute({ chemin: "/parametres", parametres: new URLSearchParams(parametres?.size ? parametres : voulus) });
   }
   marquerMenu(chemin);
   const page = ROUTES[chemin] ?? routeParametree(chemin);
@@ -112,7 +116,9 @@ async function afficherRoute({ chemin, parametres }) {
 async function rafraichirEntete() {
   try {
     const sante = await api.getSante();
-    const projet = dossierReference()
+    const projet = typeReference() === "organisme"
+      ? `Fournisseurs · ${dossierReference()}`
+      : dossierReference()
       ? `Paramètres communs · ${dossierReference()}`
       : [sante.nom_projet, nomEquipe()].filter(Boolean).join(" · ");
     document.getElementById("nom-projet").textContent = projet;
@@ -166,6 +172,9 @@ setInterval(rafraichirVisas, 60000);
 
 // Retour à l'accueil commun : les autres projets, dossiers et organismes du compte.
 function lienProjets() {
+  if (typeReference() === "organisme") {
+    return el("a", { class: "bouton bouton--petit bouton--discret", href: `/o/${codeOrganisme()}/` }, "Retour à l'organisme");
+  }
   if (dossierReference()) {
     return el("a", { class: "bouton bouton--petit bouton--discret", href: `/d/${codeDossier()}/` }, "Retour au dossier");
   }

@@ -18,9 +18,9 @@ from backend.main import create_app
 from backend.services import authentification, import_application, propagation, reference
 from tests.test_comptes import PROJET, connecter, creer_compte, navigateur
 from tests.test_hierarchie import (
-    SERVEUR,
     _comptes,
     creer_dossier,
+    creer_organisme,
     creer_projet,
     membre_organisme,
     ranger,
@@ -28,6 +28,7 @@ from tests.test_hierarchie import (
 )
 
 REF = "ref-spoc"
+ORG = "org-meca"
 
 
 @pytest.fixture(autouse=True)
@@ -53,13 +54,7 @@ def app(
         code_projet=PROJET,
     )
     with navigateur(application):
-        conn = _comptes(application)
-        try:
-            from backend.services import hierarchie
-
-            hierarchie.create_organisme(conn, SERVEUR, "meca", "Mécatronique")
-        finally:
-            conn.close()
+        creer_organisme(application, "meca", "Mécatronique")
         creer_dossier(application, "meca", {"code": "spoc", "nom": "SPOC 2027"})
         yield application
 
@@ -69,7 +64,8 @@ def base(app: FastAPI, code: str) -> Path:
 
 
 def empreinte(app: FastAPI, code: str) -> str:
-    return propagation.empreinte_base(base(app, code), nom_dossier(app))
+    """Empreinte des tables imposées de `code`, avec la liste de fournisseurs de l'organisme."""
+    return propagation.empreinte_base(base(app, code), nom_dossier(app), base(app, ORG))
 
 
 def nom_dossier(app: FastAPI) -> str | None:

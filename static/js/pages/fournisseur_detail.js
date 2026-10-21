@@ -104,7 +104,7 @@ function sectionCommandes(f) {
 }
 
 function bandeauValidation(f, recharger) {
-  const valider = el("button", { type: "button", class: "bouton si-admin" }, "Valider ce fournisseur");
+  const valider = el("button", { type: "button", class: "bouton si-admin si-libre" }, "Valider ce fournisseur");
   valider.addEventListener("click", async () => {
     const manque = [["catégorie", f.categorie], ["contact", f.contact], ["site web", f.site_web]].filter(([, v]) => !v).map(([t]) => t);
     if (manque.length && !confirm(`La fiche n'a pas encore de ${manque.join(", ")}. Valider quand même ?`)) return;
@@ -141,8 +141,8 @@ export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
       el(
         "div",
         { class: "actions" },
-        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: recharger }) }, "Modifier"),
-        f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger si-admin", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
+        el("button", { type: "button", class: "bouton bouton--discret si-achats si-libre", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: recharger }) }, "Modifier"),
+        f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger si-admin si-libre", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
       ),
     ),
     f.statut === A_VALIDER ? bandeauValidation(f, recharger) : "",

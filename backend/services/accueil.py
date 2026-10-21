@@ -218,6 +218,7 @@ def get_vue_organisme(
         **organisme,
         "compte": _compte(compte),
         "gestion": gestion,
+        "fournisseurs": reference.code_organisme(code),
         "dossiers": dossiers,
         "membres": membres,
     }

@@ -37,7 +37,8 @@ Les réglages imposés par un dossier sont protégés dans la base même du proj
 déclencheurs refusent toute écriture qui ne vient pas d'une synchronisation avec la
 référence, si bien qu'une route ou un import ne peut pas les contourner. La référence d'un
 dossier ne sert que ses réglages, et seuls l'administrateur du serveur et les
-administrateurs de l'organisme y écrivent.
+administrateurs de l'organisme y écrivent. La liste des fournisseurs d'un organisme ne se
+modifie que dans sa référence, par ses profils « gestion » et « achats et stock ».
 
 Le mode local, sans compte, n'accepte que les requêtes émises depuis le poste et adressées
 à `127.0.0.1` ou `localhost`.

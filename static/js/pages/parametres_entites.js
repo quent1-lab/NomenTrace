@@ -226,7 +226,7 @@ function champFichierListe(surComparaison) {
       fichier.value = "";
     }
   });
-  const bouton = el("button", { type: "button", class: "bouton bouton--discret si-admin", title: "Comparer avec un classeur Excel de fournisseurs (liste des fournisseurs autorisés…)" }, "Comparer avec une liste…");
+  const bouton = el("button", { type: "button", class: "bouton bouton--discret si-admin si-libre", title: "Comparer avec un classeur Excel de fournisseurs (liste des fournisseurs autorisés…)" }, "Comparer avec une liste…");
   bouton.addEventListener("click", () => fichier.click());
   return [fichier, bouton];
 }
@@ -249,8 +249,8 @@ export async function afficherOngletFournisseurs(cible, parametres = null) {
         "td",
         { class: "nombre", onclick: (e) => e.stopPropagation() },
         el("span", { class: "actions actions--droite" },
-          el("button", { type: "button", class: "bouton bouton--petit bouton--discret si-achats", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: rafraichir }) }, "Modifier"),
-          el("button", { type: "button", class: "bouton bouton--petit bouton--danger si-admin", onclick: async () => (await archiverFournisseur(f)) && rafraichir() }, "Archiver"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--discret si-achats si-libre", onclick: () => ouvrirFormulaireFournisseur(f, { fournisseurs, surEnregistre: rafraichir }) }, "Modifier"),
+          el("button", { type: "button", class: "bouton bouton--petit bouton--danger si-admin si-libre", onclick: async () => (await archiverFournisseur(f)) && rafraichir() }, "Archiver"),
         ),
       ),
     );
@@ -278,7 +278,7 @@ export async function afficherOngletFournisseurs(cible, parametres = null) {
       el("p", { class: "texte-doux" }, "Un fournisseur archivé n'est plus proposé, mais les composants et les commandes qui le citent le gardent."),
       el("span", { class: "actions" },
         champFichierListe(comparer),
-        el("button", { type: "button", class: "bouton si-ecriture", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),
+        el("button", { type: "button", class: "bouton si-ecriture si-libre", onclick: () => ouvrirFormulaireFournisseur(null, { fournisseurs, surEnregistre: rafraichir }) }, "Nouveau fournisseur"),
       ),
     ),
     fournisseurs.length

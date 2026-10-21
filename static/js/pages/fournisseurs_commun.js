@@ -3,7 +3,7 @@
 import { api } from "../api.js";
 import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
-import { estAdmin } from "../session.js";
+import { estAdmin, reglagesImposes } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { BASES_PRIX } from "../valeurs.js";
 
@@ -68,7 +68,8 @@ const NOUVEAU = "__nouveau__";
 export function champFournisseur(fournisseurs, valeur) {
   const options = fournisseurs.map((f) => [f.nom, f.statut === A_VALIDER ? `${f.nom} (à valider)` : f.nom]);
   const select = champChoix("fournisseur_nom", options, valeur, { vide: "—" });
-  select.append(el("option", { value: NOUVEAU }, "+ Nouveau fournisseur (à valider)…"));
+  // Dans un projet rangé, la liste vient de l'organisme : pas de fournisseur proposé ici.
+  if (!reglagesImposes()) select.append(el("option", { value: NOUVEAU }, "+ Nouveau fournisseur (à valider)…"));
   const saisie = el("input", { class: "champ", type: "text", hidden: true, placeholder: "Nom du nouveau fournisseur", "aria-label": "Nom du nouveau fournisseur" });
   const aide = el("span", { class: "ligne-champ__aide", hidden: true }, "Il sera créé « à valider » : une personne autorisée complétera sa fiche et le validera.");
   select.addEventListener("change", () => {

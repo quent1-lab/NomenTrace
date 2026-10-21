@@ -114,9 +114,16 @@ def _canonique(valeur: Any) -> Any:
     return valeur.hex() if isinstance(valeur, bytes) else valeur
 
 
-def empreinte(conn: sqlite3.Connection, schema: str, nom_projet: str | None) -> str:
-    """Empreinte du contenu imposé d'une base (attachée sous `schema`) et du nom du projet."""
+def empreinte(
+    conn: sqlite3.Connection, schema: str, nom_projet: str | None, schema_org: str | None = None
+) -> str:
+    """Empreinte du contenu imposé : référence du dossier (attachée sous `schema`), nom du
+    projet et, s'il y en a une, liste des fournisseurs de l'organisme (sous `schema_org`)."""
+    from backend.services import fournisseurs_communs
+
     contenu: dict[str, Any] = {"nom_projet": nom_projet}
+    if schema_org is not None:
+        contenu["fournisseur"] = fournisseurs_communs.contenu(conn, schema_org)
     for table in TABLES:
         lignes = _lignes(conn, schema, table)
         contenu[table.nom] = [
@@ -127,10 +134,16 @@ def empreinte(conn: sqlite3.Connection, schema: str, nom_projet: str | None) -> 
     return hashlib.sha256(texte.encode()).hexdigest()
 
 
-def empreinte_base(chemin: Path, nom_projet: str | None) -> str:
+def empreinte_base(chemin: Path, nom_projet: str | None, organisme: Path | None = None) -> str:
     conn = db.connect(chemin, creer=False)
     try:
-        return empreinte(conn, "main", nom_projet)
+        if organisme is None:
+            return empreinte(conn, "main", nom_projet)
+        conn.execute("ATTACH DATABASE ? AS org", (f"{organisme.resolve().as_uri()}?mode=ro",))
+        try:
+            return empreinte(conn, "main", nom_projet, "org")
+        finally:
+            conn.execute("DETACH DATABASE org")
     finally:
         conn.close()
 
@@ -291,13 +304,17 @@ def synchroniser(
     dossier: str,
     nom_projet: str | None,
     sauvegardes_projet: Path | None = None,
+    organisme: Path | None = None,
 ) -> Rapport:
-    """Accorde les tables imposées d'un projet à la référence de son dossier, puis pose le verrou.
+    """Accorde les tables imposées d'un projet à la référence de son dossier, et sa liste de
+    fournisseurs à celle de son organisme s'il y en a une, puis pose le verrou.
 
     Sans effet si le projet est déjà à jour (même empreinte). Une sauvegarde du projet est
     prise avant tout changement.
     """
-    voulue = empreinte_base(reference, nom_projet)
+    from backend.services import fournisseurs_communs
+
+    voulue = empreinte_base(reference, nom_projet, organisme)
     conn = db.connect(projet, f"paramètres communs · {dossier}", creer=False)
     try:
         courant = etat(conn)
@@ -310,18 +327,24 @@ def synchroniser(
         if sauvegardes_projet is not None:
             sauvegardes.create_sauvegarde(projet, sauvegardes_projet)
         conn.execute("ATTACH DATABASE ? AS ref", (f"{reference.resolve().as_uri()}?mode=ro",))
+        if organisme is not None:
+            conn.execute("ATTACH DATABASE ? AS org", (f"{organisme.resolve().as_uri()}?mode=ro",))
         rapport = Rapport()
         with db.transaction(conn):
             _sous_verrou_leve(conn)
             for table in TABLES:
                 _synchroniser_table(conn, table, rapport)
             _nom_projet(conn, nom_projet, rapport)
+            if organisme is not None:
+                fournisseurs_communs.synchroniser(conn, rapport)
             conn.execute(
                 "UPDATE main.reglages_imposes SET actif = 1, propagation = 0, dossier = ?,"
                 " empreinte = ? WHERE id = 1",
                 (dossier, voulue),
             )
         conn.execute("DETACH DATABASE ref")
+        if organisme is not None:
+            conn.execute("DETACH DATABASE org")
     finally:
         conn.close()
     journal_log.info(
@@ -387,7 +410,7 @@ def initialiser_reference(reference: Path, projet: Path, dossier: str) -> str | 
     return nom[0] if nom else None
 
 
-def marquer_initialisee(reference: Path, dossier: str) -> None:
+def marquer_initialisee(reference: Path, dossier: str | None) -> None:
     conn = db.connect(reference, creer=False)
     try:
         with db.transaction(conn):

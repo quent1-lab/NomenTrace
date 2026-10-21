@@ -494,7 +494,7 @@ Profil = Literal["gestion", "lecture", "achats_stock"]
 
 
 class OrganismeCreation(Modele):
-    code: str = Field(pattern=CODE_ADRESSE)
+    code: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,35}$")
     nom: str = Field(min_length=1, max_length=80)
 
 

@@ -35,6 +35,8 @@ journal_log = logging.getLogger(__name__)
 
 # Le code de la référence d'un dossier, `ref-<dossier>`, doit tenir dans 40 caractères.
 LONGUEUR_DOSSIER = 30
+# Celui de la référence d'un organisme, `org-<organisme>`, aussi.
+LONGUEUR_ORGANISME = 36
 
 
 def check_code(code: str, quoi: str) -> str:
@@ -155,16 +157,31 @@ def _code_libre(conn: sqlite3.Connection, table: str, code: str) -> None:
         raise Conflit(f"Le code « {code} » est déjà pris.")
 
 
-def create_organisme(conn: sqlite3.Connection, compte: Utilisateur, code: str, nom: str) -> dict:
+def create_organisme(
+    conn: sqlite3.Connection,
+    compte: Utilisateur,
+    code: str,
+    nom: str,
+    dossiers: tuple[Path, Path],
+) -> tuple[dict, EmplacementsProjet]:
+    """Crée un organisme et sa référence (projet `org-<code>`, liste des fournisseurs)."""
     exiger_serveur(compte)
     check_code(code, "d'organisme")
+    if len(code) > LONGUEUR_ORGANISME:
+        raise ErreurMetier(f"Code d'organisme trop long : {LONGUEUR_ORGANISME} caractères au plus.")
     with db.transaction(conn):
         _code_libre(conn, "organisme", code)
         conn.execute(
             "INSERT INTO organisme (code, nom) VALUES (?, ?)", (code, _nom(nom, "d'organisme"))
         )
+    try:
+        emp = reference.creer_reference_organisme(conn, dossiers, code)
+    except sqlite3.Error, OSError, ErreurMetier:
+        with db.transaction(conn):
+            conn.execute("DELETE FROM organisme WHERE code = ?", (code,))
+        raise
     journal_log.info("Organisme %s créé par %s.", code, compte.nom)
-    return get_organisme(conn, code)
+    return get_organisme(conn, code), emp
 
 
 def patch_organisme(conn: sqlite3.Connection, compte: Utilisateur, code: str, nom: str) -> dict:
@@ -267,7 +284,9 @@ def patch_projet(
         if modifs["dossier"] is None:
             reference.sortir(registre, code)
         else:
-            rapport = reference.ranger(conn, registre, code, modifs["dossier"])
+            rapport = reference.ranger(
+                conn, registre, code, modifs["dossier"], ancien_dossier=projet["dossier"]
+            )
     if "budget_ht" in modifs:
         emp = registre.projets.get(code)
         if emp is None:
@@ -415,8 +434,8 @@ def create_projet(
     dossier = get_dossier(conn, code_dossier)
     exiger_gestion(conn, compte, dossier["organisme"])
     code = check_code(valeurs["code"], "de projet")
-    if code.startswith(reference.PREFIXE_REFERENCE):
-        raise ErreurMetier("Les codes « ref-… » sont réservés aux références des dossiers.")
+    if code.startswith(reference.PREFIXES_RESERVES):
+        raise ErreurMetier("Les codes « ref-… » et « org-… » sont réservés aux références.")
     modele = valeurs.get("modele")
     if modele is not None and get_projet(conn, modele)["dossier"] != code_dossier:
         raise ErreurMetier("Le projet modèle doit appartenir au même dossier.")

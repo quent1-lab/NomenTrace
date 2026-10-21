@@ -180,6 +180,11 @@ def _creer_entite(conn: sqlite3.Connection, entite: dict, lot: int) -> bool:
     if entite["type"] == "fournisseur":
         if db.fetch_one(conn, "SELECT 1 FROM fournisseur WHERE nom = ?", (entite["nom"],)):
             return False
+        if propagation.etat(conn).get("actif"):
+            raise LigneRefusee(
+                f"le fournisseur « {entite['nom']} » n'est pas dans la liste de l'organisme :"
+                " il s'y ajoute depuis la page de l'organisme."
+            )
         # Trouvé par l'équipe : à compléter et valider par une personne autorisée.
         db.insert_row(conn, "fournisseur", {"nom": entite["nom"], "statut": "A valider"})
         journal.write_journal(

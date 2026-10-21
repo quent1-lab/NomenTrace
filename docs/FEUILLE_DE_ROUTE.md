@@ -49,7 +49,8 @@ dossier présente le résumé de ses projets et en crée de nouveaux sans redém
 d'un organisme ses dossiers et ses administrateurs, avec trois profils hérités dans tous
 ses projets. Un dossier impose à ses projets ses réglages communs, blocs, listes,
 attributs, établissement, logo et budget, recopiés dans chacun à chaque modification. Un
-nouveau projet peut reprendre d'un autre ses statuts et son arborescence d'ensembles.
+nouveau projet peut reprendre d'un autre ses statuts et son arborescence d'ensembles. Les
+fournisseurs sont communs à l'organisme, tenus depuis sa page.
 
 ## Plus tard
 
@@ -76,7 +77,7 @@ Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvren
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.
 
-Pour le travail à plusieurs projets : les fournisseurs communs à l'organisme ; puis les commandes communes à plusieurs
+Pour le travail à plusieurs projets : les commandes communes à plusieurs
 projets, avec leurs frais partagés, et le catalogue des références déjà achetées dans le
 dossier.
 

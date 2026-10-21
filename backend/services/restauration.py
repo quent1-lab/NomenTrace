@@ -124,7 +124,9 @@ def _remplacer_documents(extraits: Path, dossier_documents: Path) -> str | None:
 REQUETES_STRUCTURE: dict[str, str] = {
     "organisme": "SELECT code, nom FROM organisme",
     "dossier": "SELECT code, organisme, nom, nom_projet FROM dossier",
-    "projet": "SELECT code, dossier, nom_equipe, reference FROM projet WHERE archive = 0",
+    "projet": (
+        "SELECT code, dossier, nom_equipe, reference, organisme FROM projet WHERE archive = 0"
+    ),
 }
 
 
@@ -156,12 +158,13 @@ def _reporter_structure(conn: sqlite3.Connection, structure: dict[str, list[dict
             structure["dossier"],
         )
         conn.executemany(
-            "INSERT INTO projet (code, dossier, nom_equipe, reference)"
-            " VALUES (:code, :dossier, :nom_equipe, :reference)"
+            "INSERT INTO projet (code, dossier, nom_equipe, reference, organisme)"
+            " VALUES (:code, :dossier, :nom_equipe, :reference, :organisme)"
             " ON CONFLICT (code) DO UPDATE SET dossier = excluded.dossier,"
-            " nom_equipe = excluded.nom_equipe, reference = excluded.reference",
+            " nom_equipe = excluded.nom_equipe, reference = excluded.reference,"
+            " organisme = excluded.organisme",
             [
-                {"dossier": None, "nom_equipe": None, "reference": 0, **ligne}
+                {"dossier": None, "nom_equipe": None, "reference": 0, "organisme": None, **ligne}
                 for ligne in structure["projet"]
             ],
         )

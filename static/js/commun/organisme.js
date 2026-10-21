@@ -130,7 +130,12 @@ export async function afficherOrganisme(code, { contenu, fil }) {
     ),
   );
   contenu.replaceChildren(
-    el("div", { class: "titre-section" }, el("h1", {}, organisme.nom)),
+    el(
+      "div",
+      { class: "titre-section" },
+      el("h1", {}, organisme.nom),
+      el("a", { class: "bouton bouton--discret", href: `/p/${organisme.fournisseurs}/#/parametres?onglet=fournisseurs` }, "Fournisseurs"),
+    ),
     el(
       "div",
       { class: "commun__colonnes" },

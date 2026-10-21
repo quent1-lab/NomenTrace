@@ -307,12 +307,14 @@ def _inscrire_nouveau(conn_comptes: sqlite3.Connection, inscription: dict[str, A
     """Dernière étape d'une création : le projet entre au registre, rangé dans son dossier."""
     with db.transaction(conn_comptes):
         conn_comptes.execute(
-            "INSERT INTO projet (code, dossier, nom_equipe, reference) VALUES (?, ?, ?, ?)",
+            "INSERT INTO projet (code, dossier, nom_equipe, reference, organisme)"
+            " VALUES (?, ?, ?, ?, ?)",
             (
                 inscription["code"],
                 inscription["dossier"],
                 inscription["nom_equipe"],
                 inscription.get("reference") or 0,
+                inscription.get("organisme"),
             ),
         )
 

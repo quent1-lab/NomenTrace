@@ -111,7 +111,14 @@ seules ces routes, la session, la santé, le journal et l'historique répondent 
 donnent 404. Dans un projet rangé, une écriture d'un réglage imposé répond 409, quelle que
 soit la route. `GET /api/dossiers/{code}` donne, pour l'administrateur de l'organisme, le
 code de la référence et l'état à jour de chaque projet. `GET /api/session` dit si la page est
-une référence (`reference`) ou un projet rangé (`imposes`), avec le nom du dossier.
+une référence (`reference`, `type_reference` : `dossier` ou `organisme`) ou un projet rangé
+(`imposes`), avec le nom du dossier ou de l'organisme.
+
+La liste des fournisseurs d'un organisme se règle par les routes `/api/fournisseurs` et la
+suppression `/api/nettoyage/entites/fournisseur/{nom}`, sous l'adresse de sa référence
+`/p/org-<organisme>/` ; les listes s'y lisent, le reste répond 404. Les profils « gestion »
+et « achats et stock » y sont administrateurs, « lecture » lecteur. `GET
+/api/organismes/{code}` donne le code de cette référence (`fournisseurs`).
 
 ## Projet, pilotage et historique
 

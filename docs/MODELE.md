@@ -317,6 +317,13 @@ le dossier : une base au schéma complet, sans composants, absente de l'accueil,
 les réglages communs. Le code d'un dossier compte 30 caractères au plus et le préfixe `ref-`
 est réservé.
 
+`projet.organisme` rattache à son organisme la référence `org-<organisme>`, créée avec lui,
+qui porte la liste commune des fournisseurs (code d'organisme : 36 caractères au plus,
+préfixe `org-` réservé). Dans chaque base, `renommage_fournisseur` journalise, dans une
+référence, chaque renommage avec un identifiant aléatoire, et `renommage_applique` garde,
+dans un projet, les renommages déjà rejoués chez lui ; la table `fournisseur` d'un projet
+rangé est verrouillée par déclencheurs comme les autres réglages imposés.
+
 Dans chaque base de projet, la table `reglages_imposes` (une ligne) porte le verrou des
 réglages imposés : `actif` (projet rangé dans un dossier), `propagation` (synchronisation en
 cours, posé et retiré dans la même transaction), `dossier`, `empreinte` (empreinte SHA-256

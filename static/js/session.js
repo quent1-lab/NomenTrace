@@ -40,6 +40,17 @@ export function dossierReference() {
   return courante?.reference ?? null;
 }
 
+// « dossier » ou « organisme » quand la page est une référence (réglages communs, liste de
+// fournisseurs), null sinon.
+export function typeReference() {
+  return courante?.type_reference ?? null;
+}
+
+// Code de l'organisme dont la page règle la liste des fournisseurs, ou null.
+export function codeOrganisme() {
+  return courante?.organisme ?? null;
+}
+
 // Code du dossier du projet de la page, ou null.
 export function codeDossier() {
   return courante?.dossier ?? null;
