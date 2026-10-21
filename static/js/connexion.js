@@ -13,9 +13,10 @@ function afficherMessage(texte) {
   message.hidden = !texte;
 }
 
-// Après connexion, retour à l'écran demandé : seulement un projet (/p/<code>/) et une route
-// de l'application (#/…), jamais une autre adresse.
-const MOTIF_RETOUR = /^(\/p\/[a-z0-9][a-z0-9-]*)?\/(#\/[\w\-/?=&%.]*)?$/;
+// Après connexion, retour à l'écran demandé : seulement un projet (/p/<code>/), un dossier
+// (/d/<code>/), un organisme (/o/<code>/) ou l'accueil, et une route de l'application (#/…),
+// jamais une autre adresse.
+const MOTIF_RETOUR = /^(\/[dop]\/[a-z0-9][a-z0-9-]*)?\/(#\/[\w\-/?=&%.]*)?$/;
 
 function entrer() {
   const retour = new URLSearchParams(window.location.search).get("retour") ?? "";

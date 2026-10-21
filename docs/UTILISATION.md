@@ -67,6 +67,12 @@ L'en-tête affiche son nom, son rôle et le bouton de déconnexion. Lancé en do
 un poste (`lancer.bat`), l'outil tourne en mode local : pas de connexion, l'en-tête
 indique « Mode local » et tout est permis.
 
+La connexion est la même pour tous les projets du serveur. Celui qui n'a accès qu'à un
+projet arrive directement sur son tableau de bord. Les autres arrivent sur l'accueil, qui
+range leurs projets par organisme puis par dossier, en cartes : nom du projet et de
+l'équipe (« SPOC · Alpha »), accès, avancement de l'approvisionnement et montant engagé sur
+le budget. Le bouton « Vos projets » de l'en-tête y ramène depuis n'importe quel projet.
+
 Trois rôles se partagent le travail. Le lecteur consulte tout et télécharge les exports
 Excel, sans rien modifier. Le contributeur modifie les composants des blocs
 qui lui sont attribués (champs, caractéristiques, affectations, documents, imports), fait
@@ -493,6 +499,30 @@ ramener.
 Le même écran permet de vider le journal, pour repartir d'un historique propre après une
 phase d'essais. Une sauvegarde est prise avant, et une ligne trace la purge.
 
+## Organismes, dossiers et projets
+
+Un serveur suit plusieurs projets, rangés sur trois niveaux : l'organisme (une école, un
+département), le dossier (une édition d'une épreuve, par exemple « SPOC 2027 ») et le
+projet (le robot d'une équipe). Organismes et dossiers se créent dans l'application : leur
+code d'adresse, choisi à la création, ne change plus ; leur nom, si.
+
+L'administrateur du serveur crée les organismes depuis l'accueil (« Nouvel organisme ») et
+range les projets « hors dossier », par exemple le projet d'une instance d'avant cette
+version. La page d'un organisme liste ses dossiers et ses administrateurs. Ceux-ci ont l'un
+de trois profils, valables dans tous les projets de l'organisme : « Gestion complète »
+(administrateur partout, crée dossiers et projets), « Lecture de tous les projets », et
+« Achats et stock » (commandes, réceptions, stock, prix et imports, dans tous les blocs).
+Un profil ne remplace pas le rôle qu'on a déjà dans un projet : le plus fort des deux
+s'applique.
+
+La page d'un dossier présente ses projets en tableau, avec leur avancement, leur budget et
+leur engagé. « Nouveau projet » demande le nom d'équipe, le code d'adresse et le préfixe
+des identifiants (proposés à partir du nom d'équipe, figés ensuite) et, si l'on veut,
+l'adresse de l'administrateur du projet, qui reçoit un lien d'invitation. Le nom du projet
+vient du dossier. Le projet est aussitôt en ligne. Les responsables achats du dossier se
+choisissent parmi les membres de ses projets : ils voient le résumé de tous les projets du
+dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
+
 ## Gérer les comptes
 
 Paramètres › Utilisateurs, réservé à l'administrateur, liste les comptes avec leur rôle,
@@ -507,6 +537,12 @@ même pour une session ouverte. Un compte ne se supprime pas, il se désactive, 
 ses sessions et garde son nom dans l'historique. « Nouveau lien » efface le mot de passe
 actuel et en donne un nouveau à choisir : c'est la réponse à un mot de passe oublié. Le
 dernier administrateur actif ne peut être ni désactivé ni rétrogradé.
+
+« Nouvel utilisateur » avec l'adresse d'un compte qui existe déjà, dans un autre projet ou
+un organisme, lui ouvre simplement le projet : il garde son mot de passe. « Retirer » lui
+ferme le projet sans toucher à son compte. Le nom, le mot de passe et l'activation d'un
+compte qui a des droits ailleurs ne se règlent pas depuis un projet, mais par
+l'administrateur du serveur.
 
 ## Exporter, sauvegarder, restaurer
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nomentrace</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="page-commune">
+  <header class="entete">
+    <div class="entete__marque">
+      <a class="entete__titre entete__lien" href="/?accueil">Nomentrace</a>
+      <span class="entete__projet" id="fil-commun"></span>
+    </div>
+    <div class="entete__utilisateur" id="entete-compte"></div>
+  </header>
+
+  <div class="bandeau-erreur" id="bandeau-erreur" role="alert" hidden>
+    <span id="bandeau-erreur-texte"></span>
+    <button type="button" class="bandeau-erreur__fermer" id="bandeau-erreur-fermer"
+            aria-label="Fermer le message">×</button>
+  </div>
+
+  <div class="bandeau-avertissement" id="bandeau-avertissement" role="status" hidden>
+    <ul id="bandeau-avertissement-liste"></ul>
+    <button type="button" class="bandeau-erreur__fermer" id="bandeau-avertissement-fermer"
+            aria-label="Fermer le message">×</button>
+  </div>
+
+  <main class="commun" id="contenu-commun"></main>
+
+  <script type="module" src="/js/accueil.js"></script>
+</body>
+</html>

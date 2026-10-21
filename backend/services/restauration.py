@@ -120,20 +120,52 @@ def _remplacer_documents(extraits: Path, dossier_documents: Path) -> str | None:
     return mis_de_cote
 
 
-def _codes_inscrits(chemin_comptes: Path) -> list[str]:
-    """Projets inscrits dans la base commune en place (aucun si elle n'a pas de registre)."""
+# Structure gardée d'une restauration de la base commune : organismes, dossiers, rangement.
+REQUETES_STRUCTURE: dict[str, str] = {
+    "organisme": "SELECT code, nom FROM organisme",
+    "dossier": "SELECT code, organisme, nom, nom_projet FROM dossier",
+    "projet": "SELECT code, dossier, nom_equipe FROM projet WHERE archive = 0",
+}
+
+
+def _lire_structure(chemin_comptes: Path) -> dict[str, list[dict]]:
+    """Structure de la base commune en place ; vide si elle n'en a pas encore."""
     if not chemin_comptes.is_file():
-        return []
+        return {table: [] for table in REQUETES_STRUCTURE}
     conn = db.connect(chemin_comptes)
     try:
-        return projets.list_codes(conn) if db.table_existe(conn, "projet") else []
+        return {
+            table: db.fetch_all(conn, requete) if db.table_existe(conn, table) else []
+            for table, requete in REQUETES_STRUCTURE.items()
+        }
     finally:
         conn.close()
 
 
+def _reporter_structure(conn: sqlite3.Connection, structure: dict[str, list[dict]]) -> None:
+    """Remet organismes, dossiers et rangement d'avant ; comptes et accès restent ceux de
+    l'archive. Un projet créé après l'archive reste ainsi inscrit et rangé."""
+    with db.transaction(conn):
+        conn.executemany(
+            "INSERT OR IGNORE INTO organisme (code, nom) VALUES (:code, :nom)",
+            structure["organisme"],
+        )
+        conn.executemany(
+            "INSERT OR IGNORE INTO dossier (code, organisme, nom, nom_projet)"
+            " VALUES (:code, :organisme, :nom, :nom_projet)",
+            structure["dossier"],
+        )
+        conn.executemany(
+            "INSERT INTO projet (code, dossier, nom_equipe) VALUES (:code, :dossier, :nom_equipe)"
+            " ON CONFLICT (code) DO UPDATE SET dossier = excluded.dossier,"
+            " nom_equipe = excluded.nom_equipe",
+            [{"dossier": None, "nom_equipe": None, **ligne} for ligne in structure["projet"]],
+        )
+
+
 def _restaurer_comptes(extraite: Path, cible: Cible) -> str | None:
-    """Remplace la base commune, puis la remet à jour et y garde les projets d'avant."""
-    avant = _codes_inscrits(cible.chemin_comptes)
+    """Remplace la base commune, puis la remet à jour et y garde la structure d'avant."""
+    structure = _lire_structure(cible.chemin_comptes)
     securite = _remplacer_base(
         extraite,
         cible.chemin_comptes,
@@ -142,8 +174,7 @@ def _restaurer_comptes(extraite: Path, cible: Cible) -> str | None:
     comptes.prepare_base(cible.chemin_comptes)
     conn = db.connect(cible.chemin_comptes)
     try:
-        for code in avant:
-            projets.inscrire(conn, code)
+        _reporter_structure(conn, structure)
     finally:
         conn.close()
     return securite

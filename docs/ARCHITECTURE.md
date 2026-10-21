@@ -124,6 +124,21 @@ routeurs par `create_app()`, applique la règle de la route demandée, prise dan
 `REGLES` de `services/droits.py` par méthode et chemin. Une route absente de la table
 n'est ouverte qu'à l'administrateur, et un test vérifie que chaque route y figure.
 
+Le rôle lu par `get_utilisateur` est le rôle effectif : `comptes.get_utilisateur` prend le
+plus fort du rôle direct et du profil d'organisme (`droits.combiner`), quand le projet est
+rangé dans un dossier de cet organisme. L'écran Utilisateurs lit et écrit les seuls droits
+directs (`comptes.get_droits_directs`) : un droit hérité n'y est jamais recopié.
+
+Les routes communes (connexion, `routes/hierarchie.py` : accueil, organismes, dossiers,
+rangement des projets) sont hors de tout projet. Elles passent par
+`verifier_acces_commun`, qui n'ouvre aucune base de projet et ne vérifie que la connexion ;
+le service (`services/hierarchie.py`) contrôle ensuite l'organisme ou le dossier visé.
+`services/accueil.py` assemble l'accueil et les pages de dossier et d'organisme, avec le
+résumé de chaque projet lu dans sa base ; un projet hors ligne garde sa carte, sans résumé.
+La création d'un projet (`projets.creer_projet`) prépare sa base dans un dossier temporaire
+sous verrou, l'inscrit en dernier et la met en ligne dans le registre avec son fil d'export
+(`projets.mettre_en_ligne`), sans redémarrage.
+
 Certaines règles ont besoin du corps de la requête : le bloc d'un composant créé, le
 composant d'une affectation, les champs de budget d'un ensemble, le statut d'un
 fournisseur. La table les déclare alors au niveau « écriture » et la route appelle la

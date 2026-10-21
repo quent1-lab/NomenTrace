@@ -20,7 +20,7 @@ import { afficherFicheFournisseur } from "./pages/fournisseur_detail.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
 import { demarrerRouteur, lienRoute } from "./router.js";
-import { aPermission, chargerSession, libelleRole, modeLocal, utilisateur } from "./session.js";
+import { aPermission, chargerSession, libelleRole, modeLocal, nomEquipe, utilisateur } from "./session.js";
 import { chargerListes } from "./valeurs.js";
 import { afficherErreur, el } from "./ui.js";
 
@@ -98,7 +98,7 @@ async function afficherRoute({ chemin, parametres }) {
 async function rafraichirEntete() {
   try {
     const sante = await api.getSante();
-    const projet = sante.nom_projet ?? "";
+    const projet = [sante.nom_projet, nomEquipe()].filter(Boolean).join(" · ");
     document.getElementById("nom-projet").textContent = projet;
     document.title = projet ? `Nomentrace · ${projet}` : "Nomentrace";
     etatExport.textContent = sante.export_en_attente
@@ -148,12 +148,20 @@ async function rafraichirVisas() {
 surEcriture(() => setTimeout(rafraichirVisas, 300));
 setInterval(rafraichirVisas, 60000);
 
+// Retour à l'accueil commun : les autres projets, dossiers et organismes du compte.
+function lienProjets() {
+  return el("a", { class: "bouton bouton--petit bouton--discret", href: "/?accueil" }, "Vos projets");
+}
+
 // Nom de l'utilisateur, son rôle et la déconnexion ; rien en mode local, sans compte.
 function afficherUtilisateur() {
   const zone = document.getElementById("entete-utilisateur");
   const moi = utilisateur();
   if (!moi || modeLocal()) {
-    zone.replaceChildren(el("span", { class: "entete__role", title: "Lancé sans connexion, sur ce poste seulement" }, "Mode local"));
+    zone.replaceChildren(
+      lienProjets(),
+      el("span", { class: "entete__role", title: "Lancé sans connexion, sur ce poste seulement" }, "Mode local"),
+    );
     return;
   }
   const deconnexion = el("button", { type: "button", class: "bouton bouton--petit bouton--discret" }, "Déconnexion");
@@ -167,6 +175,7 @@ function afficherUtilisateur() {
     window.location.assign("/connexion.html");
   });
   zone.replaceChildren(
+    lienProjets(),
     el("span", { class: "entete__nom", title: moi.identifiant }, moi.nom),
     el("span", { class: "entete__role" }, libelleRole(moi.role)),
     deconnexion,

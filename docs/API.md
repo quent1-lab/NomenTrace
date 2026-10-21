@@ -66,16 +66,43 @@ l'auteur de la dernière modification.
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | POST | `/api/session` | Connexion : `identifiant`, `mot_de_passe` ; 401 si refusée, 429 après trop d'échecs, 503 si trop de connexions sont en cours |
-| GET | `/api/session` | Utilisateur connecté, son rôle, ses blocs et permissions, nom du projet, mode local |
+| GET | `/api/session` | Utilisateur connecté et ses droits effectifs dans le projet de l'adresse (`tous_blocs`, `admin_serveur` compris), nom du projet, nom d'équipe, mode local |
 | DELETE | `/api/session` | Déconnexion : la session est supprimée côté serveur |
 | POST | `/api/invitation/verifier` | Validité d'un jeton d'invitation (`jeton`) : compte concerné, ou 410 |
 | POST | `/api/invitation` | Choix du mot de passe (`jeton`, `mot_de_passe`), puis session ouverte ; 400 qui cite les exigences non remplies |
 | GET, POST | `/api/utilisateurs` | Comptes du projet ; création (renvoie le jeton d'invitation, une seule fois) |
 | PATCH | `/api/utilisateurs/{id}` | Nom, rôle, blocs, permissions, actif |
 | POST | `/api/utilisateurs/{id}/invitation` | Nouveau lien : efface le mot de passe et ferme les sessions |
+| DELETE | `/api/utilisateurs/{id}` | Retire le compte du projet, sans toucher au compte |
 
 Les routes `/api/utilisateurs` sont réservées à l'administrateur et répondent 409 en mode
-local, où il n'y a pas de comptes.
+local, où il n'y a pas de comptes. La création avec l'adresse d'un compte existant lui
+ouvre le projet sans invitation (`existant` vrai). Le nom, l'activation et le nouveau lien
+d'un compte qui a des droits hors du projet répondent 403, sauf pour l'administrateur du
+serveur.
+
+La connexion est commune à tous les projets : `POST /api/session` accepte tout compte qui a
+au moins un accès (projet, dossier, organisme, serveur) et n'ouvre la base d'aucun projet.
+
+## Organismes, dossiers et accueil
+
+Ces routes n'appartiennent à aucun projet : sans préfixe `/p/<code>`, elles contrôlent
+l'organisme ou le dossier visé. Elles répondent 401 sans session et 403 hors de son
+périmètre.
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/accueil` | Projets visibles, rangés par organisme et dossier, avec accès et résumé ; `destination` quand le compte n'a qu'un projet |
+| POST | `/api/organismes` | Nouvel organisme (`code`, `nom`) ; administrateur du serveur |
+| GET, PATCH | `/api/organismes/{code}` | Dossiers, budget cumulé, administrateurs (pour la gestion) ; changement de nom |
+| POST | `/api/organismes/{code}/dossiers` | Nouveau dossier (`code`, `nom`, `nom_projet`) ; gestion de l'organisme |
+| POST | `/api/organismes/{code}/membres` | Profil d'organisme (`identifiant`, `nom`, `profil`) ; compte créé au besoin, avec son jeton d'invitation |
+| PATCH, DELETE | `/api/organismes/{code}/membres/{id}` | Changement de profil ; retrait |
+| GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé, responsables achats, candidats ; nom et nom du projet |
+| POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `admin_identifiant`) : base créée et en ligne sans redémarrage |
+| POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
+| DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
+| PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur) ; nom d'équipe |
 
 ## Projet, pilotage et historique
 

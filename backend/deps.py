@@ -132,3 +132,44 @@ def get_auteur(utilisateur: UtilisateurRequete) -> str | None:
 
 
 Auteur = Annotated[str | None, Depends(get_auteur)]
+
+
+# --- Routes communes : hors de tout projet ------------------------------------------------------
+
+
+def get_compte(request: Request) -> Utilisateur | None:
+    """Compte de la requête, sans rôle de projet ; implicite en mode local.
+
+    Les routes communes (accueil, organismes, dossiers, connexion) n'ouvrent aucune base de
+    projet : elles répondent même si le projet de l'instance est hors ligne.
+    """
+    if request.app.state.mode_local:
+        return droits.UTILISATEUR_LOCAL
+    jeton = request.cookies.get(COOKIE_SESSION)
+    if not jeton:
+        return None
+    conn = db.connect(request.app.state.chemin_comptes)
+    try:
+        utilisateur_id = authentification.get_session(conn, jeton)
+        return comptes.get_compte(conn, utilisateur_id) if utilisateur_id is not None else None
+    finally:
+        conn.close()
+
+
+CompteRequete = Annotated[Utilisateur | None, Depends(get_compte)]
+
+
+def verifier_acces_commun(request: Request, compte: CompteRequete) -> None:
+    """Règle d'une route commune (table REGLES) ; le contrôle fin est fait par le service."""
+    route = request.scope.get("route")
+    regle = droits.get_regle(request.method, getattr(route, "path", ""))
+    droits.verifier(regle, compte, None, request.path_params)
+
+
+def get_compte_connecte(compte: CompteRequete) -> Utilisateur:
+    if compte is None:
+        raise droits.NonConnecte()
+    return compte
+
+
+Compte = Annotated[Utilisateur, Depends(get_compte_connecte)]

@@ -43,6 +43,12 @@ coût matière de ce qu'il reste réellement à dépenser une fois le stock déd
 peut partir de son propre Excel : un modèle vierge et une consigne pour un outil d'IA,
 qui reprend le vocabulaire du projet, guident la conversion.
 
+Un serveur suit maintenant plusieurs projets, rangés par organisme et par dossier, chacun
+avec sa base. On se connecte une fois ; l'accueil mène chacun à ses projets, la page d'un
+dossier présente le résumé de ses projets et en crée de nouveaux sans redémarrage, celle
+d'un organisme ses dossiers et ses administrateurs, avec trois profils hérités dans tous
+ses projets.
+
 ## Plus tard
 
 Ces évolutions sont retenues, sans ordre ni date arrêtés.
@@ -68,14 +74,10 @@ Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvren
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.
 
-Plusieurs projets sur un même serveur. Le socle est en place : chaque projet a sa base,
-son dossier de documents, d'exports et de sauvegardes, et son adresse, `/p/<code>/`, d'où
-le serveur tire le projet de chaque requête ; aucune donnée ne peut passer d'un projet à
-l'autre. Les comptes vivent dans une base commune, avec des rôles attribués projet par
-projet. Restent la création de projets depuis l'interface, rangés par organisme et par
-dossier, la page d'accueil qui mène chacun à son projet, et les droits hérités du dossier
-et de l'organisme ; puis les commandes communes à plusieurs projets et le catalogue
-partagé.
+Pour le travail à plusieurs projets : les paramètres communs à un dossier (blocs, listes,
+attributs, établissement), imposés à ses projets ou laissés à chacun, et la duplication
+d'un projet avec ses paramètres ; puis les commandes communes à plusieurs projets, avec
+leurs frais partagés, et le catalogue des références déjà achetées dans le dossier.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles

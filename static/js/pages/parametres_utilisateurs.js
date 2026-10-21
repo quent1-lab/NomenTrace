@@ -5,6 +5,7 @@
 import { api } from "../api.js";
 import { formatDate } from "../format.js";
 import { champChoix, champTexte, ligneChamp } from "../formulaire.js";
+import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { libelleRole, utilisateur } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -20,33 +21,6 @@ const PERMISSIONS = [
   ["ensembles", "Ensembles : créer et modifier l'arborescence (hors budgets)"],
   ["attributs", "Attributs : créer et modifier les attributs et leurs valeurs"],
 ];
-
-function lienInvitation(jeton) {
-  return `${window.location.origin}/connexion.html#invitation=${jeton}`;
-}
-
-// Lien affiché une seule fois, avec un bouton pour le copier.
-function encartInvitation(nom, { jeton, expire_le: expire }) {
-  const lien = lienInvitation(jeton);
-  const champ = el("input", { class: "champ", type: "text", value: lien, readonly: true, "aria-label": "Lien d'invitation" });
-  champ.addEventListener("focus", () => champ.select());
-  const copier = el("button", { type: "button", class: "bouton bouton--petit" }, "Copier");
-  copier.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(lien);
-      copier.textContent = "Copié";
-    } catch {
-      champ.select();
-    }
-  });
-  return el(
-    "div",
-    { class: "message message-ok" },
-    el("p", {}, `Lien pour ${nom}, valable jusqu'au ${formatDate(expire.slice(0, 10))} à ${expire.slice(11, 16)}, utilisable une seule fois. ` +
-      "Il ne sera plus affiché : le transmettre maintenant, par un canal sûr (il donne accès au compte)."),
-    el("div", { class: "lien-invitation" }, champ, copier),
-  );
-}
 
 function cases(nom, options, coches) {
   return el(
@@ -90,7 +64,12 @@ function ouvrirFormulaire(compte, blocs, { surEnregistre }) {
     ligneChamp("Nom affiché", champTexte("nom", u.nom ?? "", { maxlength: "60" }), { requis: true, aide: "Apparaît dans l'historique à chaque modification : il doit rester distinctif." }),
     ligneChamp("Rôle", role, { requis: true }),
     zoneContributeur,
-    creation ? null : el("label", { class: "filtre-case" }, actif, "Compte actif (décocher ferme aussitôt ses sessions)"),
+    creation || u.droits_ailleurs
+      ? null
+      : el("label", { class: "filtre-case" }, actif, "Compte actif (décocher ferme aussitôt ses sessions)"),
+    u.droits_ailleurs
+      ? el("p", { class: "texte-doux texte-petit" }, "Ce compte a aussi des droits hors de ce projet : son nom, son mot de passe et son activation se règlent par l'administrateur du serveur.")
+      : null,
     el(
       "div",
       { class: "actions-formulaire" },
@@ -117,10 +96,15 @@ function ouvrirFormulaire(compte, blocs, { surEnregistre }) {
         const cree = await api.createUtilisateur({ identifiant, ...valeurs });
         masquerErreur();
         await surEnregistre();
-        formulaire.replaceChildren(encartInvitation(cree.utilisateur.nom, cree));
+        formulaire.replaceChildren(
+          cree.existant
+            ? el("p", { class: "message message-ok" }, `${cree.utilisateur.nom} a déjà un compte : il a maintenant accès au projet, avec son mot de passe habituel.`)
+            : encartInvitation(cree.utilisateur.nom, cree),
+        );
         return;
       }
-      await api.patchUtilisateur(u.id, { ...valeurs, actif: actif.checked });
+      const identite = u.droits_ailleurs ? {} : { nom: valeurs.nom, actif: actif.checked };
+      await api.patchUtilisateur(u.id, { ...valeurs, nom: undefined, ...identite });
       masquerErreur();
       fermerPanneau({ silencieux: true });
       await surEnregistre();
@@ -164,6 +148,16 @@ export async function afficherOngletUtilisateurs(cible) {
       afficherErreur(erreur);
     }
   };
+  const retirer = async (u) => {
+    if (!confirm(`Retirer ${u.nom} de ce projet ? Son compte reste, avec ses autres accès.`)) return;
+    try {
+      await api.retirerUtilisateur(u.id);
+      masquerErreur();
+      await rafraichir();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  };
   const moi = utilisateur()?.id;
   const lignes = comptes.map((u) =>
     el(
@@ -179,7 +173,11 @@ export async function afficherOngletUtilisateurs(cible) {
         { class: "nombre" },
         el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => ouvrirFormulaire(u, blocs, { surEnregistre: rafraichir }) }, "Modifier"),
         " ",
-        u.actif ? el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => nouveauLien(u) }, "Nouveau lien") : null,
+        u.actif && !u.droits_ailleurs
+          ? el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => nouveauLien(u) }, "Nouveau lien")
+          : null,
+        " ",
+        u.id === moi ? null : el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: () => retirer(u) }, "Retirer"),
       ),
     ),
   );

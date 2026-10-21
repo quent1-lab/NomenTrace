@@ -485,3 +485,56 @@ class UtilisateurModif(Modele):
     blocs: list[str] | None = None
     permissions: list[Permission] | None = None
     actif: bool | None = None
+
+
+# --- Hiérarchie ---------------------------------------------------------------------------------
+
+CODE_ADRESSE = r"^[a-z0-9][a-z0-9-]{0,39}$"
+Profil = Literal["gestion", "lecture", "achats_stock"]
+
+
+class OrganismeCreation(Modele):
+    code: str = Field(pattern=CODE_ADRESSE)
+    nom: str = Field(min_length=1, max_length=80)
+
+
+class OrganismeModif(Modele):
+    nom: str = Field(min_length=1, max_length=80)
+
+
+class DossierCreation(Modele):
+    code: str = Field(pattern=CODE_ADRESSE)
+    nom: str = Field(min_length=1, max_length=80)
+    nom_projet: str | None = Field(default=None, max_length=80)
+
+
+class DossierModif(Modele):
+    nom: str | None = Field(default=None, min_length=1, max_length=80)
+    nom_projet: str | None = Field(default=None, max_length=80)
+
+
+class ProjetCreation(Modele):
+    code: str = Field(pattern=CODE_ADRESSE)
+    nom_equipe: str = Field(min_length=1, max_length=80)
+    prefixe_id: str = Field(pattern=r"^[A-Z0-9]{1,10}$")
+    admin_identifiant: str | None = Field(default=None, min_length=3, max_length=254)
+    admin_nom: str | None = Field(default=None, min_length=1, max_length=60)
+
+
+class ProjetModif(Modele):
+    dossier: str | None = Field(default=None, pattern=CODE_ADRESSE)
+    nom_equipe: str | None = Field(default=None, max_length=80)
+
+
+class MembreOrganisme(Modele):
+    identifiant: str = Field(min_length=3, max_length=254)
+    nom: str = Field(min_length=1, max_length=60)
+    profil: Profil
+
+
+class ProfilModif(Modele):
+    profil: Profil
+
+
+class ResponsableAchats(Modele):
+    utilisateur_id: int

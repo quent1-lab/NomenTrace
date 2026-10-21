@@ -3294,3 +3294,117 @@ body:not(.peut-ensembles) .si-ensembles {
     font-size: 0;
   }
 }
+
+/* --- Pages communes : accueil, dossier, organisme ------------------------------------------- */
+
+.commun {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--espace-4) var(--espace-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+.commun h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.commun__organisme,
+.commun__dossier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.commun__organisme + .commun__organisme {
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.commun__dossier h2 {
+  color: var(--couleur-texte-doux);
+  font-size: 15px;
+}
+
+.commun .titre-section {
+  justify-content: flex-start;
+  gap: var(--espace-3);
+}
+
+.commun .titre-section a {
+  font-size: var(--taille-petit);
+}
+
+.commun__colonnes {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  gap: var(--espace-4);
+  align-items: start;
+}
+
+.commun__cote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.carte--projet {
+  gap: var(--espace-2);
+  color: var(--couleur-texte);
+  text-decoration: none;
+}
+
+.carte-et-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.barre--fine {
+  height: 4px;
+  margin-top: 0;
+}
+
+.liste-simple {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.liste-simple .ligne-compacte {
+  justify-content: space-between;
+}
+
+.entete__lien {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (max-width: 800px) {
+  .commun {
+    padding: var(--espace-3) var(--espace-4);
+  }
+
+  .commun__colonnes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.entete__projet a {
+  color: inherit;
+}
+
+.commun__cote .ligne-champ {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.commun__cote .ligne-champ__aide {
+  grid-column: 1;
+}

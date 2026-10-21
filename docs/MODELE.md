@@ -294,12 +294,23 @@ restauration de la base d'un projet ne touche pas aux comptes.
 | `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`, `attributs`. | `utilisateur_id`, `projet`, `permission` |
 | `invitation` | Liens d'invitation : empreinte SHA-256 du jeton, `expire_le` (72 heures), `utilisee_le`. | `id` |
 | `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |
-| `projet` | Registre des projets servis : `code` (minuscules, chiffres et tirets, 40 au plus), `cree_le`, `archive`. Chaque projet inscrit a sa base `data/projets/<code>/nomentrace.db` et son dossier `echange/projets/<code>/`. | `code` |
+| `projet` | Registre des projets servis : `code` (minuscules, chiffres et tirets, 40 au plus), `dossier` (vide : hors dossier), `nom_equipe`, `cree_le`, `archive`. Chaque projet inscrit a sa base `data/projets/<code>/nomentrace.db` et son dossier `echange/projets/<code>/`. | `code` |
+| `organisme` | Organisme : `code` d'adresse (`/o/<code>/`), `nom`, `archive`. | `code` |
+| `dossier` | Dossier d'un organisme : `code` d'adresse (`/d/<code>/`), `organisme`, `nom`, `nom_projet` (donné aux projets créés dans le dossier), `archive`. | `code` |
+| `acces_organisme` | Profil d'un compte dans un organisme : `gestion`, `lecture` ou `achats_stock`. | `utilisateur_id`, `organisme` |
+| `acces_dossier` | Rôle d'un compte dans un dossier : `responsable_achats`. | `utilisateur_id`, `dossier` |
 
 Le code d'un projet est celui de son adresse, `/p/<code>/`, et celui que portent `acces`,
 `utilisateur_bloc` et `utilisateur_permission`. Il est figé à la création ; le nom du
 projet, qui peut changer, reste dans la base du projet. Le projet de l'instance vient de
 `NOMENTRACE_PROJET` et est inscrit au premier lancement.
+
+`utilisateur.admin_serveur` désigne l'administrateur du serveur, nommé en ligne de commande.
+Le rôle d'un compte dans un projet est le plus fort de son rôle direct (`acces`) et de son
+profil dans l'organisme du dossier du projet : `gestion` vaut administrateur, `lecture`
+lecteur, `achats_stock` contributeur de tous les blocs avec la permission achats. Blocs et
+permissions s'additionnent. L'administrateur du serveur est administrateur partout. Un
+projet hors dossier n'hérite d'aucun profil.
 
 ## Historique
 

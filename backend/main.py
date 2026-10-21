@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
 from backend.aiguillage import AiguillageProjet, code_valide
-from backend.deps import verifier_acces
+from backend.deps import verifier_acces, verifier_acces_commun
 from backend.erreurs import ErreurMetier
 from backend.routes import (
     attributs,
@@ -25,6 +25,7 @@ from backend.routes import (
     documents,
     ensembles,
     fournisseurs,
+    hierarchie,
     imports,
     listes,
     nettoyage,
@@ -52,12 +53,16 @@ SANS_EXPORT: tuple[str, ...] = (
     "/api/session",
     "/api/invitation",
     "/api/utilisateurs",
+    "/api/accueil",
+    "/api/organismes",
+    "/api/dossiers",
+    "/api/projets",
 )
 
 # Routes de l'API, dans l'ordre d'inclusion ; chacune a sa règle dans services/droits.py.
+# Routes d'un projet : droits lus dans la base du projet de la requête.
 MODULES = (
     sante,
-    session,
     utilisateurs,
     pilotage,
     attributs,
@@ -74,6 +79,9 @@ MODULES = (
     recherche,
     visas,
 )
+ROUTEURS_PROJET = (session.router_projet, *(module.router for module in MODULES))
+# Routes communes : connexion, accueil, organismes, dossiers ; aucune base de projet.
+ROUTEURS_COMMUNS = (session.router, hierarchie.router)
 
 
 def _configure_logging() -> None:
@@ -265,8 +273,10 @@ def create_app(
             export.signaler()
         return reponse
 
-    for module in MODULES:
-        app.include_router(module.router, dependencies=[Depends(verifier_acces)])
+    for routeur in ROUTEURS_COMMUNS:
+        app.include_router(routeur, dependencies=[Depends(verifier_acces_commun)])
+    for routeur in ROUTEURS_PROJET:
+        app.include_router(routeur, dependencies=[Depends(verifier_acces)])
     # Installé en dernier, donc exécuté en premier : les refus d'origine passent avant tout.
     install_securite(app, local)
     # Plus extérieur encore : le préfixe /p/<code> est retiré avant toute autre couche.

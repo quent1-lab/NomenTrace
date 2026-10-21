@@ -19,7 +19,7 @@ from openpyxl import Workbook, load_workbook
 from backend import __main__ as lancement
 from backend import comptes as ligne_de_commande
 from backend import config, db
-from backend.main import MODULES, create_app
+from backend.main import ROUTEURS_COMMUNS, ROUTEURS_PROJET, create_app
 from backend.services import authentification, comptes, droits
 
 ADRESSE = "https://nomentrace.test"
@@ -285,10 +285,20 @@ def test_deconnexion_ferme_la_session(app: FastAPI, admin: TestClient) -> None:
 
 
 def test_compte_sans_acces_au_projet_refuse(app: FastAPI) -> None:
+    """La connexion est commune (15b) : elle passe, mais le projet reste fermé."""
     creer_compte(app, "autre@ecole.test", "administrateur", projet="autre-projet")
+    client = connecter(app, "autre@ecole.test")
+    assert client.get(f"/p/{PROJET}/api/composants").status_code == 403
+
+
+def test_compte_sans_aucun_acces_refuse(app: FastAPI) -> None:
+    id_ = creer_compte(app, "parti@ecole.test", "lecteur")
+    conn = db.connect(app.state.chemin_comptes)
+    conn.execute("DELETE FROM acces WHERE utilisateur_id = ?", (id_,))
+    conn.close()
     client = navigateur(app)
     reponse = client.post(
-        "/api/session", json={"identifiant": "autre@ecole.test", "mot_de_passe": MOT_DE_PASSE}
+        "/api/session", json={"identifiant": "parti@ecole.test", "mot_de_passe": MOT_DE_PASSE}
     )
     assert reponse.status_code == 403
     assert "nomentrace_session" not in client.cookies
@@ -449,8 +459,8 @@ def test_toutes_les_routes_ont_une_regle() -> None:
     """Refus par défaut : aucune route ne doit dépendre de la règle implicite."""
     routes = {
         (methode, route.path)
-        for module in MODULES
-        for route in module.router.routes
+        for routeur in (*ROUTEURS_PROJET, *ROUTEURS_COMMUNS)
+        for route in routeur.routes
         for methode in route.methods
         if methode != "HEAD"
     }

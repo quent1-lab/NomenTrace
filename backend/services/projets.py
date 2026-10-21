@@ -18,6 +18,7 @@ de l'instance, puis marquée : l'ancien code refuse alors d'y démarrer. Règle 
 import logging
 import shutil
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -25,8 +26,9 @@ from pathlib import Path
 
 from backend import db
 from backend.aiguillage import code_valide
-from backend.erreurs import ErreurMetier
-from backend.services import sauvegardes
+from backend.erreurs import Conflit, ErreurMetier
+from backend.services import parametres, sauvegardes
+from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger(__name__)
 
@@ -269,3 +271,88 @@ def charger_registre(
         journal_log.info("Projet « %s » prêt (%s), schéma version %d", code, emp.base, version)
         registre.projets[code] = emp
     return registre
+
+
+# --- Création d'un projet à chaud ---------------------------------------------------------------
+
+# Deux créations simultanées du même code : la seconde attend et trouve le code pris.
+_VERROU_CREATION = threading.Lock()
+
+
+def _check_creation(conn_comptes: sqlite3.Connection, emp: EmplacementsProjet) -> None:
+    """Code libre partout : registre, comptes, disque. Rien n'est écrit avant ce contrôle."""
+    if est_inscrit(conn_comptes, emp.code):
+        raise Conflit(f"Le code « {emp.code} » est déjà pris par un projet.")
+    if conn_comptes.execute("SELECT 1 FROM acces WHERE projet = ?", (emp.code,)).fetchone():
+        raise Conflit(
+            f"Des accès existent déjà pour le code « {emp.code} » sans projet inscrit :"
+            " choisir un autre code."
+        )
+    for chemin in (emp.base.parent, emp.echange):
+        if chemin.exists():
+            raise Conflit(
+                f"Le code « {emp.code} » est libre, mais son dossier existe déjà sur le disque"
+                f" ({chemin}) : choisir un autre code."
+            )
+
+
+def _inscrire_nouveau(conn_comptes: sqlite3.Connection, inscription: dict[str, str | None]) -> None:
+    """Dernière étape d'une création : le projet entre au registre, rangé dans son dossier."""
+    with db.transaction(conn_comptes):
+        conn_comptes.execute(
+            "INSERT INTO projet (code, dossier, nom_equipe) VALUES (?, ?, ?)",
+            (inscription["code"], inscription["dossier"], inscription["nom_equipe"]),
+        )
+
+
+def creer_projet(
+    conn_comptes: sqlite3.Connection,
+    dossier_data: Path,
+    dossier_echange: Path,
+    inscription: dict[str, str | None],
+    reglages: dict[str, str],
+) -> EmplacementsProjet:
+    """Crée la base d'un nouveau projet et l'inscrit au registre, sans redémarrage.
+
+    `inscription` : code, dossier, nom_equipe ; `reglages` : paramètres écrits dans la base
+    (nom du projet, préfixe). La base est préparée dans un dossier temporaire, renommé une
+    fois complète ; l'inscription vient en dernier. Un échec ne laisse rien derrière lui.
+    """
+    emp = emplacements(dossier_data, dossier_echange, str(inscription["code"]))
+    with _VERROU_CREATION:
+        _check_creation(conn_comptes, emp)
+        temporaire = emp.base.parent.with_name(f".creation-{emp.code}")
+        shutil.rmtree(temporaire, ignore_errors=True)
+        try:
+            conn = db.connect(temporaire / NOM_BASE)
+            try:
+                db.apply_migrations(conn)
+                parametres.patch_parametres(conn, reglages)
+            finally:
+                conn.close()
+            _renommer(temporaire, emp.base.parent)
+            emp.echange.mkdir(parents=True)
+            _inscrire_nouveau(conn_comptes, inscription)
+        except sqlite3.Error, OSError, ErreurMetier:
+            for dossier in (temporaire, emp.base.parent, emp.echange):
+                shutil.rmtree(dossier, ignore_errors=True)
+            journal_log.exception("Création du projet « %s » annulée", emp.code)
+            raise
+    journal_log.info("Projet « %s » créé : %s", emp.code, emp.base)
+    return emp
+
+
+def mettre_en_ligne(
+    registre: Registre, exports: dict[str, PlanificateurExport], emp: EmplacementsProjet
+) -> None:
+    """Rend un projet créé à chaud joignable sous /p/<code>/, avec son fil d'export."""
+    export = PlanificateurExport(emp.base, emp.exports)
+    exports[emp.code] = export
+    registre.projets[emp.code] = emp
+    export.start()
+
+
+def get_nom_equipe(conn_comptes: sqlite3.Connection, code: str) -> str | None:
+    """Nom d'équipe d'un projet, affiché après le nom du projet (« SPOC · Équipe »)."""
+    ligne = conn_comptes.execute("SELECT nom_equipe FROM projet WHERE code = ?", (code,)).fetchone()
+    return ligne["nom_equipe"] if ligne else None

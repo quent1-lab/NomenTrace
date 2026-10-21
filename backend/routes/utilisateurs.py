@@ -33,14 +33,25 @@ def create_utilisateur(
 
 @router.patch("/{identifiant}")
 def update_utilisateur(
-    identifiant: int, corps: UtilisateurModif, request: Request, conn: ConnComptes, projet: Conn
+    identifiant: int,
+    corps: UtilisateurModif,
+    request: Request,
+    moi: Connecte,
+    conn: ConnComptes,
+    projet: Conn,
 ) -> dict:
     if corps.blocs is not None:
         blocs.check_codes(projet, corps.blocs)
     modifs = corps.model_dump(exclude_unset=True)
-    return comptes.patch_utilisateur(conn, get_projet(request), identifiant, modifs)
+    return comptes.patch_utilisateur(conn, get_projet(request), identifiant, modifs, moi)
+
+
+@router.delete("/{identifiant}")
+def delete_utilisateur(identifiant: int, request: Request, conn: ConnComptes) -> dict:
+    comptes.retirer_acces(conn, get_projet(request), identifiant)
+    return {"statut": "retiré"}
 
 
 @router.post("/{identifiant}/invitation")
 def renew_invitation(identifiant: int, request: Request, moi: Connecte, conn: ConnComptes) -> dict:
-    return comptes.renew_invitation(conn, get_projet(request), identifiant, moi.nom)
+    return comptes.renew_invitation(conn, get_projet(request), identifiant, moi.nom, moi)

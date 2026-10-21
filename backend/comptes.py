@@ -1,5 +1,8 @@
 """Gestion des comptes en ligne de commande : `python -m backend.comptes creer-admin ADRESSE`.
 
+`admin-serveur ADRESSE` nomme un administrateur du serveur (organismes, rangement des
+projets, droits partout) ; un lien n'est affiché que si le compte n'a pas de mot de passe.
+
 Sert à créer le premier administrateur d'une instance, et de secours si plus personne ne
 peut entrer : la commande crée le compte ou lui rend le rôle d'administrateur, puis affiche
 un lien d'invitation neuf (72 h, usage unique) pour choisir un mot de passe. Elle s'exécute
@@ -48,6 +51,26 @@ def creer_admin(identifiant: str, nom: str | None) -> int:
     return 0
 
 
+def nommer_admin_serveur(identifiant: str, nom: str | None) -> int:
+    comptes.prepare_base(config.CHEMIN_COMPTES)
+    conn = db.connect(config.CHEMIN_COMPTES)
+    try:
+        resultat = comptes.ensure_admin_serveur(conn, identifiant, nom or identifiant.split("@")[0])
+    except ErreurMetier as erreur:
+        print(f"Erreur : {erreur.message}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(f"Administrateur du serveur : {resultat['identifiant']}.")
+    if "jeton" in resultat:
+        print(f"Lien pour choisir le mot de passe, valable jusqu'au {resultat['expire_le']} :")
+        print()
+        print(lien_invitation(resultat["jeton"], config.URL_PUBLIQUE))
+        print()
+        print("Ce lien donne accès au compte : le transmettre par un canal sûr.")
+    return 0
+
+
 def main(arguments: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.WARNING, format=config.FORMAT_LOG)
     analyseur = argparse.ArgumentParser(prog="python -m backend.comptes", description=__doc__)
@@ -57,7 +80,14 @@ def main(arguments: list[str] | None = None) -> int:
     )
     admin.add_argument("identifiant", help="adresse mail servant d'identifiant")
     admin.add_argument("--nom", help="nom affiché (par défaut, le début de l'adresse)")
+    serveur = commandes.add_parser(
+        "admin-serveur", help="nommer un administrateur du serveur (créé au besoin)"
+    )
+    serveur.add_argument("identifiant", help="adresse mail servant d'identifiant")
+    serveur.add_argument("--nom", help="nom affiché (par défaut, le début de l'adresse)")
     lus = analyseur.parse_args(arguments)
+    if lus.commande == "admin-serveur":
+        return nommer_admin_serveur(lus.identifiant, lus.nom)
     return creer_admin(lus.identifiant, lus.nom)
 
 

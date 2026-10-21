@@ -21,7 +21,8 @@ function adresse(chemin) {
 // en cours. Rien depuis la page de connexion elle-même, dont les refus s'affichent sur place.
 export function allerConnexion() {
   if (window.location.pathname.endsWith("/connexion.html")) return;
-  const retour = encodeURIComponent(`${PREFIXE_PROJET}/${window.location.hash}`);
+  const page = window.location.pathname.match(/^\/[dop]\/[a-z0-9][a-z0-9-]*\//)?.[0] ?? "/";
+  const retour = encodeURIComponent(`${page}${window.location.hash}`);
   window.location.assign(`/connexion.html?retour=${retour}`);
 }
 
@@ -172,6 +173,24 @@ export const api = {
   createUtilisateur: (valeurs) => requete("POST", "/api/utilisateurs", valeurs),
   patchUtilisateur: (id, modifs) => requete("PATCH", `/api/utilisateurs/${id}`, modifs),
   renouvelerInvitation: (id) => requete("POST", `/api/utilisateurs/${id}/invitation`),
+  retirerUtilisateur: (id) => requete("DELETE", `/api/utilisateurs/${id}`),
+
+  // Pages communes : hors de tout projet (adresses sans préfixe /p/<code>).
+  getAccueil: () => requete("GET", "/api/accueil"),
+  createOrganisme: (valeurs) => requete("POST", "/api/organismes", valeurs),
+  getOrganisme: (code) => requete("GET", `/api/organismes/${code}`),
+  patchOrganisme: (code, modifs) => requete("PATCH", `/api/organismes/${code}`, modifs),
+  createDossier: (organisme, valeurs) => requete("POST", `/api/organismes/${organisme}/dossiers`, valeurs),
+  createMembreOrganisme: (organisme, valeurs) => requete("POST", `/api/organismes/${organisme}/membres`, valeurs),
+  patchMembreOrganisme: (organisme, id, profil) =>
+    requete("PATCH", `/api/organismes/${organisme}/membres/${id}`, { profil }),
+  retirerMembreOrganisme: (organisme, id) => requete("DELETE", `/api/organismes/${organisme}/membres/${id}`),
+  getDossier: (code) => requete("GET", `/api/dossiers/${code}`),
+  patchDossier: (code, modifs) => requete("PATCH", `/api/dossiers/${code}`, modifs),
+  createProjet: (dossier, valeurs) => requete("POST", `/api/dossiers/${dossier}/projets`, valeurs),
+  addResponsable: (dossier, id) => requete("POST", `/api/dossiers/${dossier}/responsables`, { utilisateur_id: id }),
+  retirerResponsable: (dossier, id) => requete("DELETE", `/api/dossiers/${dossier}/responsables/${id}`),
+  patchProjet: (code, modifs) => requete("PATCH", `/api/projets/${code}`, modifs),
   rechercher: (q) => requete("GET", avecParametres("/api/recherche", { q })),
   getHistorique: (filtres) => requete("GET", avecParametres("/api/historique", filtres)),
   getTablesHistorique: () => requete("GET", "/api/historique/tables"),

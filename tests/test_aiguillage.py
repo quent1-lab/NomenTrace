@@ -72,11 +72,14 @@ def test_code_inconnu_ou_mal_forme_404_sans_fichier(
     assert _fichiers(tmp_path) == avant
 
 
-def test_racine_redirige_vers_le_projet(client: TestClient) -> None:
-    for adresse in ("/", "/index.html"):
-        reponse = client.get(adresse, follow_redirects=False)
-        assert reponse.status_code == 302
-        assert reponse.headers["location"] == f"{_prefixe(client)}/"
+def test_racine_sert_l_accueil(client: TestClient) -> None:
+    """Depuis 15b, `/` est la page d'accueil commune, qui envoie au projet s'il est seul."""
+    reponse = client.get("/", follow_redirects=False)
+    assert reponse.status_code == 200
+    assert "/js/accueil.js" in reponse.text
+    ancienne = client.get("/index.html", follow_redirects=False)
+    assert ancienne.status_code == 302
+    assert ancienne.headers["location"] == "/"
 
 
 def test_projet_sans_barre_finale_redirige(client: TestClient) -> None:

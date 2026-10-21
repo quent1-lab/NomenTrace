@@ -1,0 +1,379 @@
+"""Hiérarchie organisme › dossier › projet : structure et droits qui en descendent.
+
+Organismes et dossiers sont des données saisies dans l'application : leur code d'adresse
+(/o/<code>/, /d/<code>/) est figé à la création, leur nom reste modifiable. Qui fait quoi :
+- administrateur du serveur : crée les organismes, range les projets, tout le reste ;
+- administrateur d'organisme « gestion » : dossiers, projets et membres de son organisme ;
+- profils « lecture » et « achats et stock » : voient l'organisme et ses dossiers ;
+- responsable achats d'un dossier : voit le dossier et le résumé de ses projets.
+Le compte passé à chaque fonction est celui de la requête (`comptes.get_compte`, ou le
+compte implicite du mode local, administrateur du serveur).
+"""
+
+import logging
+import sqlite3
+from pathlib import Path
+from typing import Any
+
+from backend import db
+from backend.aiguillage import code_valide
+from backend.erreurs import Conflit, ErreurMetier, Introuvable
+from backend.services import comptes, projets
+from backend.services.droits import (
+    ADMINISTRATEUR,
+    GESTION,
+    PROFILS,
+    RESPONSABLE_ACHATS,
+    AccesRefuse,
+    Utilisateur,
+)
+from backend.services.projets import EmplacementsProjet
+
+journal_log = logging.getLogger(__name__)
+
+
+def check_code(code: str, quoi: str) -> str:
+    if not code_valide(code):
+        raise ErreurMetier(
+            f"Code {quoi} invalide : minuscules, chiffres et tirets, 40 caractères au plus."
+        )
+    return code
+
+
+def _nom(nom: str | None, quoi: str) -> str:
+    texte = (nom or "").strip()
+    if not 1 <= len(texte) <= 80:
+        raise ErreurMetier(f"Le nom {quoi} doit compter entre 1 et 80 caractères.")
+    return texte
+
+
+# --- Lecture ------------------------------------------------------------------------------------
+
+
+def get_organisme(conn: sqlite3.Connection, code: str) -> dict:
+    ligne = db.fetch_one(
+        conn, "SELECT code, nom FROM organisme WHERE code = ? AND archive = 0", (code,)
+    )
+    if ligne is None:
+        raise Introuvable(f"Organisme « {code} » introuvable.")
+    return ligne
+
+
+def get_dossier(conn: sqlite3.Connection, code: str) -> dict:
+    ligne = db.fetch_one(
+        conn,
+        "SELECT code, organisme, nom, nom_projet FROM dossier WHERE code = ? AND archive = 0",
+        (code,),
+    )
+    if ligne is None:
+        raise Introuvable(f"Dossier « {code} » introuvable.")
+    return ligne
+
+
+def get_projet(conn: sqlite3.Connection, code: str) -> dict:
+    ligne = db.fetch_one(
+        conn,
+        "SELECT p.code, p.dossier, p.nom_equipe, d.organisme FROM projet p"
+        " LEFT JOIN dossier d ON d.code = p.dossier WHERE p.code = ? AND p.archive = 0",
+        (code,),
+    )
+    if ligne is None:
+        raise Introuvable(f"Projet « {code} » introuvable.")
+    return ligne
+
+
+def get_profil(conn: sqlite3.Connection, compte: Utilisateur, organisme: str) -> str | None:
+    if compte.id is None:
+        return None
+    ligne = db.fetch_one(
+        conn,
+        "SELECT profil FROM acces_organisme WHERE utilisateur_id = ? AND organisme = ?",
+        (compte.id, organisme),
+    )
+    return ligne["profil"] if ligne else None
+
+
+def est_responsable(conn: sqlite3.Connection, compte: Utilisateur, dossier: str) -> bool:
+    if compte.id is None:
+        return False
+    return bool(
+        db.fetch_one(
+            conn,
+            "SELECT 1 FROM acces_dossier WHERE utilisateur_id = ? AND dossier = ?",
+            (compte.id, dossier),
+        )
+    )
+
+
+# --- Droits -------------------------------------------------------------------------------------
+
+
+def exiger_serveur(compte: Utilisateur) -> None:
+    if not compte.admin_serveur:
+        raise AccesRefuse("Action réservée à l'administrateur du serveur.")
+
+
+def peut_gerer(conn: sqlite3.Connection, compte: Utilisateur, organisme: str) -> bool:
+    return compte.admin_serveur or get_profil(conn, compte, organisme) == GESTION
+
+
+def exiger_gestion(conn: sqlite3.Connection, compte: Utilisateur, organisme: str) -> None:
+    if not peut_gerer(conn, compte, organisme):
+        raise AccesRefuse("Action réservée à un administrateur de cet organisme.")
+
+
+def exiger_vue_organisme(conn: sqlite3.Connection, compte: Utilisateur, organisme: str) -> None:
+    if not (compte.admin_serveur or get_profil(conn, compte, organisme)):
+        raise AccesRefuse("Cet organisme ne vous est pas ouvert.")
+
+
+def exiger_vue_dossier(conn: sqlite3.Connection, compte: Utilisateur, dossier: dict) -> None:
+    if not (
+        compte.admin_serveur
+        or get_profil(conn, compte, dossier["organisme"])
+        or est_responsable(conn, compte, dossier["code"])
+    ):
+        raise AccesRefuse("Ce dossier ne vous est pas ouvert.")
+
+
+# --- Organismes et dossiers ---------------------------------------------------------------------
+
+
+REQUETES_CODE: dict[str, str] = {
+    "organisme": "SELECT 1 FROM organisme WHERE code = ?",
+    "dossier": "SELECT 1 FROM dossier WHERE code = ?",
+}
+
+
+def _code_libre(conn: sqlite3.Connection, table: str, code: str) -> None:
+    if db.fetch_one(conn, REQUETES_CODE[table], (code,)):
+        raise Conflit(f"Le code « {code} » est déjà pris.")
+
+
+def create_organisme(conn: sqlite3.Connection, compte: Utilisateur, code: str, nom: str) -> dict:
+    exiger_serveur(compte)
+    check_code(code, "d'organisme")
+    with db.transaction(conn):
+        _code_libre(conn, "organisme", code)
+        conn.execute(
+            "INSERT INTO organisme (code, nom) VALUES (?, ?)", (code, _nom(nom, "d'organisme"))
+        )
+    journal_log.info("Organisme %s créé par %s.", code, compte.nom)
+    return get_organisme(conn, code)
+
+
+def patch_organisme(conn: sqlite3.Connection, compte: Utilisateur, code: str, nom: str) -> dict:
+    get_organisme(conn, code)
+    exiger_gestion(conn, compte, code)
+    with db.transaction(conn):
+        conn.execute(
+            "UPDATE organisme SET nom = ? WHERE code = ?", (_nom(nom, "d'organisme"), code)
+        )
+    return get_organisme(conn, code)
+
+
+def create_dossier(
+    conn: sqlite3.Connection, compte: Utilisateur, organisme: str, valeurs: dict[str, Any]
+) -> dict:
+    get_organisme(conn, organisme)
+    exiger_gestion(conn, compte, organisme)
+    code = check_code(valeurs["code"], "de dossier")
+    nom_projet = (valeurs.get("nom_projet") or "").strip() or None
+    with db.transaction(conn):
+        _code_libre(conn, "dossier", code)
+        conn.execute(
+            "INSERT INTO dossier (code, organisme, nom, nom_projet) VALUES (?, ?, ?, ?)",
+            (code, organisme, _nom(valeurs.get("nom"), "du dossier"), nom_projet),
+        )
+    journal_log.info("Dossier %s créé dans %s par %s.", code, organisme, compte.nom)
+    return get_dossier(conn, code)
+
+
+def patch_dossier(
+    conn: sqlite3.Connection, compte: Utilisateur, code: str, modifs: dict[str, Any]
+) -> dict:
+    dossier = get_dossier(conn, code)
+    exiger_gestion(conn, compte, dossier["organisme"])
+    with db.transaction(conn):
+        if "nom" in modifs:
+            conn.execute(
+                "UPDATE dossier SET nom = ? WHERE code = ?",
+                (_nom(modifs["nom"], "du dossier"), code),
+            )
+        if "nom_projet" in modifs:
+            nom_projet = (modifs["nom_projet"] or "").strip() or None
+            conn.execute("UPDATE dossier SET nom_projet = ? WHERE code = ?", (nom_projet, code))
+    return get_dossier(conn, code)
+
+
+def patch_projet(
+    conn: sqlite3.Connection, compte: Utilisateur, code: str, modifs: dict[str, Any]
+) -> dict:
+    """Range un projet dans un dossier (serveur) ou change son nom d'équipe."""
+    projet = get_projet(conn, code)
+    if "dossier" in modifs:
+        exiger_serveur(compte)
+        if modifs["dossier"] is not None:
+            get_dossier(conn, modifs["dossier"])
+    if "nom_equipe" in modifs and not compte.admin_serveur:
+        gere = projet["organisme"] and peut_gerer(conn, compte, projet["organisme"])
+        if not gere and not comptes.get_utilisateur(conn, compte.id or 0, code).admin:
+            raise AccesRefuse("Le nom d'équipe se règle par un administrateur du projet.")
+    with db.transaction(conn):
+        if "dossier" in modifs:
+            conn.execute("UPDATE projet SET dossier = ? WHERE code = ?", (modifs["dossier"], code))
+        if "nom_equipe" in modifs:
+            nom = (modifs["nom_equipe"] or "").strip() or None
+            if nom is not None:
+                nom = _nom(nom, "d'équipe")
+            conn.execute("UPDATE projet SET nom_equipe = ? WHERE code = ?", (nom, code))
+    journal_log.info("Projet %s modifié par %s : %s.", code, compte.nom, sorted(modifs))
+    return get_projet(conn, code)
+
+
+# --- Membres d'un organisme, responsables d'un dossier ------------------------------------------
+
+
+def _check_profil(profil: str) -> None:
+    if profil not in PROFILS:
+        raise ErreurMetier(f"Profil inconnu : « {profil} ».")
+
+
+def invite_membre(
+    conn: sqlite3.Connection, compte: Utilisateur, organisme: str, valeurs: dict[str, Any]
+) -> dict:
+    """Donne un profil d'organisme à un compte, créé au besoin avec son lien d'invitation."""
+    get_organisme(conn, organisme)
+    exiger_gestion(conn, compte, organisme)
+    _check_profil(valeurs["profil"])
+    cree = comptes.create_compte(conn, valeurs["identifiant"], valeurs["nom"], compte.nom)
+    with db.transaction(conn):
+        if db.fetch_one(
+            conn,
+            "SELECT 1 FROM acces_organisme WHERE utilisateur_id = ? AND organisme = ?",
+            (cree["id"], organisme),
+        ):
+            raise Conflit("Ce compte a déjà un profil dans cet organisme.")
+        conn.execute(
+            "INSERT INTO acces_organisme (utilisateur_id, organisme, profil) VALUES (?, ?, ?)",
+            (cree["id"], organisme, valeurs["profil"]),
+        )
+    journal_log.info(
+        "Profil %s dans %s pour le compte %d.", valeurs["profil"], organisme, cree["id"]
+    )
+    return cree
+
+
+def set_profil(
+    conn: sqlite3.Connection, compte: Utilisateur, organisme: str, utilisateur_id: int, profil: str
+) -> None:
+    exiger_gestion(conn, compte, organisme)
+    _check_profil(profil)
+    with db.transaction(conn):
+        modifie = conn.execute(
+            "UPDATE acces_organisme SET profil = ? WHERE utilisateur_id = ? AND organisme = ?",
+            (profil, utilisateur_id, organisme),
+        ).rowcount
+    if not modifie:
+        raise Introuvable(f"Membre {utilisateur_id} introuvable dans cet organisme.")
+
+
+def retirer_membre(
+    conn: sqlite3.Connection, compte: Utilisateur, organisme: str, utilisateur_id: int
+) -> None:
+    exiger_gestion(conn, compte, organisme)
+    with db.transaction(conn):
+        retire = conn.execute(
+            "DELETE FROM acces_organisme WHERE utilisateur_id = ? AND organisme = ?",
+            (utilisateur_id, organisme),
+        ).rowcount
+    if not retire:
+        raise Introuvable(f"Membre {utilisateur_id} introuvable dans cet organisme.")
+
+
+def list_candidats(conn: sqlite3.Connection, dossier: str) -> list[dict]:
+    """Responsables achats possibles : les membres des projets du dossier."""
+    return db.fetch_all(
+        conn,
+        "SELECT DISTINCT u.id, u.nom FROM utilisateur u"
+        " JOIN acces a ON a.utilisateur_id = u.id"
+        " JOIN projet p ON p.code = a.projet AND p.archive = 0"
+        " WHERE p.dossier = ? AND u.actif = 1 ORDER BY u.nom",
+        (dossier,),
+    )
+
+
+def add_responsable(
+    conn: sqlite3.Connection, compte: Utilisateur, code: str, utilisateur_id: int
+) -> None:
+    dossier = get_dossier(conn, code)
+    exiger_gestion(conn, compte, dossier["organisme"])
+    if utilisateur_id not in {c["id"] for c in list_candidats(conn, code)}:
+        raise ErreurMetier(
+            "Le responsable achats se choisit parmi les membres des projets du dossier."
+        )
+    with db.transaction(conn):
+        conn.execute(
+            "INSERT OR IGNORE INTO acces_dossier (utilisateur_id, dossier, role) VALUES (?, ?, ?)",
+            (utilisateur_id, code, RESPONSABLE_ACHATS),
+        )
+
+
+def retirer_responsable(
+    conn: sqlite3.Connection, compte: Utilisateur, code: str, utilisateur_id: int
+) -> None:
+    dossier = get_dossier(conn, code)
+    exiger_gestion(conn, compte, dossier["organisme"])
+    with db.transaction(conn):
+        retire = conn.execute(
+            "DELETE FROM acces_dossier WHERE utilisateur_id = ? AND dossier = ?",
+            (utilisateur_id, code),
+        ).rowcount
+    if not retire:
+        raise Introuvable(f"Responsable {utilisateur_id} introuvable dans ce dossier.")
+
+
+# --- Projets ------------------------------------------------------------------------------------
+
+
+def create_projet(
+    conn: sqlite3.Connection,
+    compte: Utilisateur,
+    code_dossier: str,
+    valeurs: dict[str, Any],
+    dossiers: tuple[Path, Path],
+) -> tuple[EmplacementsProjet, dict | None]:
+    """Crée un projet dans un dossier ; invite au besoin son administrateur.
+
+    `dossiers` : dossier des données et dossier d'échange de l'instance. Le nom du projet
+    vient du dossier, le préfixe de la saisie ; tous deux sont figés ici pour le projet.
+    """
+    dossier = get_dossier(conn, code_dossier)
+    exiger_gestion(conn, compte, dossier["organisme"])
+    code = check_code(valeurs["code"], "de projet")
+    reglages = {"prefixe_id": valeurs["prefixe_id"]}
+    if dossier["nom_projet"]:
+        reglages["nom_projet"] = dossier["nom_projet"]
+    emp = projets.creer_projet(
+        conn,
+        *dossiers,
+        {
+            "code": code,
+            "dossier": code_dossier,
+            "nom_equipe": _nom(valeurs["nom_equipe"], "d'équipe"),
+        },
+        reglages,
+    )
+    invitation = None
+    if valeurs.get("admin_identifiant"):
+        invitation = comptes.create_utilisateur(
+            conn,
+            code,
+            {
+                "identifiant": valeurs["admin_identifiant"],
+                "nom": valeurs.get("admin_nom") or valeurs["admin_identifiant"].split("@")[0],
+                "role": ADMINISTRATEUR,
+            },
+            compte.nom,
+        )
+    return emp, invitation

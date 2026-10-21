@@ -7,6 +7,9 @@ adresses habituelles en /api/, et le projet est posé dans `request.state.projet
 Un code mal formé ou inconnu est refusé ici, sans qu'aucune base soit ouverte : le code
 d'adresse n'est jamais un chemin de fichier. Une adresse sans préfixe porte le projet de
 l'instance, ce qui garde valables les onglets ouverts et le contrôle de santé.
+
+Les pages communes, `/` (accueil), `/d/<code>/` (dossier) et `/o/<code>/` (organisme), sont
+une seule page, `accueil.html`, qui lit son adresse ; leur existence est vérifiée par l'API.
 """
 
 import json
@@ -19,6 +22,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 MOTIF_CODE = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 
 PREFIXE = "/p/"
+PREFIXES_COMMUNS: tuple[str, ...] = ("/d/", "/o/")
+PAGE_ACCUEIL = "/accueil.html"
 
 
 def code_valide(code: str) -> bool:
@@ -44,8 +49,11 @@ class AiguillageProjet:
             await self.app(scope, receive, send)
             return
         chemin: str = scope["path"]
-        if chemin in ("/", "/index.html"):
-            await _redirection(send, f"{PREFIXE}{self.defaut}/")
+        if chemin == "/index.html":
+            await _redirection(send, "/")
+            return
+        if chemin == "/" or chemin.startswith(PREFIXES_COMMUNS):
+            await self._page_commune(scope, receive, send, chemin)
             return
         if chemin != "/p" and not chemin.startswith(PREFIXE):
             await self.app(_avec_projet(scope, chemin, self.defaut), receive, send)
@@ -58,6 +66,18 @@ class AiguillageProjet:
             await _redirection(send, f"{PREFIXE}{code}/")
             return
         await self.app(_avec_projet(scope, "/" + reste, code), receive, send)
+
+    async def _page_commune(self, scope: Scope, receive: Receive, send: Send, chemin: str) -> None:
+        """Accueil, dossier ou organisme : la même page, servie pour un code bien formé."""
+        if chemin != "/":
+            code, barre, reste = chemin[len(PREFIXE) :].partition("/")
+            if not code_valide(code) or reste:
+                await _introuvable(send, "Adresse introuvable.")
+                return
+            if not barre:
+                await _redirection(send, f"{chemin}/")
+                return
+        await self.app(_avec_projet(scope, PAGE_ACCUEIL, self.defaut), receive, send)
 
 
 def _avec_projet(scope: Scope, chemin: str, code: str) -> Scope:
@@ -85,8 +105,8 @@ async def _redirection(send: Send, adresse: str) -> None:
     await send({"type": "http.response.body", "body": b""})
 
 
-async def _introuvable(send: Send) -> None:
-    corps = json.dumps({"erreur": "Projet introuvable."}, ensure_ascii=False).encode()
+async def _introuvable(send: Send, message: str = "Projet introuvable.") -> None:
+    corps = json.dumps({"erreur": message}, ensure_ascii=False).encode()
     await send(
         {
             "type": "http.response.start",

@@ -23,6 +23,11 @@ export function utilisateur() {
   return courante?.utilisateur ?? null;
 }
 
+// Nom d'équipe du projet de la page, affiché après le nom du projet (« SPOC · Alpha »).
+export function nomEquipe() {
+  return courante?.nom_equipe ?? null;
+}
+
 export function modeLocal() {
   return Boolean(courante?.mode_local);
 }
@@ -51,5 +56,5 @@ export function aPermission(permission) {
 
 // Composants d'un bloc : modifiables par l'administrateur et les contributeurs de ce bloc.
 export function ecritBloc(bloc) {
-  return estAdmin() || (peutEcrire() && utilisateur().blocs.includes(bloc));
+  return estAdmin() || (peutEcrire() && (utilisateur().tous_blocs || utilisateur().blocs.includes(bloc)));
 }

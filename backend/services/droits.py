@@ -14,12 +14,16 @@ Les rôles :
   valeurs). Tout contributeur peut proposer un fournisseur, qui reste « à valider » ;
 - administrateur : tout, dont les paramètres, les budgets, les utilisateurs, le nettoyage,
   les sauvegardes et la validation des fournisseurs.
+
+Le rôle dans un projet est le plus fort du rôle direct (table `acces`) et du profil
+d'organisme du compte, quand le projet est rangé dans un dossier de cet organisme (PROFILS) ;
+l'administrateur du serveur est administrateur partout.
 """
 
 import logging
 import sqlite3
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
@@ -36,6 +40,17 @@ ENSEMBLES = "ensembles"
 ATTRIBUTS = "attributs"
 PERMISSIONS: tuple[str, ...] = (ACHATS, ENSEMBLES, ATTRIBUTS)
 
+GESTION = "gestion"
+LECTURE_ORGANISME = "lecture"
+ACHATS_STOCK = "achats_stock"
+# Profil d'organisme → (rôle, tous les blocs, permissions) dans chaque projet de l'organisme.
+PROFILS: dict[str, tuple[str, bool, frozenset[str]]] = {
+    GESTION: (ADMINISTRATEUR, False, frozenset()),
+    LECTURE_ORGANISME: (LECTEUR, False, frozenset()),
+    ACHATS_STOCK: (CONTRIBUTEUR, True, frozenset({ACHATS})),
+}
+RESPONSABLE_ACHATS = "responsable_achats"
+
 
 class AccesRefuse(ErreurMetier):
     """L'utilisateur est connecté mais n'a pas le droit de faire cela."""
@@ -51,9 +66,10 @@ class NonConnecte(ErreurMetier):
 
 @dataclass(frozen=True)
 class Utilisateur:
-    """Utilisateur d'une requête, avec ses droits sur le projet de l'instance.
+    """Utilisateur d'une requête, avec ses droits sur le projet de la requête.
 
-    `role` vaut None si le compte n'a aucun accès à ce projet.
+    `role` vaut None si le compte n'a aucun accès à ce projet. `tous_blocs` : contributeur
+    de tous les blocs (profil d'organisme « achats et stock »).
     """
 
     id: int | None
@@ -63,6 +79,8 @@ class Utilisateur:
     blocs: frozenset[str] = field(default_factory=frozenset)
     permissions: frozenset[str] = field(default_factory=frozenset)
     local: bool = False
+    tous_blocs: bool = False
+    admin_serveur: bool = False
 
     @property
     def admin(self) -> bool:
@@ -75,7 +93,7 @@ class Utilisateur:
         return self.admin or (self.role == CONTRIBUTEUR and permission in self.permissions)
 
     def ecrit_bloc(self, bloc: str | None) -> bool:
-        return self.admin or (self.role == CONTRIBUTEUR and bloc in self.blocs)
+        return self.admin or (self.role == CONTRIBUTEUR and (self.tous_blocs or bloc in self.blocs))
 
     def description(self) -> dict:
         """Ce que l'interface a besoin de savoir pour masquer ce qui est interdit."""
@@ -87,12 +105,38 @@ class Utilisateur:
             "blocs": sorted(self.blocs),
             "permissions": sorted(self.permissions),
             "local": self.local,
+            "tous_blocs": self.tous_blocs,
+            "admin_serveur": self.admin_serveur,
         }
 
 
 UTILISATEUR_LOCAL = Utilisateur(
-    id=None, identifiant="local", nom="local", role=ADMINISTRATEUR, local=True
+    id=None,
+    identifiant="local",
+    nom="local",
+    role=ADMINISTRATEUR,
+    local=True,
+    admin_serveur=True,
 )
+
+
+def combiner(direct: Utilisateur, profil: str | None, admin_serveur: bool) -> Utilisateur:
+    """Rôle effectif : le plus fort du rôle direct et du profil d'organisme ; union du reste."""
+    if admin_serveur:
+        role, tous, permissions = ADMINISTRATEUR, False, frozenset[str]()
+    elif profil is not None:
+        role, tous, permissions = PROFILS[profil]
+    else:
+        return direct
+    if direct.role is not None and ROLES.index(direct.role) > ROLES.index(role):
+        role = direct.role
+    return replace(
+        direct,
+        role=role,
+        tous_blocs=direct.tous_blocs or tous,
+        permissions=direct.permissions | permissions,
+        admin_serveur=admin_serveur,
+    )
 
 
 # --- Vérifications ------------------------------------------------------------------------------
@@ -202,6 +246,8 @@ class Regle:
     """Condition d'accès d'une route.
 
     niveau : 'public' (sans connexion), 'session' (connecté, même sans accès au projet),
+    'commun' (connecté, hors de tout projet : la route contrôle l'organisme ou le dossier
+    visé),
     'lecture', 'ecriture' (contributeur ou administrateur, contrôle fin dans la route),
     'permission', 'composant', 'affectation', 'document' (contrôle sur le paramètre de
     chemin `parametre`) ou 'admin'.
@@ -214,6 +260,7 @@ class Regle:
 
 PUBLIC = Regle("public")
 SESSION = Regle("session")
+COMMUN = Regle("commun")
 LECTURE = Regle("lecture")
 ECRITURE = Regle("ecriture")
 ADMIN = Regle("admin")
@@ -230,8 +277,24 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("GET", "/api/session"): SESSION,
     ("POST", "/api/invitation/verifier"): PUBLIC,
     ("POST", "/api/invitation"): PUBLIC,
+    # Hiérarchie : accueil, organismes, dossiers, projets (contrôle fin dans le service)
+    ("GET", "/api/accueil"): COMMUN,
+    ("POST", "/api/organismes"): COMMUN,
+    ("GET", "/api/organismes/{code}"): COMMUN,
+    ("PATCH", "/api/organismes/{code}"): COMMUN,
+    ("POST", "/api/organismes/{code}/dossiers"): COMMUN,
+    ("POST", "/api/organismes/{code}/membres"): COMMUN,
+    ("PATCH", "/api/organismes/{code}/membres/{identifiant}"): COMMUN,
+    ("DELETE", "/api/organismes/{code}/membres/{identifiant}"): COMMUN,
+    ("GET", "/api/dossiers/{code}"): COMMUN,
+    ("PATCH", "/api/dossiers/{code}"): COMMUN,
+    ("POST", "/api/dossiers/{code}/projets"): COMMUN,
+    ("POST", "/api/dossiers/{code}/responsables"): COMMUN,
+    ("DELETE", "/api/dossiers/{code}/responsables/{identifiant}"): COMMUN,
+    ("PATCH", "/api/projets/{code}"): COMMUN,
     # Utilisateurs
     ("GET", "/api/utilisateurs"): ADMIN,
+    ("DELETE", "/api/utilisateurs/{identifiant}"): ADMIN,
     ("POST", "/api/utilisateurs"): ADMIN,
     ("PATCH", "/api/utilisateurs/{identifiant}"): ADMIN,
     ("POST", "/api/utilisateurs/{identifiant}/invitation"): ADMIN,
@@ -384,7 +447,7 @@ def verifier(
         return
     if utilisateur is None:
         raise NonConnecte()
-    if regle.niveau == "session":
+    if regle.niveau in ("session", "commun"):
         return
     if utilisateur.role is None:
         raise AccesRefuse("Votre compte n'a pas accès à ce projet.")

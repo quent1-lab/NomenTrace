@@ -16,6 +16,7 @@ from typing import Any
 from backend import config, db
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
 from backend.services import authentification as auth
+from backend.services import droits
 from backend.services.droits import ADMINISTRATEUR, PERMISSIONS, ROLES, Utilisateur
 
 journal_log = logging.getLogger(__name__)
@@ -42,7 +43,26 @@ def prepare_base(chemin: Path) -> int:
 
 
 def get_utilisateur(conn: sqlite3.Connection, utilisateur_id: int, projet: str) -> Utilisateur:
-    """Utilisateur avec ses droits sur le projet (rôle None s'il n'y a pas accès)."""
+    """Utilisateur avec ses droits effectifs sur le projet (rôle None s'il n'y a pas accès).
+
+    Droits effectifs : rôle direct, relevé par le profil d'organisme si le projet est rangé
+    dans un dossier de cet organisme, et par le rôle d'administrateur du serveur.
+    """
+    direct = get_droits_directs(conn, utilisateur_id, projet)
+    ligne = db.fetch_one(
+        conn,
+        "SELECT u.admin_serveur,"
+        " (SELECT ao.profil FROM projet p JOIN dossier d ON d.code = p.dossier"
+        "  JOIN acces_organisme ao ON ao.organisme = d.organisme AND ao.utilisateur_id = u.id"
+        "  WHERE p.code = ?) AS profil"
+        " FROM utilisateur u WHERE u.id = ?",
+        (projet, utilisateur_id),
+    )
+    return droits.combiner(direct, ligne["profil"], bool(ligne["admin_serveur"]))
+
+
+def get_droits_directs(conn: sqlite3.Connection, utilisateur_id: int, projet: str) -> Utilisateur:
+    """Droits accordés dans le projet lui-même : ce que l'écran Utilisateurs montre et règle."""
     ligne = db.fetch_one(
         conn,
         "SELECT u.id, u.identifiant, u.nom, a.role FROM utilisateur u"
@@ -82,9 +102,10 @@ def list_utilisateurs(conn: sqlite3.Connection, projet: str) -> list[dict]:
         (auth.horodatage(auth.maintenant()), projet),
     )
     for ligne in lignes:
-        droits = get_utilisateur(conn, ligne["id"], projet)
-        ligne["blocs"] = sorted(droits.blocs)
-        ligne["permissions"] = sorted(droits.permissions)
+        directs = get_droits_directs(conn, ligne["id"], projet)
+        ligne["blocs"] = sorted(directs.blocs)
+        ligne["permissions"] = sorted(directs.permissions)
+        ligne["droits_ailleurs"] = droits_ailleurs(conn, ligne["id"], projet)
         ligne["actif"] = bool(ligne["actif"])
         ligne["a_mot_de_passe"] = bool(ligne["a_mot_de_passe"])
     return lignes
@@ -97,6 +118,45 @@ def count_admins(conn: sqlite3.Connection, projet: str) -> int:
         (projet, ADMINISTRATEUR),
     ).fetchone()
     return int(ligne[0])
+
+
+def droits_ailleurs(conn: sqlite3.Connection, utilisateur_id: int, projet: str) -> bool:
+    """Le compte a des droits hors de ce projet : autre projet, dossier, organisme, serveur.
+
+    Son identité (mot de passe, activation) ne se règle alors plus depuis un seul projet.
+    """
+    ligne = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM acces WHERE utilisateur_id = ? AND projet <> ?)"
+        " OR EXISTS (SELECT 1 FROM acces_dossier WHERE utilisateur_id = ?)"
+        " OR EXISTS (SELECT 1 FROM acces_organisme WHERE utilisateur_id = ?)"
+        " OR EXISTS (SELECT 1 FROM utilisateur WHERE id = ? AND admin_serveur = 1)",
+        (utilisateur_id, projet, utilisateur_id, utilisateur_id, utilisateur_id),
+    ).fetchone()
+    return bool(ligne[0])
+
+
+def a_un_acces(conn: sqlite3.Connection, utilisateur_id: int) -> bool:
+    """Le compte a au moins un accès : projet, dossier, organisme ou serveur."""
+    return droits_ailleurs(conn, utilisateur_id, "") or bool(
+        conn.execute("SELECT 1 FROM acces WHERE utilisateur_id = ?", (utilisateur_id,)).fetchone()
+    )
+
+
+def _exiger_identite_reglable(
+    conn: sqlite3.Connection, moi: Utilisateur | None, utilisateur_id: int, projet: str
+) -> None:
+    """Un administrateur de projet ne touche pas à l'identité d'un compte partagé.
+
+    Sans `moi` (ligne de commande, secours), aucune restriction.
+    """
+    if moi is None or moi.admin_serveur or moi.local:
+        return
+    if droits_ailleurs(conn, utilisateur_id, projet):
+        raise droits.AccesRefuse(
+            "Ce compte a aussi des droits hors de ce projet : son mot de passe et son activation"
+            " se règlent par l'administrateur du serveur. Ici, seul son rôle dans le projet se"
+            " règle, ou son retrait du projet."
+        )
 
 
 # --- Écriture -----------------------------------------------------------------------------------
@@ -160,11 +220,20 @@ def _existants(
 def create_utilisateur(
     conn: sqlite3.Connection, projet: str, valeurs: dict[str, Any], par: str | None
 ) -> dict:
-    """Crée un compte avec son accès au projet ; renvoie le compte et son invitation."""
+    """Crée un compte avec son accès au projet ; renvoie le compte et son invitation.
+
+    Un compte qui existe déjà (autre projet, dossier, organisme) reçoit seulement l'accès au
+    projet, sans nouvelle invitation : son mot de passe ne change pas.
+    """
     identifiant = valeurs["identifiant"].strip().lower()
     nom = valeurs["nom"].strip()
     _check_identite(identifiant, nom)
     _check_droits(valeurs.get("role"), valeurs.get("permissions"))
+    existant = db.fetch_one(
+        conn, "SELECT id FROM utilisateur WHERE identifiant = ?", (identifiant,)
+    )
+    if existant is not None:
+        return _ajouter_acces(conn, projet, existant["id"], valeurs, par)
     with db.transaction(conn):
         _existants(conn, identifiant, nom)
         utilisateur_id = db.insert_row(
@@ -179,13 +248,47 @@ def create_utilisateur(
     }
 
 
+def _ajouter_acces(
+    conn: sqlite3.Connection,
+    projet: str,
+    utilisateur_id: int,
+    valeurs: dict[str, Any],
+    par: str | None,
+) -> dict:
+    """Donne à un compte existant un accès au projet, sans toucher à son identité."""
+    with db.transaction(conn):
+        if db.fetch_one(
+            conn,
+            "SELECT 1 FROM acces WHERE utilisateur_id = ? AND projet = ?",
+            (utilisateur_id, projet),
+        ):
+            raise Conflit(f"« {valeurs['identifiant']} » a déjà accès à ce projet.")
+        _set_droits(conn, utilisateur_id, projet, valeurs)
+    journal_log.info("Compte %d ajouté au projet %s par %s.", utilisateur_id, projet, par)
+    return {
+        "utilisateur": get_droits_directs(conn, utilisateur_id, projet).description(),
+        "existant": True,
+    }
+
+
+def _identite_changee(ligne: dict, nom: str | None, actif: bool | None) -> bool:
+    return (nom is not None and nom != ligne["nom"]) or (
+        actif is not None and int(actif) != ligne["actif"]
+    )
+
+
 def patch_utilisateur(
-    conn: sqlite3.Connection, projet: str, utilisateur_id: int, modifs: dict[str, Any]
+    conn: sqlite3.Connection,
+    projet: str,
+    utilisateur_id: int,
+    modifs: dict[str, Any],
+    moi: Utilisateur | None = None,
 ) -> dict:
     """Modifie nom, rôle, blocs, permissions ou état actif.
 
     Le dernier administrateur actif du projet ne peut être ni rétrogradé ni désactivé :
-    sans lui, plus personne ne pourrait gérer les comptes depuis l'interface.
+    sans lui, plus personne ne pourrait gérer les comptes depuis l'interface. Le nom et
+    l'activation d'un compte qui a des droits ailleurs ne se règlent pas depuis un projet.
     """
     nom = modifs.get("nom").strip() if modifs.get("nom") else None
     _check_identite(None, nom)
@@ -193,11 +296,14 @@ def patch_utilisateur(
     with db.transaction(conn):
         actuel = db.fetch_one(
             conn,
-            "SELECT 1 FROM acces WHERE utilisateur_id = ? AND projet = ?",
+            "SELECT u.nom, u.actif FROM acces a JOIN utilisateur u ON u.id = a.utilisateur_id"
+            " WHERE a.utilisateur_id = ? AND a.projet = ?",
             (utilisateur_id, projet),
         )
         if actuel is None:
             raise Introuvable(f"Utilisateur {utilisateur_id} introuvable.")
+        if _identite_changee(actuel, nom, modifs.get("actif")):
+            _exiger_identite_reglable(conn, moi, utilisateur_id, projet)
         _existants(conn, None, nom, utilisateur_id)
         if nom:
             conn.execute("UPDATE utilisateur SET nom = ? WHERE id = ?", (nom, utilisateur_id))
@@ -219,7 +325,24 @@ def patch_utilisateur(
                 " administrateur."
             )
     journal_log.info("Compte %d modifié : %s.", utilisateur_id, sorted(modifs))
-    return get_utilisateur(conn, utilisateur_id, projet).description()
+    return get_droits_directs(conn, utilisateur_id, projet).description()
+
+
+def retirer_acces(conn: sqlite3.Connection, projet: str, utilisateur_id: int) -> None:
+    """Retire un compte du projet (rôle, blocs, permissions) ; le compte lui-même reste."""
+    with db.transaction(conn):
+        retire = conn.execute(
+            "DELETE FROM acces WHERE utilisateur_id = ? AND projet = ?",
+            (utilisateur_id, projet),
+        ).rowcount
+        if not retire:
+            raise Introuvable(f"Utilisateur {utilisateur_id} introuvable.")
+        if count_admins(conn, projet) == 0:
+            raise Conflit(
+                "Il doit rester au moins un administrateur actif : désigner d'abord un autre"
+                " administrateur."
+            )
+    journal_log.info("Compte %d retiré du projet %s.", utilisateur_id, projet)
 
 
 # --- Invitations --------------------------------------------------------------------------------
@@ -242,7 +365,11 @@ def _nouvelle_invitation(conn: sqlite3.Connection, utilisateur_id: int, par: str
 
 
 def renew_invitation(
-    conn: sqlite3.Connection, projet: str, utilisateur_id: int, par: str | None
+    conn: sqlite3.Connection,
+    projet: str,
+    utilisateur_id: int,
+    par: str | None,
+    moi: Utilisateur | None = None,
 ) -> dict:
     """Nouveau lien : l'ancien mot de passe est effacé et les sessions sont fermées."""
     with db.transaction(conn):
@@ -252,6 +379,7 @@ def renew_invitation(
             (utilisateur_id, projet),
         ):
             raise Introuvable(f"Utilisateur {utilisateur_id} introuvable.")
+        _exiger_identite_reglable(conn, moi, utilisateur_id, projet)
         conn.execute("DELETE FROM identite WHERE utilisateur_id = ?", (utilisateur_id,))
         auth.close_sessions(conn, utilisateur_id)
         invitation = _nouvelle_invitation(conn, utilisateur_id, par)
@@ -328,3 +456,78 @@ def ensure_admin(conn: sqlite3.Connection, projet: str, identifiant: str, nom: s
         "utilisateur": get_utilisateur(conn, existant["id"], projet).description(),
         **invitation,
     }
+
+
+def ensure_admin_serveur(conn: sqlite3.Connection, identifiant: str, nom: str) -> dict:
+    """Nomme un administrateur du serveur, créé au besoin ; renvoie un lien s'il en faut un.
+
+    Un compte qui a déjà un mot de passe le garde : le rôle s'ajoute sans nouveau lien.
+    """
+    identifiant = identifiant.strip().lower()
+    _check_identite(identifiant, nom)
+    with db.transaction(conn):
+        existant = db.fetch_one(
+            conn, "SELECT id FROM utilisateur WHERE identifiant = ?", (identifiant,)
+        )
+        if existant is None:
+            _existants(conn, identifiant, nom)
+            utilisateur_id = db.insert_row(
+                conn, "utilisateur", {"identifiant": identifiant, "nom": nom.strip()}
+            )
+        else:
+            utilisateur_id = existant["id"]
+        conn.execute(
+            "UPDATE utilisateur SET admin_serveur = 1, actif = 1 WHERE id = ?", (utilisateur_id,)
+        )
+        a_mot_de_passe = db.fetch_one(
+            conn, "SELECT 1 FROM identite WHERE utilisateur_id = ?", (utilisateur_id,)
+        )
+        invitation = (
+            {}
+            if a_mot_de_passe
+            else _nouvelle_invitation(conn, utilisateur_id, "ligne de commande")
+        )
+    journal_log.warning("Compte %s nommé administrateur du serveur.", identifiant)
+    return {"identifiant": identifiant, **invitation}
+
+
+def get_compte(conn: sqlite3.Connection, utilisateur_id: int) -> Utilisateur:
+    """Compte sans projet (accueil, organismes, dossiers) : identité et rôle de serveur."""
+    ligne = db.fetch_one(
+        conn,
+        "SELECT id, identifiant, nom, admin_serveur FROM utilisateur WHERE id = ?",
+        (utilisateur_id,),
+    )
+    if ligne is None:
+        raise Introuvable(f"Utilisateur {utilisateur_id} introuvable.")
+    return Utilisateur(
+        id=ligne["id"],
+        identifiant=ligne["identifiant"],
+        nom=ligne["nom"],
+        role=None,
+        admin_serveur=bool(ligne["admin_serveur"]),
+    )
+
+
+def create_compte(conn: sqlite3.Connection, identifiant: str, nom: str, par: str | None) -> dict:
+    """Trouve un compte par son adresse, ou le crée avec son lien d'invitation.
+
+    Sert aux niveaux au-dessus du projet (organisme, création de projet) : un compte qui
+    existe déjà garde son mot de passe, aucun lien n'est produit.
+    """
+    identifiant = identifiant.strip().lower()
+    nom = nom.strip()
+    _check_identite(identifiant, nom)
+    with db.transaction(conn):
+        existant = db.fetch_one(
+            conn, "SELECT id FROM utilisateur WHERE identifiant = ?", (identifiant,)
+        )
+        if existant is not None:
+            return {"id": existant["id"], "identifiant": identifiant, "existant": True}
+        _existants(conn, identifiant, nom)
+        utilisateur_id = db.insert_row(
+            conn, "utilisateur", {"identifiant": identifiant, "nom": nom}
+        )
+        invitation = _nouvelle_invitation(conn, utilisateur_id, par)
+    journal_log.info("Compte %s créé par %s.", identifiant, par)
+    return {"id": utilisateur_id, "identifiant": identifiant, "existant": False, **invitation}

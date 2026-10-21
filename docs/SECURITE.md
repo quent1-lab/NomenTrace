@@ -25,6 +25,14 @@ strict et à la liste des projets connus avant toute autre chose ; refusé, il r
 aucun fichier n'est ouvert ni créé. Chaque projet a sa propre base : une requête n'atteint
 que celle du projet de son adresse, ouverte sans jamais pouvoir la créer.
 
+Un profil d'organisme ne vaut que dans les projets rangés dans un dossier de cet
+organisme ; les routes des organismes et des dossiers vérifient le périmètre du compte sur
+le code visé, et un test les appelle toutes avec le code d'un autre organisme. Un
+responsable achats voit le résumé des projets de son dossier, jamais leur détail. Un
+administrateur de projet ne peut ni effacer le mot de passe, ni désactiver, ni renommer un
+compte qui a des droits hors de son projet : il ne règle que son rôle dans le projet, ce
+qui l'empêche de prendre la main sur un compte d'organisme ou de serveur.
+
 Le mode local, sans compte, n'accepte que les requêtes émises depuis le poste et adressées
 à `127.0.0.1` ou `localhost`.
 

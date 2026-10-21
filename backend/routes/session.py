@@ -1,4 +1,9 @@
-"""Routes de connexion, de déconnexion et d'invitation."""
+"""Routes de connexion, de déconnexion et d'invitation.
+
+La connexion est commune à tous les projets : elle n'ouvre aucune base de projet et répond
+même si le projet de l'instance est hors ligne. Seule la lecture de la session (droits dans
+le projet de la page) passe par la base du projet.
+"""
 
 import sqlite3
 from typing import Annotated
@@ -8,9 +13,10 @@ from fastapi import APIRouter, Depends, Request, Response
 from backend.deps import COOKIE_SESSION, Connecte, get_conn, get_conn_comptes, get_projet
 from backend.erreurs import ErreurMetier
 from backend.models import Connexion, InvitationAcceptation, InvitationVerification
-from backend.services import authentification, comptes, parametres
+from backend.services import authentification, comptes, parametres, projets
 
 router = APIRouter(prefix="/api", tags=["session"])
+router_projet = APIRouter(prefix="/api", tags=["session"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 ConnComptes = Annotated[sqlite3.Connection, Depends(get_conn_comptes)]
 
@@ -22,10 +28,10 @@ def _adresse(request: Request) -> str:
 def _ouvrir(
     request: Request, reponse: Response, conn: sqlite3.Connection, utilisateur_id: int
 ) -> dict:
-    """Ouvre la session si le compte a accès au projet, et pose le cookie."""
+    """Ouvre la session si le compte a au moins un accès, et pose le cookie."""
+    if not comptes.a_un_acces(conn, utilisateur_id):
+        raise ErreurMetier("Votre compte n'a accès à aucun projet.", 403)
     utilisateur = comptes.get_utilisateur(conn, utilisateur_id, get_projet(request))
-    if utilisateur.role is None:
-        raise ErreurMetier("Votre compte n'a pas accès à ce projet.", 403)
     precedente = request.cookies.get(COOKIE_SESSION)
     if precedente:
         # Une nouvelle connexion remplace la session que ce navigateur avait peut-être.
@@ -60,12 +66,15 @@ def create_session(
         return _ouvrir(request, reponse, conn, utilisateur_id)
 
 
-@router.get("/session")
-def read_session(request: Request, utilisateur: Connecte, conn: Conn) -> dict:
+@router_projet.get("/session")
+def read_session(
+    request: Request, utilisateur: Connecte, conn: Conn, conn_comptes: ConnComptes
+) -> dict:
     nom_projet = parametres.get_parametre(conn, "nom_projet") if utilisateur.role else None
     return {
         "utilisateur": utilisateur.description(),
         "nom_projet": nom_projet,
+        "nom_equipe": projets.get_nom_equipe(conn_comptes, get_projet(request)),
         "mode_local": request.app.state.mode_local,
     }
 
