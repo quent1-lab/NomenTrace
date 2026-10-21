@@ -1,6 +1,6 @@
 """Hiérarchie organisme › dossier › projet, droits hérités, accueil, création de projet (15b-1).
 
-Deux organismes : « meca » (dossier « spoc », où est rangé le projet du jeu d'essai) et
+Deux organismes : « meca » (dossier « epreuve », où est rangé le projet du jeu d'essai) et
 « autre » (dossier « autre-dossier »). Chaque test vérifie qu'un droit ne déborde jamais
 sur un autre organisme ni sur un projet hors dossier.
 """
@@ -92,8 +92,8 @@ def creer_organisme(app: FastAPI, code: str, nom: str) -> None:
 def _structure(app: FastAPI) -> None:
     creer_organisme(app, "meca", "Mécatronique")
     creer_organisme(app, "autre", "Autre école")
-    creer_dossier(app, "meca", {"code": "spoc", "nom": "SPOC 2027", "nom_projet": "SPOC"})
-    ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
+    creer_dossier(app, "meca", {"code": "epreuve", "nom": "Épreuve 2027", "nom_projet": "Épreuve"})
+    ranger(app, PROJET, {"dossier": "epreuve", "nom_equipe": "Alpha"})
     creer_dossier(app, "autre", {"code": "autre-dossier", "nom": "Autre"})
 
 
@@ -124,7 +124,7 @@ def serveur(app: FastAPI) -> TestClient:
     return connecter(app, "serveur@ecole.test")
 
 
-def creer_projet(client: TestClient, code: str = "beta", dossier: str = "spoc") -> dict:
+def creer_projet(client: TestClient, code: str = "beta", dossier: str = "epreuve") -> dict:
     corps = {"code": code, "nom_equipe": code.capitalize(), "prefixe_id": "BET"}
     reponse = client.post(f"/api/dossiers/{dossier}/projets", json=corps)
     assert reponse.status_code == 201, reponse.text
@@ -262,7 +262,7 @@ def test_accueil_membre_d_un_seul_projet(app: FastAPI) -> None:
 
 def test_accueil_selon_le_role(app: FastAPI) -> None:
     administrateur = serveur(app)
-    creer_projet(administrateur, "beta", "spoc")
+    creer_projet(administrateur, "beta", "epreuve")
     creer_projet(administrateur, "gamma", "autre-dossier")
     membre_organisme(app, "lecture@ecole.test", "meca", "lecture")
     accueil = connecter(app, "lecture@ecole.test").get("/api/accueil").json()
@@ -275,11 +275,11 @@ def test_accueil_selon_le_role(app: FastAPI) -> None:
 
 def test_accueil_du_responsable_achats(app: FastAPI) -> None:
     administrateur = serveur(app)
-    creer_projet(administrateur, "beta", "spoc")
+    creer_projet(administrateur, "beta", "epreuve")
     id_ = creer_compte(app, "resp@ecole.test", "contributeur", blocs=("IHM",))
     assert (
         administrateur.post(
-            "/api/dossiers/spoc/responsables", json={"utilisateur_id": id_}
+            "/api/dossiers/epreuve/responsables", json={"utilisateur_id": id_}
         ).status_code
         == 201
     )
@@ -294,7 +294,7 @@ def test_accueil_du_responsable_achats(app: FastAPI) -> None:
     assert cartes["beta"]["resume"] is not None
     # 4. Le résumé ne donne aucun accès au détail.
     assert client.get("/p/beta/api/composants").status_code == 403
-    assert client.get("/api/dossiers/spoc").status_code == 200
+    assert client.get("/api/dossiers/epreuve").status_code == 200
 
 
 def test_accueil_projet_hors_ligne_marque(app: FastAPI) -> None:
@@ -349,7 +349,7 @@ def test_creation_refusee_sans_trace(
     (dossier_data / "projets" / "deja").mkdir(parents=True)
     avant = _contenu(dossier_data)
     corps = {"code": code, "nom_equipe": "X", "prefixe_id": "X"}
-    reponse = administrateur.post("/api/dossiers/spoc/projets", json=corps)
+    reponse = administrateur.post("/api/dossiers/epreuve/projets", json=corps)
     assert reponse.status_code == statut
     assert _contenu(dossier_data) == avant
 
@@ -358,7 +358,7 @@ def test_creation_reservee_a_la_gestion(app: FastAPI) -> None:
     membre_organisme(app, "lecture@ecole.test", "meca", "lecture")
     client = connecter(app, "lecture@ecole.test")
     corps = {"code": "beta", "nom_equipe": "Beta", "prefixe_id": "BET"}
-    assert client.post("/api/dossiers/spoc/projets", json=corps).status_code == 403
+    assert client.post("/api/dossiers/epreuve/projets", json=corps).status_code == 403
 
 
 def test_creation_interrompue_ne_laisse_rien(
@@ -374,7 +374,7 @@ def test_creation_interrompue_ne_laisse_rien(
     monkeypatch.setattr(projets, "_inscrire_nouveau", panne)
     corps = {"code": "beta", "nom_equipe": "Beta", "prefixe_id": "BET"}
     with pytest.raises(sqlite3.OperationalError):
-        administrateur.post("/api/dossiers/spoc/projets", json=corps)
+        administrateur.post("/api/dossiers/epreuve/projets", json=corps)
     for reste in (
         dossier_data / "projets" / "beta",
         dossier_data / "projets" / ".creation-beta",
@@ -391,7 +391,7 @@ def test_creations_simultanees_du_meme_code(app: FastAPI) -> None:
     statuts: list[int] = []
 
     def creer() -> None:
-        statuts.append(administrateur.post("/api/dossiers/spoc/projets", json=corps).status_code)
+        statuts.append(administrateur.post("/api/dossiers/epreuve/projets", json=corps).status_code)
 
     fils = [threading.Thread(target=creer) for _ in range(2)]
     for fil in fils:
@@ -411,7 +411,7 @@ def test_creation_avec_un_administrateur_existant(app: FastAPI) -> None:
         "prefixe_id": "BET",
         "admin_identifiant": "chef@ecole.test",
     }
-    reponse = administrateur.post("/api/dossiers/spoc/projets", json=corps)
+    reponse = administrateur.post("/api/dossiers/epreuve/projets", json=corps)
     assert reponse.status_code == 201, reponse.text
     assert reponse.json()["invitation"]["existant"] is True
     chef = connecter(app, "chef@ecole.test")
@@ -577,7 +577,7 @@ def test_mode_local_multi_projet(client: TestClient) -> None:
         client.post("/api/organismes", json={"code": "meca", "nom": "Mécatronique"}).status_code
         == 201
     )
-    dossier = {"code": "spoc", "nom": "SPOC 2027", "nom_projet": "SPOC"}
+    dossier = {"code": "epreuve", "nom": "Épreuve 2027", "nom_projet": "Épreuve"}
     assert client.post("/api/organismes/meca/dossiers", json=dossier).status_code == 201
     creer_projet(client)
     accueil = client.get("/api/accueil").json()
@@ -590,11 +590,11 @@ def test_mode_local_multi_projet(client: TestClient) -> None:
 
 
 def test_pages_communes_servies(client: TestClient) -> None:
-    for adresse in ("/", "/d/spoc/", "/o/meca/"):
+    for adresse in ("/", "/d/epreuve/", "/o/meca/"):
         reponse = client.get(adresse, follow_redirects=False)
         assert reponse.status_code == 200, adresse
         assert "/js/accueil.js" in reponse.text
-    assert client.get("/d/spoc", follow_redirects=False).headers["location"] == "/d/spoc/"
+    assert client.get("/d/epreuve", follow_redirects=False).headers["location"] == "/d/epreuve/"
     for adresse in ("/d/Maj/", "/o/a.b/", "/d/x/y"):
         assert client.get(adresse, follow_redirects=False).status_code == 404, adresse
 
@@ -626,7 +626,7 @@ def test_restauration_garde_le_rangement_des_projets(
         }
     finally:
         conn.close()
-    assert lignes == {PROJET: ("spoc", "Alpha"), "beta": ("spoc", "Beta")}
+    assert lignes == {PROJET: ("epreuve", "Alpha"), "beta": ("epreuve", "Beta")}
 
 
 def test_resume_porte_le_cout_estime(app: FastAPI) -> None:

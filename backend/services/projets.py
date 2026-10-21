@@ -373,6 +373,6 @@ def mettre_en_ligne(
 
 
 def get_nom_equipe(conn_comptes: sqlite3.Connection, code: str) -> str | None:
-    """Nom d'équipe d'un projet, affiché après le nom du projet (« SPOC · Équipe »)."""
+    """Nom d'équipe d'un projet, affiché après le nom du projet (« Épreuve · Équipe »)."""
     ligne = conn_comptes.execute("SELECT nom_equipe FROM projet WHERE code = ?", (code,)).fetchone()
     return ligne["nom_equipe"] if ligne else None

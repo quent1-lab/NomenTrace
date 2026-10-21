@@ -25,7 +25,7 @@ export function utilisateur() {
   return courante?.utilisateur ?? null;
 }
 
-// Nom d'équipe du projet de la page, affiché après le nom du projet (« SPOC · Alpha »).
+// Nom d'équipe du projet de la page, affiché après le nom du projet (« Épreuve · Alpha »).
 export function nomEquipe() {
   return courante?.nom_equipe ?? null;
 }

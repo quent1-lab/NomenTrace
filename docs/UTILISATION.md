@@ -72,7 +72,7 @@ indique « Mode local » et tout est permis.
 La connexion est la même pour tous les projets du serveur. Celui qui n'a accès qu'à un
 projet arrive directement sur son tableau de bord. Les autres arrivent sur l'accueil, qui
 range leurs projets par organisme puis par dossier, en cartes : nom du projet et de
-l'équipe (« SPOC · Alpha »), accès, avancement de l'approvisionnement et montant engagé sur
+l'équipe (« Épreuve · Alpha »), accès, avancement de l'approvisionnement et montant engagé sur
 le budget ; tant que rien n'est engagé, la carte montre à la place le coût estimé des
 composants. Le bouton « Vos projets » de l'en-tête y ramène depuis n'importe quel projet.
 
@@ -505,7 +505,7 @@ phase d'essais. Une sauvegarde est prise avant, et une ligne trace la purge.
 ## Organismes, dossiers et projets
 
 Un serveur suit plusieurs projets, rangés sur trois niveaux : l'organisme (une école, un
-département), le dossier (une édition d'une épreuve, par exemple « SPOC 2027 ») et le
+département), le dossier (une édition d'une épreuve, par exemple « Épreuve 2027 ») et le
 projet (le robot d'une équipe). Organismes et dossiers se créent dans l'application : leur
 code d'adresse, choisi à la création, ne change plus ; leur nom, si.
 
@@ -519,7 +519,7 @@ Un profil ne remplace pas le rôle qu'on a déjà dans un projet : le plus fort 
 s'applique.
 
 La page d'un dossier présente ses projets en tableau, avec leur avancement, leur budget et
-leur engagé. « Nouveau projet » demande le nom d'équipe, le code d'adresse et le préfixe
+leur engagé (le coût estimé, marqué comme tel, tant que rien n'est engagé). « Nouveau projet » demande le nom d'équipe, le code d'adresse et le préfixe
 des identifiants (proposés à partir du nom d'équipe, figés ensuite) et, si l'on veut,
 l'adresse de l'administrateur du projet, qui reçoit un lien d'invitation. « Reprendre de »
 part d'un autre projet du dossier : le nouveau reçoit ses statuts d'appro et de choix et son

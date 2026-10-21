@@ -1,6 +1,6 @@
 """Fournisseurs communs à l'organisme (phase 15b-3).
 
-Le projet du jeu d'essai, rangé dans le dossier « spoc » de l'organisme « meca », donne la
+Le projet du jeu d'essai, rangé dans le dossier « epreuve » de l'organisme « meca », donne la
 liste de l'organisme. Les grandeurs suivies : les fiches de fournisseurs, champ par champ, et
 le nombre de composants cités par chaque fournisseur, qui ne doit jamais changer en silence.
 """
@@ -61,13 +61,13 @@ def app(
     )
     with navigateur(application):
         creer_organisme(application, "meca", "Mécatronique")
-        creer_dossier(application, "meca", {"code": "spoc", "nom": "SPOC 2027"})
+        creer_dossier(application, "meca", {"code": "epreuve", "nom": "Épreuve 2027"})
         yield application
 
 
 @pytest.fixture
 def range_(app: FastAPI) -> TestClient:
-    ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
+    ranger(app, PROJET, {"dossier": "epreuve", "nom_equipe": "Alpha"})
     return serveur(app)
 
 
@@ -102,7 +102,7 @@ def composant(client: TestClient, projet: str, fournisseur: str) -> str:
 
 def test_premier_rangement_donne_la_liste(app: FastAPI) -> None:
     avant = contenu(base(app, PROJET))
-    ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
+    ranger(app, PROJET, {"dossier": "epreuve", "nom_equipe": "Alpha"})
     assert contenu(base(app, PROJET)) == avant
     assert lire(app, ORG, FICHES) == lire(app, PROJET, FICHES)
     assert len(lire(app, ORG, FICHES)) >= 5
@@ -119,7 +119,7 @@ def test_second_projet_rejoint_la_liste(app: FastAPI, range_: TestClient) -> Non
     ecrire(app, "beta", "UPDATE fournisseur SET nom = 'MOUSER' WHERE nom = 'Mouser'")
     composant(range_, "beta", "MOUSER")
     essai_avant = lire(app, PROJET, FICHES)
-    ranger(app, "beta", {"dossier": "spoc"})
+    ranger(app, "beta", {"dossier": "epreuve"})
     # « Nouveau » rejoint la liste et descend dans le premier projet, qui ne change pas sinon.
     assert "Nouveau" in {f[0] for f in lire(app, ORG, FICHES)}
     essai = lire(app, PROJET, FICHES)
@@ -133,8 +133,8 @@ def test_second_projet_rejoint_la_liste(app: FastAPI, range_: TestClient) -> Non
 
 
 def test_modification_de_la_liste_propagee(app: FastAPI, range_: TestClient) -> None:
-    creer_dossier(app, "meca", {"code": "spoc-b", "nom": "Autre dossier"})
-    creer_projet(range_, "gamma", "spoc-b")
+    creer_dossier(app, "meca", {"code": "epreuve-b", "nom": "Autre dossier"})
+    creer_projet(range_, "gamma", "epreuve-b")
     creer_organisme(app, "autre", "Autre école")
     creer_dossier(app, "autre", {"code": "ailleurs", "nom": "Ailleurs"})
     creer_projet(range_, "delta", "ailleurs")
@@ -162,7 +162,7 @@ def test_renommage_suivi_par_les_composants(app: FastAPI, range_: TestClient) ->
     avant = nb_journal(app, PROJET)
     conn = _comptes(app)
     try:
-        reference.propager(conn, app.state.registre, "spoc")
+        reference.propager(conn, app.state.registre, "epreuve")
     finally:
         conn.close()
     assert nb_journal(app, PROJET) == avant
@@ -188,7 +188,7 @@ def test_chaine_de_renommages_rejouee(
     monkeypatch.setattr(propagation, "synchroniser", vraie)
     conn = _comptes(app)
     try:
-        reference.propager(conn, app.state.registre, "spoc")
+        reference.propager(conn, app.state.registre, "epreuve")
     finally:
         conn.close()
     assert lire(app, "beta", CITES) == [("TME C", 1)]
@@ -204,7 +204,7 @@ def test_recreation_sous_l_ancien_nom(app: FastAPI, range_: TestClient) -> None:
         == 200
     )
     assert range_.post(f"/p/{ORG}/api/fournisseurs", json={"nom": "Mouser"}).status_code == 201
-    ranger(app, "beta", {"dossier": "spoc"})
+    ranger(app, "beta", {"dossier": "epreuve"})
     assert lire(app, "beta", CITES) == [("Mouser", 1)]
 
 

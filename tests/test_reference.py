@@ -1,6 +1,6 @@
 """Réglages imposés par un dossier : référence, propagation, verrou (phase 15b-2).
 
-Le projet du jeu d'essai, rangé le premier dans le dossier « spoc », en donne la référence ;
+Le projet du jeu d'essai, rangé le premier dans le dossier « epreuve », en donne la référence ;
 un projet « beta » créé ensuite la reçoit. L'oracle est l'empreinte du contenu imposé
 (services/propagation.py), comparée table par table et champ par champ.
 """
@@ -27,7 +27,7 @@ from tests.test_hierarchie import (
     serveur,
 )
 
-REF = "ref-spoc"
+REF = "ref-epreuve"
 ORG = "org-meca"
 
 
@@ -55,7 +55,7 @@ def app(
     )
     with navigateur(application):
         creer_organisme(application, "meca", "Mécatronique")
-        creer_dossier(application, "meca", {"code": "spoc", "nom": "SPOC 2027"})
+        creer_dossier(application, "meca", {"code": "epreuve", "nom": "Épreuve 2027"})
         yield application
 
 
@@ -71,7 +71,7 @@ def empreinte(app: FastAPI, code: str) -> str:
 def nom_dossier(app: FastAPI) -> str | None:
     conn = _comptes(app)
     try:
-        return conn.execute("SELECT nom_projet FROM dossier WHERE code = 'spoc'").fetchone()[0]
+        return conn.execute("SELECT nom_projet FROM dossier WHERE code = 'epreuve'").fetchone()[0]
     finally:
         conn.close()
 
@@ -100,7 +100,7 @@ def nb_journal(app: FastAPI, code: str) -> int:
 @pytest.fixture
 def range_(app: FastAPI) -> TestClient:
     """Le projet d'essai rangé dans le dossier (il donne la référence), et un serveur connecté."""
-    ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
+    ranger(app, PROJET, {"dossier": "epreuve", "nom_equipe": "Alpha"})
     return serveur(app)
 
 
@@ -109,7 +109,7 @@ def range_(app: FastAPI) -> TestClient:
 
 def test_rangement_initial_donne_la_reference(app: FastAPI) -> None:
     avant = contenu(base(app, PROJET))
-    ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
+    ranger(app, PROJET, {"dossier": "epreuve", "nom_equipe": "Alpha"})
     assert contenu(base(app, PROJET)) == avant
     assert nom_dossier(app) == "Projet d'essai"
     assert empreinte(app, REF) == empreinte(app, PROJET)
@@ -170,7 +170,7 @@ def test_resynchronisation_sans_effet(app: FastAPI, range_: TestClient) -> None:
     avant = nb_journal(app, PROJET)
     conn = _comptes(app)
     try:
-        reference.propager(conn, app.state.registre, "spoc")
+        reference.propager(conn, app.state.registre, "epreuve")
     finally:
         conn.close()
     assert nb_journal(app, PROJET) == avant
@@ -238,7 +238,7 @@ def test_valeur_d_attribut_utilisee_garde_le_composant_modifiable(
         ).status_code
         == 200
     )
-    rapport = ranger(app, "beta", {"dossier": "spoc"})["propagation"]
+    rapport = ranger(app, "beta", {"dossier": "epreuve"})["propagation"]
     assert any("Inox" in s for s in rapport["signalements"])
     assert lire(app, "beta", "SELECT actif FROM attribut_valeur WHERE code = 'Inox'") == [(0,)]
     reponse = range_.put(
@@ -364,13 +364,13 @@ def test_propagation_interrompue_puis_reprise(
     assert range_.patch(f"/p/{REF}/api/blocs/ALI", json={"nom": "Alim."}).status_code == 200
     conn = _comptes(app)
     try:
-        etat = reference.etat_des_projets(conn, app.state.registre, "spoc")
+        etat = reference.etat_des_projets(conn, app.state.registre, "epreuve")
         assert etat == {PROJET: True, "beta": False}
         monkeypatch.setattr(propagation, "synchroniser", vraie)
         reference.reprendre(
             conn, app.state.registre, (app.state.dossier_data, app.state.dossier_echange)
         )
-        assert reference.etat_des_projets(conn, app.state.registre, "spoc") == {
+        assert reference.etat_des_projets(conn, app.state.registre, "epreuve") == {
             PROJET: True,
             "beta": True,
         }
@@ -379,7 +379,7 @@ def test_propagation_interrompue_puis_reprise(
     avant = nb_journal(app, "beta")
     conn = _comptes(app)
     try:
-        reference.propager(conn, app.state.registre, "spoc")
+        reference.propager(conn, app.state.registre, "epreuve")
     finally:
         conn.close()
     assert nb_journal(app, "beta") == avant
@@ -418,7 +418,7 @@ def test_reference_cachee_et_reservee(app: FastAPI, range_: TestClient) -> None:
     assert membre.get(f"/p/{REF}/api/blocs").status_code == 403
     assert range_.patch(f"/api/projets/{REF}", json={"dossier": None}).status_code == 403
     corps = {"code": "ref-x", "nom_equipe": "X", "prefixe_id": "X"}
-    assert range_.post("/api/dossiers/spoc/projets", json=corps).status_code == 400
+    assert range_.post("/api/dossiers/epreuve/projets", json=corps).status_code == 400
 
 
 # --- Conflits au rangement d'un second projet (point 4 du débat) -------------------------------
@@ -440,7 +440,7 @@ def test_rangement_refuse_sur_conflit_de_type(app: FastAPI, range_: TestClient) 
     finally:
         conn.close()
     avant = contenu(base(app, "beta"))
-    reponse = range_.patch("/api/projets/beta", json={"dossier": "spoc"})
+    reponse = range_.patch("/api/projets/beta", json={"dossier": "epreuve"})
     assert reponse.status_code == 409
     assert "tension" in reponse.json()["erreur"]
     assert contenu(base(app, "beta")) == avant
@@ -474,7 +474,7 @@ def test_projet_repris_d_un_modele(app: FastAPI, range_: TestClient) -> None:
     finally:
         conn.close()
     corps = {"code": "beta", "nom_equipe": "Beta", "prefixe_id": "BET", "modele": PROJET}
-    assert range_.post("/api/dossiers/spoc/projets", json=corps).status_code == 201
+    assert range_.post("/api/dossiers/epreuve/projets", json=corps).status_code == 201
     actifs = (
         "SELECT code, nom, ordre, parent_code, description FROM ensemble WHERE archive = 0"
         " ORDER BY code"
