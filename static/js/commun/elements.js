@@ -30,15 +30,18 @@ function barre(pourcent) {
 function resume(carte) {
   if (carte.hors_ligne) return el("p", { class: "texte-doux texte-petit" }, "Hors ligne : sa base n'a pas pu être préparée.");
   if (!carte.resume) return null;
-  const { avancement_appro_pct: pct, budget_ht: budget, montant_engage_ht: engage } = carte.resume;
+  const { avancement_appro_pct: pct, budget_ht: budget, montant_engage_ht: engage, cout_ht: cout } = carte.resume;
+  // Rien d'engagé encore : le coût estimé des composants dit mieux où en est le projet.
+  const estime = Math.abs(engage ?? 0) < 0.005 && Math.abs(cout ?? 0) >= 0.005;
+  const montant = estime ? cout : engage;
   return [
     el("div", { class: "carte__avancement-libelle" }, el("span", {}, "Approvisionnement"), el("span", {}, pct === null ? "—" : formatPourcent(pct, 0))),
     barre(pct),
     el(
       "div",
       { class: "carte__avancement-libelle" },
-      el("span", {}, "Engagé"),
-      el("span", {}, budget === null ? formatMontant(engage) : `${formatMontant(engage)} sur ${formatMontant(budget)}`),
+      el("span", {}, estime ? "Estimé" : "Engagé"),
+      el("span", {}, budget === null ? formatMontant(montant) : `${formatMontant(montant)} sur ${formatMontant(budget)}`),
     ),
   ];
 }

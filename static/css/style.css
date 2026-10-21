@@ -3335,8 +3335,32 @@ body:not(.peut-ensembles) .si-ensembles {
   gap: var(--espace-3);
 }
 
-.commun .titre-section a {
-  font-size: var(--taille-petit);
+.commun .formulaire-ligne .champ,
+.membre__actions .champ {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.membre {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.membre + .membre {
+  padding-top: var(--espace-2);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.membre__adresse {
+  overflow-wrap: anywhere;
+}
+
+.membre__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-top: var(--espace-1);
 }
 
 .commun__colonnes {

@@ -1,7 +1,7 @@
 // Éléments communs aux écrans fournisseurs : formulaire, contact, lien vers la fiche.
 
 import { api } from "../api.js";
-import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { estAdmin, reglagesImposes } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -167,6 +167,7 @@ export function ouvrirFormulaireFournisseur(fournisseur, { fournisseurs = [], su
       afficherErreur(erreur);
     }
   });
+  if (!creation) suivreModifications(formulaire);
   ouvrirPanneau(creation ? "Nouveau fournisseur" : `Modifier ${fournisseur.nom}`, formulaire);
   formulaire.elements.namedItem("nom").focus();
 }

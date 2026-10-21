@@ -3,7 +3,7 @@
 
 import { api } from "../api.js";
 import { formatMontant } from "../format.js";
-import { champChoix, champTexte } from "../formulaire.js";
+import { champChoix, champTexte, suivreModifications } from "../formulaire.js";
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -75,13 +75,13 @@ function panneauMembres(organisme, rafraichir) {
     profil.setAttribute("aria-label", `Profil de ${m.nom}`);
     profil.addEventListener("change", () => agir(() => api.patchMembreOrganisme(organisme.code, m.id, profil.value), rafraichir));
     const retirer = () => confirm(`Retirer le profil de ${m.nom} ?`) && agir(() => api.retirerMembreOrganisme(organisme.code, m.id), rafraichir);
+    // En liste plutôt qu'en tableau : la colonne de côté est trop étroite pour quatre colonnes.
     return el(
-      "tr",
-      {},
-      el("td", {}, m.nom),
-      el("td", { class: "texte-doux" }, m.identifiant),
-      el("td", {}, profil),
-      el("td", { class: "nombre" }, el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: retirer }, "Retirer")),
+      "li",
+      { class: "membre" },
+      el("span", {}, m.nom),
+      el("span", { class: "membre__adresse texte-doux texte-petit" }, m.identifiant),
+      el("span", { class: "membre__actions" }, profil, el("button", { type: "button", class: "bouton bouton--petit bouton--discret", onclick: retirer }, "Retirer")),
     );
   });
   return el(
@@ -94,7 +94,7 @@ function panneauMembres(organisme, rafraichir) {
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => inviter(organisme, rafraichir) }, "Inviter"),
     ),
     lignes.length
-      ? el("div", { class: "table-defilante" }, el("table", { class: "table" }, el("tbody", {}, lignes)))
+      ? el("ul", { class: "liste-simple" }, lignes)
       : el("p", { class: "texte-doux" }, "Aucun administrateur d'organisme."),
     el("p", { class: "texte-doux texte-petit" }, "Les membres d'un projet s'invitent depuis l'écran Utilisateurs de ce projet."),
   );
@@ -111,6 +111,7 @@ function panneauNom(organisme, rafraichir) {
     },
   );
   formulaire.querySelector(".bouton--discret").remove();
+  suivreModifications(formulaire);
   return el("section", { class: "panneau" }, el("h2", {}, "Organisme"), formulaire);
 }
 

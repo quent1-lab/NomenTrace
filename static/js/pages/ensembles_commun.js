@@ -2,7 +2,7 @@
 
 import { api } from "../api.js";
 import { formatMarge, formatMontant, formatNombre, formatPourcent, libelle, niveauMarge, situationBudget } from "../format.js";
-import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { aPermission, estAdmin } from "../session.js";
 import { afficherErreur, classeBloc, el, largeur, masquerErreur } from "../ui.js";
@@ -235,6 +235,7 @@ export async function ouvrirFormulaireEnsemble({ ensemble = null, ordreSuggere =
       afficherErreur(erreur);
     }
   });
+  if (!creation) suivreModifications(formulaire);
   ouvrirPanneau(creation ? "Nouvel ensemble" : `Modifier l'ensemble ${ensemble.code}`, formulaire);
   (creation ? code : formulaire.elements.namedItem("nom")).focus();
 }

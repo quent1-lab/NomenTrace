@@ -38,7 +38,9 @@ Les fiches et les formulaires s'ouvrent dans un panneau à droite, fermé par la
 par Échap. Dans les tableaux, une colonne soulignée se modifie sur place : un clic sur la
 cellule, la saisie, puis Entrée ou un clic ailleurs pour enregistrer, Échap pour annuler.
 Une erreur (valeur refusée, conflit) s'affiche dans un bandeau rouge sous l'en-tête, avec
-un message en français ; rien n'est enregistré dans ce cas.
+un message en français ; rien n'est enregistré dans ce cas. Dans un formulaire de
+modification, le bouton « Enregistrer » reste grisé tant qu'aucune valeur n'a changé, et le
+redevient si l'on revient aux valeurs de départ.
 
 Sur un téléphone, le menu devient un tiroir que le même bouton ouvre par-dessus la page ;
 il se referme dès qu'on choisit un écran. Les fiches occupent tout l'écran, chaque libellé
@@ -71,7 +73,8 @@ La connexion est la même pour tous les projets du serveur. Celui qui n'a accès
 projet arrive directement sur son tableau de bord. Les autres arrivent sur l'accueil, qui
 range leurs projets par organisme puis par dossier, en cartes : nom du projet et de
 l'équipe (« SPOC · Alpha »), accès, avancement de l'approvisionnement et montant engagé sur
-le budget. Le bouton « Vos projets » de l'en-tête y ramène depuis n'importe quel projet.
+le budget ; tant que rien n'est engagé, la carte montre à la place le coût estimé des
+composants. Le bouton « Vos projets » de l'en-tête y ramène depuis n'importe quel projet.
 
 Trois rôles se partagent le travail. Le lecteur consulte tout et télécharge les exports
 Excel, sans rien modifier. Le contributeur modifie les composants des blocs

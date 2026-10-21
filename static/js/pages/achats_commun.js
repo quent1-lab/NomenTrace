@@ -1,7 +1,7 @@
 // Formulaire de commande (création et modification), partagé par la liste et le détail.
 
 import { api } from "../api.js";
-import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { nomAuteur } from "../session.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -89,6 +89,7 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
       afficherErreur(erreur);
     }
   });
+  if (!creation) suivreModifications(formulaire);
   ouvrirPanneau(creation ? "Nouvelle commande" : `Modifier ${c.numero}`, formulaire);
 }
 

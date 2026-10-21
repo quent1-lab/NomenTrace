@@ -3,7 +3,7 @@
 import { api } from "../api.js";
 import { reglagesImposes } from "../session.js";
 import { formatMontant, formatNombre, libelle } from "../format.js";
-import { champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { champNombre, champTexte, champZone, lireFormulaire, ligneChamp, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { naviguer } from "../router.js";
@@ -88,6 +88,7 @@ function ouvrirFormulaireBloc(bloc, ordreSuggere, rafraichir) {
     // Nom, ordre et description viennent du dossier ; budget cible et responsable restent ici.
     for (const nom of ["nom", "ordre", "description"]) formulaire.elements[nom].disabled = true;
   }
+  if (!creation) suivreModifications(formulaire);
   ouvrirPanneau(creation ? "Nouveau bloc" : `Modifier le bloc ${bloc.code}`, formulaire);
   (creation ? code : formulaire.elements.namedItem("nom")).focus();
 }

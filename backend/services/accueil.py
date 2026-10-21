@@ -1,8 +1,9 @@
 """Pages communes : accueil après connexion, page d'un dossier, page d'un organisme.
 
 Chaque projet visible y est une carte : nom, équipe, accès du compte et résumé (avancement
-de l'approvisionnement, budget, engagé), lu dans la base du projet. Un projet hors ligne ou
-illisible garde sa carte, marquée, sans résumé : l'accueil ne tombe pas pour un projet.
+de l'approvisionnement, budget, engagé, coût estimé), lu dans la base du projet. Un projet
+hors ligne ou illisible garde sa carte, marquée, sans résumé : l'accueil ne tombe pas pour un
+projet.
 
 Ce que chacun voit :
 - administrateur du serveur : tout, projets hors dossier compris ;
@@ -22,7 +23,12 @@ from backend.services.projets import Registre
 
 journal_log = logging.getLogger(__name__)
 
-CHAMPS_RESUME: tuple[str, ...] = ("avancement_appro_pct", "budget_ht", "montant_engage_ht")
+CHAMPS_RESUME: tuple[str, ...] = (
+    "avancement_appro_pct",
+    "budget_ht",
+    "montant_engage_ht",
+    "cout_ht",
+)
 
 
 def _resume(registre: Registre, code: str) -> tuple[dict | None, str | None]:

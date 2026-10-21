@@ -3,7 +3,7 @@
 
 import { api } from "../api.js";
 import { formatMontant, formatPourcent, lireNombre } from "../format.js";
-import { champChoix, champNombre, champTexte } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, suivreModifications } from "../formulaire.js";
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -69,6 +69,7 @@ function fixerBudget(carte, rafraichir) {
       await rafraichir();
     },
   );
+  suivreModifications(formulaire);
   ouvrirPanneau(`Budget de ${nomProjet(carte)}`, formulaire);
   budget.focus();
 }
@@ -81,7 +82,7 @@ function etatReglages(dossier, carte) {
 
 function ligneProjet(dossier, carte, rafraichir) {
   const r = carte.resume ?? {};
-  const ouvrir = carte.acces && !carte.hors_ligne ? el("a", { href: `/p/${carte.code}/` }, "Ouvrir") : el("span", { class: "texte-doux" }, carte.hors_ligne ? "hors ligne" : "résumé seul");
+  const ouvrir = carte.acces && !carte.hors_ligne ? el("a", { class: "bouton bouton--petit bouton--discret", href: `/p/${carte.code}/` }, "Ouvrir") : el("span", { class: "texte-doux" }, carte.hors_ligne ? "hors ligne" : "résumé seul");
   return el(
     "tr",
     {},
@@ -124,7 +125,7 @@ function panneauResponsables(dossier, rafraichir) {
   );
   const pris = new Set(dossier.responsables.map((r) => r.id));
   const candidats = dossier.candidats.filter((c) => !pris.has(c.id));
-  const choix = champChoix("candidat", candidats.map((c) => [String(c.id), c.nom]), null, { vide: "Membre des projets du dossier" });
+  const choix = champChoix("candidat", candidats.map((c) => [String(c.id), c.nom]), null, { vide: "Choisir un membre" });
   return el(
     "section",
     { class: "panneau" },
@@ -157,6 +158,7 @@ function panneauDossier(dossier, rafraichir) {
     },
   );
   formulaire.querySelector(".bouton--discret").remove();
+  suivreModifications(formulaire);
   return el("section", { class: "panneau" }, el("h2", {}, "Dossier"), formulaire);
 }
 

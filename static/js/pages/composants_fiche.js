@@ -7,7 +7,7 @@ import { api } from "../api.js";
 import { champAttribut, chargerAttributs, formatAttribut, tousLesAttributs } from "../attributs.js";
 import { sectionDocuments } from "../documents.js";
 import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
-import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, ecritBloc, estAdmin } from "../session.js";
@@ -377,6 +377,7 @@ function formulaireModif(c, valeursAttributs, fournisseurs, { surEnregistre, sur
       afficherErreur(erreur);
     }
   });
+  suivreModifications(formulaire);
   return formulaire;
 }
 

@@ -58,7 +58,7 @@ function sectionOrganisme(org) {
   return el(
     "section",
     { class: "commun__organisme" },
-    el("div", { class: "titre-section" }, el("h1", {}, org.nom), org.page ? el("a", { href: `/o/${org.code}/` }, "Page de l'organisme") : null),
+    el("div", { class: "titre-section" }, el("h1", {}, org.nom), org.page ? el("a", { class: "bouton bouton--discret", href: `/o/${org.code}/` }, "Page de l'organisme") : null),
     org.dossiers.length
       ? org.dossiers.map((dos) =>
           el(
@@ -68,7 +68,7 @@ function sectionOrganisme(org) {
               "div",
               { class: "titre-section" },
               el("h2", {}, dos.nom),
-              dos.page ? el("a", { href: `/d/${dos.code}/` }, "Page du dossier") : null,
+              dos.page ? el("a", { class: "bouton bouton--discret", href: `/d/${dos.code}/` }, "Page du dossier") : null,
             ),
             dos.projets.length
               ? el("div", { class: "grille-cartes" }, dos.projets.map((c) => carteProjet(c)))

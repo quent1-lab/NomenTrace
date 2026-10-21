@@ -85,3 +85,27 @@ export function lireComposant(texte, composants) {
   const identifiant = saisie.split(" · ")[0].trim().toUpperCase();
   return composants.find((c) => c.id.toUpperCase() === identifiant) ?? null;
 }
+// Bouton « Enregistrer » grisé tant que le formulaire n'a pas changé depuis son ouverture.
+// Revenir aux valeurs de départ le grise de nouveau. Renvoie de quoi prendre l'état présent
+// pour nouveau point de départ, après un enregistrement qui laisse le formulaire ouvert.
+export function suivreModifications(formulaire, bouton = formulaire.querySelector('button[type="submit"]')) {
+  const etat = () =>
+    JSON.stringify(
+      [...formulaire.elements]
+        .filter((champ) => !["BUTTON", "FIELDSET", "OUTPUT"].includes(champ.tagName))
+        .map((champ) => (champ.type === "checkbox" || champ.type === "radio" ? champ.checked : champ.value)),
+    );
+  let depart = etat();
+  const verifier = () => {
+    bouton.disabled = etat() === depart;
+  };
+  formulaire.addEventListener("input", verifier);
+  formulaire.addEventListener("change", verifier);
+  // Un champ ajouté ou retiré après l'ouverture (saisie d'un nouveau fournisseur…) compte aussi.
+  new MutationObserver(verifier).observe(formulaire, { childList: true, subtree: true });
+  verifier();
+  return () => {
+    depart = etat();
+    verifier();
+  };
+}

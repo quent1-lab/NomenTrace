@@ -4,7 +4,7 @@
 
 import { api } from "../api.js";
 import { formatDate } from "../format.js";
-import { champChoix, champTexte, ligneChamp } from "../formulaire.js";
+import { champChoix, champTexte, ligneChamp, suivreModifications } from "../formulaire.js";
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { libelleRole, utilisateur } from "../session.js";
@@ -112,6 +112,7 @@ function ouvrirFormulaire(compte, blocs, { surEnregistre }) {
       afficherErreur(erreur);
     }
   });
+  if (!creation) suivreModifications(formulaire);
   ouvrirPanneau(creation ? "Nouvel utilisateur" : `Modifier ${u.nom}`, formulaire);
   (creation ? formulaire.elements.identifiant : formulaire.elements.nom).focus();
 }

@@ -3,7 +3,7 @@
 
 import { api, lienLogo } from "../api.js";
 import { formatDate, formatNombre } from "../format.js";
-import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
+import { champChoix, champNombre, champTexte, champZone, lireFormulaire, ligneChamp, suivreModifications } from "../formulaire.js";
 import { lienRoute, remplacerRoute } from "../router.js";
 import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js";
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
@@ -77,11 +77,13 @@ function sectionEtablissement(parametres) {
     try {
       Object.assign(parametres, await api.patchParametres(modifs));
       masquerErreur();
+      repartir();
       retour.replaceChildren(message("Coordonnées enregistrées.", "message-ok"));
     } catch (erreur) {
       afficherErreur(erreur);
     }
   });
+  const repartir = suivreModifications(formulaire);
   if (!estAdmin()) formulaire.querySelectorAll("input, textarea, button").forEach((champ) => { champ.disabled = true; });
   return el("section", { class: "panneau" }, el("h2", {}, "Établissement"), el("p", { class: "texte-doux texte-petit" }, "Repris dans l'en-tête des demandes de devis."), formulaire);
 }
@@ -216,6 +218,7 @@ async function afficherOngletProjet(cible) {
     el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
     retour,
   );
+  suivreModifications(formulaire);
   if (!estAdmin()) {
     // Consultable par tous, modifiable par l'administrateur seulement.
     formulaire.querySelectorAll("input, select, textarea, button").forEach((champ) => {

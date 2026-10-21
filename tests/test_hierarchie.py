@@ -627,3 +627,12 @@ def test_restauration_garde_le_rangement_des_projets(
     finally:
         conn.close()
     assert lignes == {PROJET: ("spoc", "Alpha"), "beta": ("spoc", "Beta")}
+
+
+def test_resume_porte_le_cout_estime(app: FastAPI) -> None:
+    """La carte d'un projet sans engagement affiche l'estimé : le résumé le porte, arrondi."""
+    accueil = serveur(app).get("/api/accueil").json()
+    cartes = {
+        c["code"]: c for o in accueil["organismes"] for d in o["dossiers"] for c in d["projets"]
+    }
+    assert cartes[PROJET]["resume"]["cout_ht"] == 3184.98
