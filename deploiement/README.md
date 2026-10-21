@@ -221,6 +221,13 @@ choisit son mot de passe. Les comptes suivants se créent dans l'outil, Paramèt
 Utilisateurs. La même commande sert de secours si plus aucun administrateur ne peut
 entrer ; voir [EXPLOITATION.md](../docs/EXPLOITATION.md).
 
+L'administrateur du serveur, qui crée les organismes et range les projets dans leurs
+dossiers, se nomme de la même façon :
+
+```
+sudo bash /opt/nomentrace/deploiement/commande.sh comptes admin-serveur prenom.nom@ecole.fr --nom "Prénom Nom"
+```
+
 Dans l'outil, renseigner ensuite Paramètres › Projet (nom, préfixe, budget).
 
 ## 7. La sauvegarde nocturne
