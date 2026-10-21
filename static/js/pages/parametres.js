@@ -11,20 +11,22 @@ import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
-import { aPermission, estAdmin, modeLocal } from "../session.js";
+import { aPermission, dossierReference, estAdmin, modeLocal, reglagesImposes } from "../session.js";
 
 // [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur,
 // sauf Attributs, ouvert aussi aux contributeurs qui ont la permission.
+// La référence d'un dossier (paramètres communs) n'a que ses réglages imposés.
+const horsReference = () => !dossierReference();
 const ONGLETS = [
   ["projet", "Projet", afficherOngletProjet, () => true],
   ["blocs", "Blocs", afficherOngletBlocs, () => true],
-  ["ensembles", "Ensembles", afficherOngletEnsembles, () => true],
-  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, () => true],
+  ["ensembles", "Ensembles", afficherOngletEnsembles, horsReference],
+  ["fournisseurs", "Fournisseurs", afficherOngletFournisseurs, horsReference],
   ["listes", "Listes de valeurs", afficherListes, estAdmin],
   ["attributs", "Attributs", afficherOngletAttributs, () => aPermission("attributs")],
-  ["utilisateurs", "Utilisateurs", afficherOngletUtilisateurs, () => estAdmin() && !modeLocal()],
+  ["utilisateurs", "Utilisateurs", afficherOngletUtilisateurs, () => estAdmin() && !modeLocal() && horsReference()],
   ["historique", "Historique", afficherOngletHistorique, () => true],
-  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes, () => true],
+  ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes, horsReference],
 ];
 
 // L'en-tête (nom du projet) se relit aussitôt après une modification du projet.
@@ -192,17 +194,20 @@ async function afficherOngletProjet(cible) {
     prefixe.value = prefixe.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
   });
   const retour = el("div");
+  const reference = Boolean(dossierReference());
   const formulaire = el(
     "form",
     { class: "formulaire formulaire--reglages", novalidate: true },
-    ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true }),
-    ligneChamp("Préfixe des identifiants", prefixe, {
-      requis: true,
-      aide:
-        "Lettres majuscules et chiffres. Il ne s'applique qu'aux composants créés ensuite : " +
-        "les identifiants existants ne sont jamais renommés, car tout l'historique y est rattaché.",
-    }),
-    ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2)),
+    reference ? null : ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true }),
+    reference
+      ? null
+      : ligneChamp("Préfixe des identifiants", prefixe, {
+          requis: true,
+          aide:
+            "Lettres majuscules et chiffres. Il ne s'applique qu'aux composants créés ensuite : " +
+            "les identifiants existants ne sont jamais renommés, car tout l'historique y est rattaché.",
+        }),
+    reference ? null : ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2)),
     ligneChamp("TVA par défaut (%)", champNombre("taux_tva_defaut", tva === null ? null : tva * 100, 1), {
       aide: "Sert à convertir en HT un prix relevé TTC quand le composant n'a pas de taux propre.",
     }),
@@ -219,8 +224,8 @@ async function afficherOngletProjet(cible) {
     e.preventDefault();
     const lu = lireFormulaire(formulaire, DESCRIPTION_PROJET, LIBELLES_PROJET);
     if (lu.erreur) return afficherErreur(lu.erreur);
-    if (!lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
-    if (!lu.valeurs.prefixe_id) return afficherErreur("Le préfixe des identifiants est obligatoire.");
+    if (!reference && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
+    if (!reference && !lu.valeurs.prefixe_id) return afficherErreur("Le préfixe des identifiants est obligatoire.");
     const modifs = {};
     for (const [cle, valeur] of Object.entries(lu.valeurs)) {
       const actuelle = cle === "nom_projet" || cle === "prefixe_id" ? parametres[cle] : nombre(parametres[cle]);
@@ -251,16 +256,17 @@ async function afficherOngletProjet(cible) {
   });
   // Panneaux en colonnes qui se remplissent l'une après l'autre : pas de trou sous un
   // panneau court, quelle que soit la largeur de l'écran.
-  cible.replaceChildren(
-    el(
-      "div",
-      { class: "grille-reglages" },
-      el("section", { class: "panneau" }, el("h2", {}, "Projet"), formulaire),
-      sectionEtablissement(parametres),
-      sectionLogo(),
-      sectionObligatoires(parametres),
-    ),
+  const grille = el(
+    "div",
+    { class: "grille-reglages" },
+    el("section", { class: "panneau" }, el("h2", {}, reference ? "Valeurs par défaut" : "Projet"), formulaire),
+    sectionEtablissement(parametres),
+    sectionLogo(),
+    sectionObligatoires(parametres),
   );
+  // Tout cet onglet vient du dossier dans un projet rangé : nom, préfixe figé, budget, TVA,
+  // établissement, logo. Le cadre désactivé couvre aussi ce qui s'affiche ensuite (logo).
+  cible.replaceChildren(reglagesImposes() ? el("fieldset", { class: "verrou", disabled: true }, grille) : grille);
 }
 
 // --- Export et sauvegardes --------------------------------------------------------------------
@@ -510,7 +516,12 @@ export async function afficherParametres(conteneur, parametres) {
     el("h1", {}, "Paramètres"),
     el("a", { class: "bouton bouton--discret si-admin", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
   );
-  conteneur.replaceChildren(titre, barre, corps);
+  const bandeau = reglagesImposes()
+    ? message(`Blocs, listes imposées, attributs, établissement, logo, TVA, nom et budget sont fixés par le dossier « ${reglagesImposes()} ».`)
+    : dossierReference()
+      ? message(`Paramètres communs du dossier « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
+      : null;
+  conteneur.replaceChildren(...[titre, bandeau, barre, corps].filter(Boolean));
   const [, , afficher] = visibles.find(([code]) => code === courant);
   try {
     await afficher(corps, parametres);

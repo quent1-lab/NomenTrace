@@ -16,7 +16,7 @@ import sqlite3
 from typing import Any
 
 from backend import db
-from backend.services import comptes, hierarchie, parametres
+from backend.services import comptes, hierarchie, parametres, reference
 from backend.services.droits import Utilisateur
 from backend.services.projets import Registre
 
@@ -65,7 +65,7 @@ def _projets(conn: sqlite3.Connection) -> list[dict]:
     return db.fetch_all(
         conn,
         "SELECT p.code, p.dossier, p.nom_equipe, d.organisme FROM projet p"
-        " LEFT JOIN dossier d ON d.code = p.dossier WHERE p.archive = 0"
+        " LEFT JOIN dossier d ON d.code = p.dossier WHERE p.archive = 0 AND p.reference = 0"
         " ORDER BY p.nom_equipe IS NULL, p.nom_equipe, p.code",
     )
 
@@ -176,6 +176,8 @@ def get_vue_dossier(
         "organisme": hierarchie.get_organisme(conn, dossier["organisme"]),
         "compte": _compte(compte),
         "gestion": gestion,
+        "reference": reference.code_reference(code) if gestion else None,
+        "a_jour": reference.etat_des_projets(conn, registre, code) if gestion else {},
         "projets": [carte(conn, registre, compte, p) for p in projets],
         "responsables": responsables,
         "candidats": hierarchie.list_candidats(conn, code) if gestion else [],

@@ -47,7 +47,8 @@ Un serveur suit maintenant plusieurs projets, rangés par organisme et par dossi
 avec sa base. On se connecte une fois ; l'accueil mène chacun à ses projets, la page d'un
 dossier présente le résumé de ses projets et en crée de nouveaux sans redémarrage, celle
 d'un organisme ses dossiers et ses administrateurs, avec trois profils hérités dans tous
-ses projets.
+ses projets. Un dossier impose à ses projets ses réglages communs, blocs, listes,
+attributs, établissement, logo et budget, recopiés dans chacun à chaque modification.
 
 ## Plus tard
 
@@ -74,10 +75,10 @@ Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvren
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.
 
-Pour le travail à plusieurs projets : les paramètres communs à un dossier (blocs, listes,
-attributs, établissement), imposés à ses projets ou laissés à chacun, et la duplication
-d'un projet avec ses paramètres ; puis les commandes communes à plusieurs projets, avec
-leurs frais partagés, et le catalogue des références déjà achetées dans le dossier.
+Pour le travail à plusieurs projets : les fournisseurs communs à l'organisme, la
+duplication d'un projet avec ses réglages propres ; puis les commandes communes à plusieurs
+projets, avec leurs frais partagés, et le catalogue des références déjà achetées dans le
+dossier.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles

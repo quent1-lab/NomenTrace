@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from backend.deps import COOKIE_SESSION, Connecte, get_conn, get_conn_comptes, get_projet
 from backend.erreurs import ErreurMetier
 from backend.models import Connexion, InvitationAcceptation, InvitationVerification
-from backend.services import authentification, comptes, parametres, projets
+from backend.services import authentification, comptes, parametres, projets, reference
 
 router = APIRouter(prefix="/api", tags=["session"])
 router_projet = APIRouter(prefix="/api", tags=["session"])
@@ -75,6 +75,7 @@ def read_session(
         "utilisateur": utilisateur.description(),
         "nom_projet": nom_projet,
         "nom_equipe": projets.get_nom_equipe(conn_comptes, get_projet(request)),
+        **reference.situation(conn_comptes, conn, get_projet(request)),
         "mode_local": request.app.state.mode_local,
     }
 

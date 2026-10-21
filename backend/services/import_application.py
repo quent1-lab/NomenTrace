@@ -20,6 +20,7 @@ from backend.services import (
     import_depots,
     journal,
     obligatoires,
+    propagation,
     saisie,
     sauvegardes,
 )
@@ -199,6 +200,11 @@ def _creer_entite(conn: sqlite3.Connection, entite: dict, lot: int) -> bool:
     cle = (entite["liste"], entite["code"])
     if db.fetch_one(conn, "SELECT 1 FROM valeur_liste WHERE liste = ? AND code = ?", cle):
         return False
+    if entite["liste"] in propagation.LISTES_IMPOSEES and propagation.etat(conn).get("actif"):
+        raise LigneRefusee(
+            f"la liste « {entite['liste']} » est imposée par le dossier : la valeur"
+            f" « {entite['code']} » se crée dans ses paramètres communs."
+        )
     conn.execute(
         "INSERT INTO valeur_liste (liste, code, libelle, ordre)"
         " SELECT ?, ?, ?, COALESCE(MAX(ordre), 0) + 1 FROM valeur_liste WHERE liste = ?",

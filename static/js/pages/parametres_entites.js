@@ -1,6 +1,7 @@
 // Onglets « Blocs », « Ensembles » et « Fournisseurs » des paramètres.
 
 import { api } from "../api.js";
+import { reglagesImposes } from "../session.js";
 import { formatMontant, formatNombre, libelle } from "../format.js";
 import { champNombre, champTexte, champZone, lireFormulaire, ligneChamp } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
@@ -83,6 +84,10 @@ function ouvrirFormulaireBloc(bloc, ordreSuggere, rafraichir) {
     },
     rafraichir,
   );
+  if (reglagesImposes()) {
+    // Nom, ordre et description viennent du dossier ; budget cible et responsable restent ici.
+    for (const nom of ["nom", "ordre", "description"]) formulaire.elements[nom].disabled = true;
+  }
   ouvrirPanneau(creation ? "Nouveau bloc" : `Modifier le bloc ${bloc.code}`, formulaire);
   (creation ? code : formulaire.elements.namedItem("nom")).focus();
 }
@@ -123,7 +128,7 @@ Il ne sera plus proposé à la création de composant. Il peut être réactivé 
         { class: "nombre" },
         el("span", { class: "actions actions--droite" },
           el("button", { type: "button", class: "bouton bouton--petit bouton--discret si-admin", onclick: () => ouvrirFormulaireBloc(b, ordreSuggere, rafraichir) }, "Modifier"),
-          el("button", { type: "button", class: `bouton bouton--petit si-admin ${b.archive ? "bouton--discret" : "bouton--danger"}`, onclick: () => basculerArchive(b) }, b.archive ? "Réactiver" : "Archiver"),
+          el("button", { type: "button", class: `bouton bouton--petit si-admin si-libre ${b.archive ? "bouton--discret" : "bouton--danger"}`, onclick: () => basculerArchive(b) }, b.archive ? "Réactiver" : "Archiver"),
         ),
       ),
     ),
@@ -133,7 +138,7 @@ Il ne sera plus proposé à la création de composant. Il peut être réactivé 
       "div",
       { class: "titre-section" },
       el("p", { class: "texte-doux" }, "Un bloc archivé n'accepte plus de composant ; un bloc qui n'a jamais porté de composant se supprime depuis l'écran Nettoyage."),
-      el("button", { type: "button", class: "bouton si-admin", onclick: () => ouvrirFormulaireBloc(null, ordreSuggere, rafraichir) }, "Nouveau bloc"),
+      el("button", { type: "button", class: "bouton si-admin si-libre", onclick: () => ouvrirFormulaireBloc(null, ordreSuggere, rafraichir) }, "Nouveau bloc"),
     ),
     table(
       [["Code"], ["Nom"], ["Ordre", "nombre"], ["Budget cible HT", "nombre"], ["Responsable"], ["Composants", "nombre"], [""]],

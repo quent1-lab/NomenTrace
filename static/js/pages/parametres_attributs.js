@@ -2,6 +2,7 @@
 // (tension, matériau…). Le code et le type d'un attribut sont figés à sa création.
 
 import { api } from "../api.js";
+import { reglagesImposes } from "../session.js";
 import { TYPES_ATTRIBUT, chargerAttributs, tousLesAttributs } from "../attributs.js";
 import { lienRoute } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -167,4 +168,11 @@ export async function afficherOngletAttributs(cible) {
   conteneur = cible;
   await chargerAttributs();
   rendre();
+  if (reglagesImposes()) {
+    // Attributs imposés par le dossier : consultables ici, réglés dans ses paramètres communs.
+    cible.querySelectorAll("input, select, textarea, button").forEach((champ) => {
+      champ.disabled = true;
+    });
+    cible.prepend(el("p", { class: "message message-info" }, `Attributs imposés par le dossier « ${reglagesImposes()} ».`));
+  }
 }

@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend import config, db
@@ -40,7 +41,7 @@ from backend.routes import (
     sauvegardes as routes_sauvegardes,
 )
 from backend.securite import install_securite
-from backend.services import authentification, comptes, projets, sauvegardes
+from backend.services import authentification, comptes, projets, reference, sauvegardes
 from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger("nomentrace")
@@ -189,8 +190,24 @@ def _preparer_projets(etat: Any, ancienne_base: Path) -> None:
         conn.close()
     etat.registre.projets.update(charge.projets)
     etat.registre.hors_ligne.update(charge.hors_ligne)
-    for code, emp in charge.projets.items():
-        etat.exports[code] = PlanificateurExport(emp.base, emp.exports)
+    etat.registre.references.update(charge.references)
+    conn = db.connect(etat.chemin_comptes)
+    try:
+        reference.reprendre(conn, etat.registre, (etat.dossier_data, etat.dossier_echange))
+    finally:
+        conn.close()
+    for code, emp in etat.registre.projets.items():
+        if code not in etat.registre.references:
+            etat.exports[code] = PlanificateurExport(emp.base, emp.exports)
+
+
+def _propager_reglage_commun(etat: Any, code_ref: str) -> None:
+    """Un réglage commun a changé : chaque projet du dossier le reçoit aussitôt."""
+    conn = db.connect(etat.chemin_comptes)
+    try:
+        reference.apres_reglage_commun(conn, etat.registre, code_ref)
+    finally:
+        conn.close()
 
 
 def create_app(
@@ -262,7 +279,15 @@ def create_app(
             # Fichiers de l'interface revalidés à chaque chargement : après une mise à jour,
             # le navigateur ne doit pas garder d'anciens modules JavaScript en cache.
             reponse.headers["Cache-Control"] = "no-cache"
-        export = app.state.exports.get(getattr(request.state, "projet", None))
+        projet = getattr(request.state, "projet", None)
+        if (
+            projet in app.state.registre.references
+            and request.method in METHODES_ECRITURE
+            and request.url.path.startswith("/api/")
+            and reponse.status_code < 400
+        ):
+            await run_in_threadpool(_propager_reglage_commun, app.state, projet)
+        export = app.state.exports.get(projet)
         if (
             export is not None
             and request.method in METHODES_ECRITURE

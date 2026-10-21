@@ -139,6 +139,17 @@ La création d'un projet (`projets.creer_projet`) prépare sa base dans un dossi
 sous verrou, l'inscrit en dernier et la met en ligne dans le registre avec son fil d'export
 (`projets.mettre_en_ligne`), sans redémarrage.
 
+Les réglages imposés par un dossier vivent dans sa référence, un projet `ref-<dossier>`
+réglé par les écrans ordinaires. `services/propagation.py` en recopie les tables imposées
+dans un projet par une synchronisation complète : la référence est attachée à la base du
+projet, en lecture seule, et tout se fait dans une transaction qui écrit aussi l'empreinte
+appliquée. Une ligne absente de la référence n'est supprimée que si rien ne l'utilise ; elle
+est sinon désactivée, ou gardée pour un bloc qui porte des composants. `services/reference.py`
+orchestre : référence créée avec le dossier, initialisée par le premier projet rangé (copie
+inverse), créé ou réglé, propagation après chaque écriture réussie sur une référence (dans le
+middleware d'écriture), reprise des projets en retard au démarrage. Le verrou est en base,
+par des déclencheurs : aucune route ne peut l'oublier.
+
 Certaines règles ont besoin du corps de la requête : le bloc d'un composant créé, le
 composant d'une affectation, les champs de budget d'un ensemble, le statut d'un
 fournisseur. La table les déclare alors au niveau « écriture » et la route appelle la

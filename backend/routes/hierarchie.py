@@ -22,7 +22,7 @@ from backend.models import (
     ProjetModif,
     ResponsableAchats,
 )
-from backend.services import accueil, hierarchie, projets
+from backend.services import accueil, hierarchie, projets, reference
 
 router = APIRouter(prefix="/api", tags=["hierarchie"])
 ConnComptes = Annotated[sqlite3.Connection, Depends(get_conn_comptes)]
@@ -53,8 +53,16 @@ def update_organisme(code: str, corps: OrganismeModif, compte: Compte, conn: Con
 
 
 @router.post("/organismes/{code}/dossiers", status_code=201)
-def create_dossier(code: str, corps: DossierCreation, compte: Compte, conn: ConnComptes) -> dict:
-    return hierarchie.create_dossier(conn, compte, code, corps.model_dump())
+def create_dossier(
+    code: str, corps: DossierCreation, request: Request, compte: Compte, conn: ConnComptes
+) -> dict:
+    etat = request.app.state
+    dossier, emp = hierarchie.create_dossier(
+        conn, compte, code, corps.model_dump(), (etat.dossier_data, etat.dossier_echange)
+    )
+    etat.registre.references.add(emp.code)
+    projets.mettre_en_ligne(etat.registre, etat.exports, emp)
+    return dossier
 
 
 @router.post("/organismes/{code}/membres", status_code=201)
@@ -85,8 +93,11 @@ def read_dossier(code: str, request: Request, compte: Compte, conn: ConnComptes)
 
 
 @router.patch("/dossiers/{code}")
-def update_dossier(code: str, corps: DossierModif, compte: Compte, conn: ConnComptes) -> dict:
-    return hierarchie.patch_dossier(conn, compte, code, corps.model_dump(exclude_unset=True))
+def update_dossier(
+    code: str, corps: DossierModif, request: Request, compte: Compte, conn: ConnComptes
+) -> dict:
+    dossier = hierarchie.patch_dossier(conn, compte, code, corps.model_dump(exclude_unset=True))
+    return {**dossier, "propagation": reference.propager(conn, request.app.state.registre, code)}
 
 
 @router.post("/dossiers/{code}/projets", status_code=201)
@@ -98,6 +109,8 @@ def create_projet(
         conn, compte, code, corps.model_dump(), (etat.dossier_data, etat.dossier_echange)
     )
     projets.mettre_en_ligne(etat.registre, etat.exports, emp)
+    reference.initialiser_si_neuve(etat.registre, code)
+    reference.accorder(conn, etat.registre, emp.code, code)
     return {"code": emp.code, "invitation": invitation}
 
 
@@ -116,5 +129,8 @@ def delete_responsable(code: str, identifiant: int, compte: Compte, conn: ConnCo
 
 
 @router.patch("/projets/{code}")
-def update_projet(code: str, corps: ProjetModif, compte: Compte, conn: ConnComptes) -> dict:
-    return hierarchie.patch_projet(conn, compte, code, corps.model_dump(exclude_unset=True))
+def update_projet(
+    code: str, corps: ProjetModif, request: Request, compte: Compte, conn: ConnComptes
+) -> dict:
+    modifs = corps.model_dump(exclude_unset=True)
+    return hierarchie.patch_projet(conn, compte, code, modifs, request.app.state.registre)

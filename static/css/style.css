@@ -3408,3 +3408,23 @@ body:not(.peut-ensembles) .si-ensembles {
 .commun__cote .ligne-champ__aide {
   grid-column: 1;
 }
+
+/* Réglages imposés par le dossier : la référence n'a que ses paramètres, un projet rangé ne
+   montre pas les commandes des réglages imposés (le serveur les refuse de toute façon). */
+body.est-reference .menu__lien:not([data-route="/parametres"]),
+body.est-reference .recherche-globale,
+body.est-reference .etat-export,
+body.reglages-imposes .si-libre {
+  display: none;
+}
+
+body.est-reference .titre-page .bouton {
+  display: none;
+}
+
+fieldset.verrou {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

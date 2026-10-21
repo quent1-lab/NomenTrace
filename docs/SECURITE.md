@@ -33,6 +33,12 @@ administrateur de projet ne peut ni effacer le mot de passe, ni désactiver, ni 
 compte qui a des droits hors de son projet : il ne règle que son rôle dans le projet, ce
 qui l'empêche de prendre la main sur un compte d'organisme ou de serveur.
 
+Les réglages imposés par un dossier sont protégés dans la base même du projet : des
+déclencheurs refusent toute écriture qui ne vient pas d'une synchronisation avec la
+référence, si bien qu'une route ou un import ne peut pas les contourner. La référence d'un
+dossier ne sert que ses réglages, et seuls l'administrateur du serveur et les
+administrateurs de l'organisme y écrivent.
+
 Le mode local, sans compte, n'accepte que les requêtes émises depuis le poste et adressées
 à `127.0.0.1` ou `localhost`.
 

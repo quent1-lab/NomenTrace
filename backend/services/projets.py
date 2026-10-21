@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from backend import db
 from backend.aiguillage import code_valide
@@ -88,6 +89,8 @@ class Registre:
 
     projets: dict[str, EmplacementsProjet] = field(default_factory=dict)
     hors_ligne: dict[str, str] = field(default_factory=dict)
+    # Projets de référence des dossiers : servis pour leurs seuls réglages.
+    references: set[str] = field(default_factory=set)
 
 
 # --- Registre en base -----------------------------------------------------------------------
@@ -270,6 +273,9 @@ def charger_registre(
             continue
         journal_log.info("Projet « %s » prêt (%s), schéma version %d", code, emp.base, version)
         registre.projets[code] = emp
+    registre.references.update(
+        ligne[0] for ligne in conn_comptes.execute("SELECT code FROM projet WHERE reference = 1")
+    )
     return registre
 
 
@@ -296,12 +302,17 @@ def _check_creation(conn_comptes: sqlite3.Connection, emp: EmplacementsProjet) -
             )
 
 
-def _inscrire_nouveau(conn_comptes: sqlite3.Connection, inscription: dict[str, str | None]) -> None:
+def _inscrire_nouveau(conn_comptes: sqlite3.Connection, inscription: dict[str, Any]) -> None:
     """Dernière étape d'une création : le projet entre au registre, rangé dans son dossier."""
     with db.transaction(conn_comptes):
         conn_comptes.execute(
-            "INSERT INTO projet (code, dossier, nom_equipe) VALUES (?, ?, ?)",
-            (inscription["code"], inscription["dossier"], inscription["nom_equipe"]),
+            "INSERT INTO projet (code, dossier, nom_equipe, reference) VALUES (?, ?, ?, ?)",
+            (
+                inscription["code"],
+                inscription["dossier"],
+                inscription["nom_equipe"],
+                inscription.get("reference") or 0,
+            ),
         )
 
 
@@ -309,7 +320,7 @@ def creer_projet(
     conn_comptes: sqlite3.Connection,
     dossier_data: Path,
     dossier_echange: Path,
-    inscription: dict[str, str | None],
+    inscription: dict[str, Any],
     reglages: dict[str, str],
 ) -> EmplacementsProjet:
     """Crée la base d'un nouveau projet et l'inscrit au registre, sans redémarrage.
@@ -346,9 +357,11 @@ def mettre_en_ligne(
     registre: Registre, exports: dict[str, PlanificateurExport], emp: EmplacementsProjet
 ) -> None:
     """Rend un projet créé à chaud joignable sous /p/<code>/, avec son fil d'export."""
+    registre.projets[emp.code] = emp
+    if emp.code in registre.references:
+        return
     export = PlanificateurExport(emp.base, emp.exports)
     exports[emp.code] = export
-    registre.projets[emp.code] = emp
     export.start()
 
 

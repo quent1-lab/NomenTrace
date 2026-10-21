@@ -53,18 +53,38 @@ def _comptes(app: FastAPI) -> sqlite3.Connection:
     return db.connect(app.state.chemin_comptes)
 
 
+def creer_dossier(app: FastAPI, organisme: str, valeurs: dict) -> None:
+    """Dossier et sa référence, mise en ligne comme le fait la route."""
+    conn = _comptes(app)
+    try:
+        etat = app.state
+        _, emp = hierarchie.create_dossier(
+            conn, SERVEUR, organisme, valeurs, (etat.dossier_data, etat.dossier_echange)
+        )
+        etat.registre.references.add(emp.code)
+        projets.mettre_en_ligne(etat.registre, etat.exports, emp)
+    finally:
+        conn.close()
+
+
+def ranger(app: FastAPI, code: str, modifs: dict) -> dict:
+    conn = _comptes(app)
+    try:
+        return hierarchie.patch_projet(conn, SERVEUR, code, modifs, app.state.registre)
+    finally:
+        conn.close()
+
+
 def _structure(app: FastAPI) -> None:
     conn = _comptes(app)
     try:
         hierarchie.create_organisme(conn, SERVEUR, "meca", "Mécatronique")
-        hierarchie.create_dossier(
-            conn, SERVEUR, "meca", {"code": "spoc", "nom": "SPOC 2027", "nom_projet": "SPOC"}
-        )
-        hierarchie.patch_projet(conn, SERVEUR, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
         hierarchie.create_organisme(conn, SERVEUR, "autre", "Autre école")
-        hierarchie.create_dossier(conn, SERVEUR, "autre", {"code": "autre-dossier", "nom": "Autre"})
     finally:
         conn.close()
+    creer_dossier(app, "meca", {"code": "spoc", "nom": "SPOC 2027", "nom_projet": "SPOC"})
+    ranger(app, PROJET, {"dossier": "spoc", "nom_equipe": "Alpha"})
+    creer_dossier(app, "autre", {"code": "autre-dossier", "nom": "Autre"})
 
 
 def membre_organisme(app: FastAPI, identifiant: str, organisme: str, profil: str) -> int:
@@ -160,9 +180,9 @@ def test_profil_d_un_autre_organisme_n_ouvre_rien(app: FastAPI) -> None:
 
 def test_profil_ne_vaut_pas_hors_dossier(app: FastAPI) -> None:
     id_ = membre_organisme(app, "gestion@ecole.test", "meca", "gestion")
+    ranger(app, PROJET, {"dossier": None})
     conn = _comptes(app)
     try:
-        hierarchie.patch_projet(conn, SERVEUR, PROJET, {"dossier": None})
         assert comptes.get_utilisateur(conn, id_, PROJET).role is None
     finally:
         conn.close()
@@ -281,11 +301,7 @@ def test_accueil_projet_hors_ligne_marque(app: FastAPI) -> None:
 
 def test_accueil_serveur_voit_les_projets_hors_dossier(app: FastAPI) -> None:
     administrateur = serveur(app)
-    conn = _comptes(app)
-    try:
-        hierarchie.patch_projet(conn, SERVEUR, PROJET, {"dossier": None})
-    finally:
-        conn.close()
+    ranger(app, PROJET, {"dossier": None})
     accueil = administrateur.get("/api/accueil").json()
     assert [c["code"] for c in accueil["hors_dossier"]] == [PROJET]
 
@@ -298,12 +314,13 @@ def test_creation_d_un_projet_sans_redemarrage(app: FastAPI, dossier_data: Path)
     creer_projet(administrateur)
     assert administrateur.get("/p/beta/api/sante").status_code == 200
     reglages = administrateur.get("/p/beta/api/parametres").json()
-    assert reglages["nom_projet"] == "SPOC"
+    # 15b-2 : le projet rangé le premier a donné la référence, son nom compris.
+    assert reglages["nom_projet"] == "Projet d'essai"
     assert reglages["prefixe_id"] == "BET"
     signalements: list[str] = []
     app.state.exports["beta"].signaler = lambda: signalements.append("beta")
-    bloc = {"code": "MEC", "nom": "Mécanique"}
-    assert administrateur.post("/p/beta/api/blocs", json=bloc).status_code == 201
+    ensemble = {"code": "CHASSIS", "nom": "Châssis"}
+    assert administrateur.post("/p/beta/api/ensembles", json=ensemble).status_code == 201
     assert signalements == ["beta"]
     assert (dossier_data / "projets" / "beta" / "nomentrace.db").is_file()
 
@@ -531,7 +548,7 @@ def test_migration_004_garde_les_acces(tmp_path: Path) -> None:
         conn.execute("INSERT INTO utilisateur (identifiant, nom) VALUES ('a@b.fr', 'a')")
         conn.execute("INSERT INTO projet (code) VALUES ('principal')")
         conn.execute("INSERT INTO acces VALUES (1, 'principal', 'administrateur')")
-        assert db.apply_migrations(conn, config.DOSSIER_MIGRATIONS_COMPTES) == 4
+        assert db.apply_migrations(conn, config.DOSSIER_MIGRATIONS_COMPTES) >= 4
         assert comptes.get_utilisateur(conn, 1, "principal").role == "administrateur"
         ligne = conn.execute("SELECT dossier, nom_equipe FROM projet").fetchone()
         assert tuple(ligne) == (None, None)
@@ -594,7 +611,8 @@ def test_restauration_garde_le_rangement_des_projets(
     conn = _comptes(app)
     try:
         lignes = {
-            r["code"]: (r["dossier"], r["nom_equipe"]) for r in conn.execute("SELECT * FROM projet")
+            r["code"]: (r["dossier"], r["nom_equipe"])
+            for r in conn.execute("SELECT * FROM projet WHERE reference = 0")
         }
     finally:
         conn.close()

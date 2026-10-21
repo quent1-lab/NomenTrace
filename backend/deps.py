@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from backend import db
-from backend.erreurs import ErreurMetier
+from backend.erreurs import ErreurMetier, Introuvable
 from backend.services import authentification, comptes, droits
 from backend.services.droits import Utilisateur
 from backend.services.export_excel import PlanificateurExport
@@ -23,11 +23,26 @@ def get_projet(request: Request) -> str:
 
 Projet = Annotated[str, Depends(get_projet)]
 
+# Routes servies sous la référence d'un dossier : ses seuls réglages communs.
+ROUTES_REFERENCE: tuple[str, ...] = (
+    "/api/session",
+    "/api/sante",
+    "/api/blocs",
+    "/api/listes",
+    "/api/attributs",
+    "/api/parametres",
+    "/api/journal",
+    "/api/historique",
+)
+
 
 def get_emplacements(request: Request) -> EmplacementsProjet:
     """Base et dossiers du projet de la requête ; 503 s'il est hors ligne."""
     code = get_projet(request)
-    emp = request.app.state.registre.projets.get(code)
+    registre = request.app.state.registre
+    emp = registre.projets.get(code)
+    if code in registre.references and not request.scope["path"].startswith(ROUTES_REFERENCE):
+        raise Introuvable("La référence d'un dossier ne sert que ses réglages communs.")
     if emp is None:
         raise ErreurMetier(
             f"Le projet « {code} » est hors ligne : sa base n'a pas pu être préparée au"

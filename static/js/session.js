@@ -16,6 +16,8 @@ export async function chargerSession() {
   corps.toggle("peut-achats", aPermission("achats"));
   corps.toggle("peut-ensembles", aPermission("ensembles"));
   corps.toggle("peut-attributs", aPermission("attributs"));
+  corps.toggle("reglages-imposes", Boolean(reglagesImposes()));
+  corps.toggle("est-reference", Boolean(dossierReference()));
   return courante;
 }
 
@@ -26,6 +28,21 @@ export function utilisateur() {
 // Nom d'équipe du projet de la page, affiché après le nom du projet (« SPOC · Alpha »).
 export function nomEquipe() {
   return courante?.nom_equipe ?? null;
+}
+
+// Nom du dossier qui impose ses réglages à ce projet, ou null (projet hors dossier).
+export function reglagesImposes() {
+  return courante?.imposes ?? null;
+}
+
+// Nom du dossier dont cette page règle les paramètres communs, ou null (projet ordinaire).
+export function dossierReference() {
+  return courante?.reference ?? null;
+}
+
+// Code du dossier du projet de la page, ou null.
+export function codeDossier() {
+  return courante?.dossier ?? null;
 }
 
 export function modeLocal() {

@@ -523,6 +523,27 @@ vient du dossier. Le projet est aussitôt en ligne. Les responsables achats du d
 choisissent parmi les membres de ses projets : ils voient le résumé de tous les projets du
 dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
 
+Un dossier impose à ses projets une partie de leurs réglages : les blocs (code, nom, ordre,
+description), les listes « modes d'approvisionnement », « criticités », « types de
+mouvement » et « types de frais », les attributs et leurs valeurs, les champs obligatoires,
+la TVA par défaut, l'établissement, ses adresses, son contact achats et son logo, et le nom
+du projet. Ces réglages communs se modifient depuis la page du dossier, bouton
+« Paramètres communs », dans les mêmes écrans que ceux d'un projet ; chaque modification est
+aussitôt recopiée dans tous les projets du dossier. Dans un projet rangé, ils restent
+visibles mais ne se modifient plus. Le budget global de chaque projet se fixe sur la page du
+dossier, en cliquant sur son montant. Restent propres à chaque projet : le budget cible et
+le responsable de chaque bloc, les statuts d'appro et de choix, les ensembles, les
+fournisseurs et le préfixe des identifiants, choisi à la création.
+
+Le premier projet existant rangé dans un dossier lui donne ses réglages, sans rien changer
+chez lui. Les projets créés ou rangés ensuite reçoivent ceux du dossier. Rien ne se perd
+dans un projet : une valeur que le dossier retire mais que le projet utilise est désactivée,
+pas supprimée, et un bloc qui porte encore des composants reste en place. Un projet qui a
+un attribut de même code mais d'un autre type que celui du dossier ne peut pas y être rangé
+tant que la différence n'est pas réglée. Sorti d'un dossier, un projet garde ses réglages,
+redevenus les siens. La colonne « Réglages communs » de la page du dossier dit si chaque
+projet est à jour.
+
 ## Gérer les comptes
 
 Paramètres › Utilisateurs, réservé à l'administrateur, liste les comptes avec leur rôle,

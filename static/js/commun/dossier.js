@@ -2,8 +2,8 @@
 // l'administrateur de l'organisme la création d'un projet et le nom du dossier.
 
 import { api } from "../api.js";
-import { formatMontant, formatPourcent } from "../format.js";
-import { champChoix, champTexte } from "../formulaire.js";
+import { formatMontant, formatPourcent, lireNombre } from "../format.js";
+import { champChoix, champNombre, champTexte } from "../formulaire.js";
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -52,7 +52,30 @@ function nouveauProjet(dossier, rafraichir) {
   equipe.focus();
 }
 
-function ligneProjet(carte) {
+function fixerBudget(carte, rafraichir) {
+  const budget = champNombre("budget_ht", carte.resume?.budget_ht ?? null, 2);
+  const formulaire = formulairePanneau(
+    [["Budget HT", budget, { aide: "Fixé par le dossier : le projet ne peut pas le changer." }]],
+    "Enregistrer",
+    async (champs) => {
+      const valeur = lireNombre(champs.budget_ht.value);
+      if (Number.isNaN(valeur)) throw new Error("Budget illisible.");
+      await api.patchProjet(carte.code, { budget_ht: valeur });
+      fermerPanneau({ silencieux: true });
+      await rafraichir();
+    },
+  );
+  ouvrirPanneau(`Budget de ${nomProjet(carte)}`, formulaire);
+  budget.focus();
+}
+
+function etatReglages(dossier, carte) {
+  if (!dossier.gestion) return null;
+  const aJour = dossier.a_jour[carte.code];
+  return el("span", { class: aJour ? "etiquette" : "etiquette etiquette--attention" }, aJour ? "à jour" : "en retard");
+}
+
+function ligneProjet(dossier, carte, rafraichir) {
   const r = carte.resume ?? {};
   const ouvrir = carte.acces && !carte.hors_ligne ? el("a", { href: `/p/${carte.code}/` }, "Ouvrir") : el("span", { class: "texte-doux" }, carte.hors_ligne ? "hors ligne" : "résumé seul");
   return el(
@@ -61,8 +84,15 @@ function ligneProjet(carte) {
     el("td", {}, el("strong", {}, nomProjet(carte))),
     el("td", {}, libelleAcces(carte.acces)),
     el("td", { class: "nombre" }, r.avancement_appro_pct == null ? "—" : formatPourcent(r.avancement_appro_pct, 0)),
-    el("td", { class: "nombre" }, formatMontant(r.budget_ht)),
+    el(
+      "td",
+      { class: "nombre" },
+      dossier.gestion && !carte.hors_ligne
+        ? el("button", { type: "button", class: "bouton-lien", title: "Fixer le budget", onclick: () => fixerBudget(carte, rafraichir) }, formatMontant(r.budget_ht) || "à fixer")
+        : formatMontant(r.budget_ht),
+    ),
     el("td", { class: "nombre" }, formatMontant(r.montant_engage_ht)),
+    dossier.gestion ? el("td", {}, etatReglages(dossier, carte)) : null,
     el("td", { class: "nombre" }, ouvrir),
   );
 }
@@ -138,6 +168,9 @@ export async function afficherDossier(code, { contenu, fil }) {
       { class: "titre-section" },
       el("h1", {}, dossier.nom),
       dossier.gestion ? el("button", { type: "button", class: "bouton", onclick: () => nouveauProjet(dossier, rafraichir) }, "Nouveau projet") : null,
+      dossier.reference
+        ? el("a", { class: "bouton bouton--discret", href: `/p/${dossier.reference}/#/parametres` }, "Paramètres communs")
+        : null,
     ),
     el(
       "div",
@@ -155,9 +188,16 @@ export async function afficherDossier(code, { contenu, fil }) {
                 el(
                   "thead",
                   {},
-                  el("tr", {}, ["Projet", "Votre accès"].map((t) => el("th", {}, t)), ["Appro.", "Budget HT", "Engagé HT", ""].map((t) => el("th", { class: "nombre" }, t))),
+                  el(
+                    "tr",
+                    {},
+                    ["Projet", "Votre accès"].map((t) => el("th", {}, t)),
+                    ["Appro.", "Budget HT", "Engagé HT"].map((t) => el("th", { class: "nombre" }, t)),
+                    dossier.gestion ? el("th", {}, "Réglages communs") : null,
+                    el("th", {}),
+                  ),
                 ),
-                el("tbody", {}, dossier.projets.map(ligneProjet)),
+                el("tbody", {}, dossier.projets.map((carte) => ligneProjet(dossier, carte, rafraichir))),
               ),
             )
           : el("p", { class: "texte-doux" }, "Aucun projet dans ce dossier."),

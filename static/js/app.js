@@ -19,8 +19,17 @@ import { afficherParametres } from "./pages/parametres.js";
 import { afficherFicheFournisseur } from "./pages/fournisseur_detail.js";
 import { afficherStock } from "./pages/stock.js";
 import { afficherTableau } from "./pages/tableau.js";
-import { demarrerRouteur, lienRoute } from "./router.js";
-import { aPermission, chargerSession, libelleRole, modeLocal, nomEquipe, utilisateur } from "./session.js";
+import { demarrerRouteur, lienRoute, remplacerRoute } from "./router.js";
+import {
+  aPermission,
+  chargerSession,
+  codeDossier,
+  dossierReference,
+  libelleRole,
+  modeLocal,
+  nomEquipe,
+  utilisateur,
+} from "./session.js";
 import { chargerListes } from "./valeurs.js";
 import { afficherErreur, el } from "./ui.js";
 
@@ -81,6 +90,11 @@ function marquerMenu(chemin) {
 async function afficherRoute({ chemin, parametres }) {
   detruireGraphiques();
   fermerPanneau({ silencieux: true });
+  if (dossierReference() && chemin !== "/parametres") {
+    // La référence d'un dossier n'a que ses réglages : tout le reste mène aux paramètres.
+    remplacerRoute("/parametres", parametres ? Object.fromEntries(parametres) : {});
+    return afficherRoute({ chemin: "/parametres", parametres });
+  }
   marquerMenu(chemin);
   const page = ROUTES[chemin] ?? routeParametree(chemin);
   try {
@@ -98,7 +112,9 @@ async function afficherRoute({ chemin, parametres }) {
 async function rafraichirEntete() {
   try {
     const sante = await api.getSante();
-    const projet = [sante.nom_projet, nomEquipe()].filter(Boolean).join(" · ");
+    const projet = dossierReference()
+      ? `Paramètres communs · ${dossierReference()}`
+      : [sante.nom_projet, nomEquipe()].filter(Boolean).join(" · ");
     document.getElementById("nom-projet").textContent = projet;
     document.title = projet ? `Nomentrace · ${projet}` : "Nomentrace";
     etatExport.textContent = sante.export_en_attente
@@ -150,6 +166,9 @@ setInterval(rafraichirVisas, 60000);
 
 // Retour à l'accueil commun : les autres projets, dossiers et organismes du compte.
 function lienProjets() {
+  if (dossierReference()) {
+    return el("a", { class: "bouton bouton--petit bouton--discret", href: `/d/${codeDossier()}/` }, "Retour au dossier");
+  }
   return el("a", { class: "bouton bouton--petit bouton--discret", href: "/?accueil" }, "Vos projets");
 }
 

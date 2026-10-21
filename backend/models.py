@@ -503,7 +503,7 @@ class OrganismeModif(Modele):
 
 
 class DossierCreation(Modele):
-    code: str = Field(pattern=CODE_ADRESSE)
+    code: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,29}$")
     nom: str = Field(min_length=1, max_length=80)
     nom_projet: str | None = Field(default=None, max_length=80)
 
@@ -524,6 +524,7 @@ class ProjetCreation(Modele):
 class ProjetModif(Modele):
     dossier: str | None = Field(default=None, pattern=CODE_ADRESSE)
     nom_equipe: str | None = Field(default=None, max_length=80)
+    budget_ht: float | None = Field(default=None, ge=0)
 
 
 class MembreOrganisme(Modele):

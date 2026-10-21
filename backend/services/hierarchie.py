@@ -18,7 +18,7 @@ from typing import Any
 from backend import db
 from backend.aiguillage import code_valide
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
-from backend.services import comptes, projets
+from backend.services import comptes, projets, propagation, reference
 from backend.services.droits import (
     ADMINISTRATEUR,
     GESTION,
@@ -27,9 +27,13 @@ from backend.services.droits import (
     AccesRefuse,
     Utilisateur,
 )
-from backend.services.projets import EmplacementsProjet
+from backend.services.projets import EmplacementsProjet, Registre
 
 journal_log = logging.getLogger(__name__)
+
+
+# Le code de la référence d'un dossier, `ref-<dossier>`, doit tenir dans 40 caractères.
+LONGUEUR_DOSSIER = 30
 
 
 def check_code(code: str, quoi: str) -> str:
@@ -173,11 +177,18 @@ def patch_organisme(conn: sqlite3.Connection, compte: Utilisateur, code: str, no
 
 
 def create_dossier(
-    conn: sqlite3.Connection, compte: Utilisateur, organisme: str, valeurs: dict[str, Any]
-) -> dict:
+    conn: sqlite3.Connection,
+    compte: Utilisateur,
+    organisme: str,
+    valeurs: dict[str, Any],
+    dossiers: tuple[Path, Path],
+) -> tuple[dict, EmplacementsProjet]:
+    """Crée un dossier et sa référence (projet `ref-<code>`, réglages communs)."""
     get_organisme(conn, organisme)
     exiger_gestion(conn, compte, organisme)
     code = check_code(valeurs["code"], "de dossier")
+    if len(code) > LONGUEUR_DOSSIER:
+        raise ErreurMetier(f"Code de dossier trop long : {LONGUEUR_DOSSIER} caractères au plus.")
     nom_projet = (valeurs.get("nom_projet") or "").strip() or None
     with db.transaction(conn):
         _code_libre(conn, "dossier", code)
@@ -185,8 +196,14 @@ def create_dossier(
             "INSERT INTO dossier (code, organisme, nom, nom_projet) VALUES (?, ?, ?, ?)",
             (code, organisme, _nom(valeurs.get("nom"), "du dossier"), nom_projet),
         )
+    try:
+        emp = reference.creer_reference(conn, dossiers, code)
+    except sqlite3.Error, OSError, ErreurMetier:
+        with db.transaction(conn):
+            conn.execute("DELETE FROM dossier WHERE code = ?", (code,))
+        raise
     journal_log.info("Dossier %s créé dans %s par %s.", code, organisme, compte.nom)
-    return get_dossier(conn, code)
+    return get_dossier(conn, code), emp
 
 
 def patch_dossier(
@@ -206,19 +223,55 @@ def patch_dossier(
     return get_dossier(conn, code)
 
 
-def patch_projet(
-    conn: sqlite3.Connection, compte: Utilisateur, code: str, modifs: dict[str, Any]
-) -> dict:
-    """Range un projet dans un dossier (serveur) ou change son nom d'équipe."""
-    projet = get_projet(conn, code)
-    if "dossier" in modifs:
+def _admin_projet(conn: sqlite3.Connection, compte: Utilisateur, code: str) -> bool:
+    return compte.id is not None and comptes.get_utilisateur(conn, compte.id, code).admin
+
+
+def _exiger_patch_projet(
+    conn: sqlite3.Connection, compte: Utilisateur, projet: dict, modifs: dict[str, Any]
+) -> None:
+    """Tous les droits sont vérifiés avant la première écriture."""
+    if reference.est_reference(conn, projet["code"]):
+        raise AccesRefuse("La référence d'un dossier ne se range ni ne se renomme.")
+    gere = bool(projet["organisme"]) and peut_gerer(conn, compte, projet["organisme"])
+    if "dossier" in modifs and modifs["dossier"] != projet["dossier"]:
         exiger_serveur(compte)
         if modifs["dossier"] is not None:
             get_dossier(conn, modifs["dossier"])
-    if "nom_equipe" in modifs and not compte.admin_serveur:
-        gere = projet["organisme"] and peut_gerer(conn, compte, projet["organisme"])
-        if not gere and not comptes.get_utilisateur(conn, compte.id or 0, code).admin:
-            raise AccesRefuse("Le nom d'équipe se règle par un administrateur du projet.")
+    if "budget_ht" in modifs and not gere:
+        raise AccesRefuse("Le budget d'un projet se fixe par l'administrateur de l'organisme.")
+    if "nom_equipe" in modifs and not (
+        compte.admin_serveur or gere or _admin_projet(conn, compte, projet["code"])
+    ):
+        raise AccesRefuse("Le nom d'équipe se règle par un administrateur du projet.")
+
+
+def patch_projet(
+    conn: sqlite3.Connection,
+    compte: Utilisateur,
+    code: str,
+    modifs: dict[str, Any],
+    registre: Registre,
+) -> dict:
+    """Range un projet dans un dossier (serveur), change son nom d'équipe ou son budget.
+
+    Ranger : le projet donne la référence du dossier si elle est neuve, la reçoit sinon ;
+    sortir d'un dossier lève le verrou des réglages imposés, valeurs gardées. Le budget est
+    fixé par l'administrateur de l'organisme, depuis la page du dossier.
+    """
+    projet = get_projet(conn, code)
+    _exiger_patch_projet(conn, compte, projet, modifs)
+    rapport = None
+    if "dossier" in modifs and modifs["dossier"] != projet["dossier"]:
+        if modifs["dossier"] is None:
+            reference.sortir(registre, code)
+        else:
+            rapport = reference.ranger(conn, registre, code, modifs["dossier"])
+    if "budget_ht" in modifs:
+        emp = registre.projets.get(code)
+        if emp is None:
+            raise ErreurMetier(f"Le projet « {code} » est hors ligne.", 503)
+        propagation.ecrire_budget(emp.base, modifs["budget_ht"], compte.nom)
     with db.transaction(conn):
         if "dossier" in modifs:
             conn.execute("UPDATE projet SET dossier = ? WHERE code = ?", (modifs["dossier"], code))
@@ -228,7 +281,7 @@ def patch_projet(
                 nom = _nom(nom, "d'équipe")
             conn.execute("UPDATE projet SET nom_equipe = ? WHERE code = ?", (nom, code))
     journal_log.info("Projet %s modifié par %s : %s.", code, compte.nom, sorted(modifs))
-    return get_projet(conn, code)
+    return {**get_projet(conn, code), "propagation": rapport}
 
 
 # --- Membres d'un organisme, responsables d'un dossier ------------------------------------------
@@ -297,7 +350,7 @@ def list_candidats(conn: sqlite3.Connection, dossier: str) -> list[dict]:
         conn,
         "SELECT DISTINCT u.id, u.nom FROM utilisateur u"
         " JOIN acces a ON a.utilisateur_id = u.id"
-        " JOIN projet p ON p.code = a.projet AND p.archive = 0"
+        " JOIN projet p ON p.code = a.projet AND p.archive = 0 AND p.reference = 0"
         " WHERE p.dossier = ? AND u.actif = 1 ORDER BY u.nom",
         (dossier,),
     )
@@ -351,6 +404,8 @@ def create_projet(
     dossier = get_dossier(conn, code_dossier)
     exiger_gestion(conn, compte, dossier["organisme"])
     code = check_code(valeurs["code"], "de projet")
+    if code.startswith(reference.PREFIXE_REFERENCE):
+        raise ErreurMetier("Les codes « ref-… » sont réservés aux références des dossiers.")
     reglages = {"prefixe_id": valeurs["prefixe_id"]}
     if dossier["nom_projet"]:
         reglages["nom_projet"] = dossier["nom_projet"]

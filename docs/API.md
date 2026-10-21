@@ -102,7 +102,16 @@ périmètre.
 | POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `admin_identifiant`) : base créée et en ligne sans redémarrage |
 | POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
 | DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
-| PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur) ; nom d'équipe |
+| PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur), avec le rapport de la synchronisation ; nom d'équipe ; `budget_ht` (administrateur de l'organisme) |
+
+Les réglages communs d'un dossier se règlent par les routes ordinaires des blocs, listes,
+attributs et paramètres, sous l'adresse de sa référence, `/p/ref-<dossier>/`. Toute
+écriture réussie y est aussitôt recopiée dans chaque projet du dossier. Sous cette adresse,
+seules ces routes, la session, la santé, le journal et l'historique répondent ; les autres
+donnent 404. Dans un projet rangé, une écriture d'un réglage imposé répond 409, quelle que
+soit la route. `GET /api/dossiers/{code}` donne, pour l'administrateur de l'organisme, le
+code de la référence et l'état à jour de chaque projet. `GET /api/session` dit si la page est
+une référence (`reference`) ou un projet rangé (`imposes`), avec le nom du dossier.
 
 ## Projet, pilotage et historique
 

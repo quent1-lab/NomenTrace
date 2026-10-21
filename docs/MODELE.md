@@ -312,6 +312,22 @@ lecteur, `achats_stock` contributeur de tous les blocs avec la permission achats
 permissions s'additionnent. L'administrateur du serveur est administrateur partout. Un
 projet hors dossier n'hérite d'aucun profil.
 
+`projet.reference` marque le projet de référence d'un dossier, `ref-<dossier>`, créé avec
+le dossier : une base au schéma complet, sans composants, absente de l'accueil, qui porte
+les réglages communs. Le code d'un dossier compte 30 caractères au plus et le préfixe `ref-`
+est réservé.
+
+Dans chaque base de projet, la table `reglages_imposes` (une ligne) porte le verrou des
+réglages imposés : `actif` (projet rangé dans un dossier), `propagation` (synchronisation en
+cours, posé et retiré dans la même transaction), `dossier`, `empreinte` (empreinte SHA-256
+du contenu imposé de la référence appliqué au projet) et, dans une référence,
+`initialisee`. Des déclencheurs refusent toute écriture d'un réglage imposé quand le verrou
+est posé hors synchronisation : blocs (code, nom, ordre, description, archive), valeurs des
+listes `mode_appro`, `criticite`, `type_mouvement`, `type_frais`, attributs et leurs
+valeurs, paramètres de l'établissement, TVA, champs obligatoires, nom du projet, budget,
+préfixe, logo. Un projet est à jour quand son empreinte égale celle de la référence, relue à
+chaque contrôle.
+
 ## Historique
 
 La frise de la fiche d'un composant est assemblée en Python (`backend/services/historique.py`)

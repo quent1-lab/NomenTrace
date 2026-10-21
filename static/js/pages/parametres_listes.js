@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
 import { chargerListes, toutesLesListes } from "../valeurs.js";
 import { cadenas } from "./ensembles_commun.js";
+import { dossierReference, reglagesImposes } from "../session.js";
 
 const LISTES = {
   mode_appro: {
@@ -116,7 +117,21 @@ function formulaireAjout(liste) {
   return formulaire;
 }
 
+// Listes imposées par le dossier à ses projets ; les autres restent propres au projet.
+const IMPOSEES = ["mode_appro", "criticite", "type_mouvement", "type_frais"];
+
 function sectionListe(liste, valeurs) {
+  if (dossierReference() && !IMPOSEES.includes(liste)) return null;
+  if (reglagesImposes() && IMPOSEES.includes(liste)) {
+    const section = sectionListeModifiable(liste, valeurs);
+    const verrou = el("fieldset", { class: "verrou", disabled: true }, ...[...section.childNodes]);
+    section.replaceChildren(verrou, el("p", { class: "texte-doux texte-petit" }, `Imposée par le dossier « ${reglagesImposes()} ».`));
+    return section;
+  }
+  return sectionListeModifiable(liste, valeurs);
+}
+
+function sectionListeModifiable(liste, valeurs) {
   const { titre, aide } = LISTES[liste];
   const entetes = ["", "Libellé affiché", "Code stocké", liste === "type_mouvement" ? "Sens" : null, "Active", ""].filter((t) => t !== null);
   return el(
