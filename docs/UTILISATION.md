@@ -518,8 +518,10 @@ s'applique.
 La page d'un dossier présente ses projets en tableau, avec leur avancement, leur budget et
 leur engagé. « Nouveau projet » demande le nom d'équipe, le code d'adresse et le préfixe
 des identifiants (proposés à partir du nom d'équipe, figés ensuite) et, si l'on veut,
-l'adresse de l'administrateur du projet, qui reçoit un lien d'invitation. Le nom du projet
-vient du dossier. Le projet est aussitôt en ligne. Les responsables achats du dossier se
+l'adresse de l'administrateur du projet, qui reçoit un lien d'invitation. « Reprendre de »
+part d'un autre projet du dossier : le nouveau reçoit ses statuts d'appro et de choix et son
+arborescence d'ensembles, sans ses composants, ses commandes, son stock ni ses responsables.
+Le nom du projet vient du dossier. Le projet est aussitôt en ligne. Les responsables achats du dossier se
 choisissent parmi les membres de ses projets : ils voient le résumé de tous les projets du
 dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
 

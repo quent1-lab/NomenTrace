@@ -20,6 +20,7 @@ import shutil
 import sqlite3
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -322,12 +323,14 @@ def creer_projet(
     dossier_echange: Path,
     inscription: dict[str, Any],
     reglages: dict[str, str],
+    preparer: Callable[[Path], object] | None = None,
 ) -> EmplacementsProjet:
     """Crée la base d'un nouveau projet et l'inscrit au registre, sans redémarrage.
 
     `inscription` : code, dossier, nom_equipe ; `reglages` : paramètres écrits dans la base
-    (nom du projet, préfixe). La base est préparée dans un dossier temporaire, renommé une
-    fois complète ; l'inscription vient en dernier. Un échec ne laisse rien derrière lui.
+    (nom du projet, préfixe) ; `preparer` : dernière préparation de la base neuve (reprise
+    d'un projet modèle). La base est préparée dans un dossier temporaire, renommé une fois
+    complète ; l'inscription vient en dernier. Un échec ne laisse rien derrière lui.
     """
     emp = emplacements(dossier_data, dossier_echange, str(inscription["code"]))
     with _VERROU_CREATION:
@@ -341,6 +344,8 @@ def creer_projet(
                 parametres.patch_parametres(conn, reglages)
             finally:
                 conn.close()
+            if preparer is not None:
+                preparer(temporaire / NOM_BASE)
             _renommer(temporaire, emp.base.parent)
             emp.echange.mkdir(parents=True)
             _inscrire_nouveau(conn_comptes, inscription)

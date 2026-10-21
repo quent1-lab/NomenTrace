@@ -12,13 +12,14 @@ compte implicite du mode local, administrateur du serveur).
 
 import logging
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from backend import db
 from backend.aiguillage import code_valide
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
-from backend.services import comptes, projets, propagation, reference
+from backend.services import comptes, duplication, projets, propagation, reference
 from backend.services.droits import (
     ADMINISTRATEUR,
     GESTION,
@@ -389,6 +390,16 @@ def retirer_responsable(
 # --- Projets ------------------------------------------------------------------------------------
 
 
+def _reprise(
+    modele: str | None, dossiers: tuple[Path, Path], auteur: str
+) -> Callable[[Path], object] | None:
+    """Préparation d'une base neuve reprise d'un projet modèle (réglages propres)."""
+    if modele is None:
+        return None
+    source = projets.emplacements(dossiers[0], dossiers[1], modele).base
+    return lambda base: duplication.copier_reglages_propres(source, base, auteur)
+
+
 def create_projet(
     conn: sqlite3.Connection,
     compte: Utilisateur,
@@ -406,6 +417,9 @@ def create_projet(
     code = check_code(valeurs["code"], "de projet")
     if code.startswith(reference.PREFIXE_REFERENCE):
         raise ErreurMetier("Les codes « ref-… » sont réservés aux références des dossiers.")
+    modele = valeurs.get("modele")
+    if modele is not None and get_projet(conn, modele)["dossier"] != code_dossier:
+        raise ErreurMetier("Le projet modèle doit appartenir au même dossier.")
     reglages = {"prefixe_id": valeurs["prefixe_id"]}
     if dossier["nom_projet"]:
         reglages["nom_projet"] = dossier["nom_projet"]
@@ -418,6 +432,7 @@ def create_projet(
             "nom_equipe": _nom(valeurs["nom_equipe"], "d'équipe"),
         },
         reglages,
+        _reprise(modele, dossiers, compte.nom),
     )
     invitation = None
     if valeurs.get("admin_identifiant"):

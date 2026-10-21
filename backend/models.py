@@ -519,6 +519,8 @@ class ProjetCreation(Modele):
     prefixe_id: str = Field(pattern=r"^[A-Z0-9]{1,10}$")
     admin_identifiant: str | None = Field(default=None, min_length=3, max_length=254)
     admin_nom: str | None = Field(default=None, min_length=1, max_length=60)
+    # Projet du même dossier dont on reprend les réglages propres (listes locales, ensembles).
+    modele: str | None = Field(default=None, pattern=CODE_ADRESSE)
 
 
 class ProjetModif(Modele):

@@ -148,7 +148,8 @@ est sinon désactivée, ou gardée pour un bloc qui porte des composants. `servi
 orchestre : référence créée avec le dossier, initialisée par le premier projet rangé (copie
 inverse), créé ou réglé, propagation après chaque écriture réussie sur une référence (dans le
 middleware d'écriture), reprise des projets en retard au démarrage. Le verrou est en base,
-par des déclencheurs : aucune route ne peut l'oublier.
+par des déclencheurs : aucune route ne peut l'oublier. `services/duplication.py` prépare la
+base neuve d'un projet repris d'un modèle (listes locales, ensembles) avant son inscription.
 
 Certaines règles ont besoin du corps de la requête : le bloc d'un composant créé, le
 composant d'une affectation, les champs de budget d'un ensemble, le statut d'un

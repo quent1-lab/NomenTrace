@@ -27,6 +27,9 @@ function nouveauProjet(dossier, rafraichir) {
       ["Nom d'équipe", equipe, { requis: true }],
       ["Code d'adresse", code, { requis: true, aide: "Figé après la création." }],
       ["Préfixe d'identifiant", prefixe, { requis: true, aide: "Majuscules et chiffres, figé après la création." }],
+      ["Reprendre de", champChoix("modele", dossier.projets.map((c) => [c.code, nomProjet(c)]), null, { vide: "Aucun projet (départ vide)" }), {
+        aide: "Reprend ses statuts d'appro et de choix et son arborescence d'ensembles, sans ses composants.",
+      }],
       ["Administrateur du projet (adresse, facultatif)", champTexte("admin_identifiant", "", { type: "email", autocomplete: "off" }), {
         aide: "Reçoit un lien d'invitation ; un compte existant reçoit seulement l'accès.",
       }],
@@ -39,6 +42,7 @@ function nouveauProjet(dossier, rafraichir) {
         code: champs.code.value.trim(),
         prefixe_id: champs.prefixe_id.value.trim(),
         admin_identifiant: admin || null,
+        modele: champs.modele.value || null,
       });
       await rafraichir();
       if (cree.invitation && !cree.invitation.existant) {

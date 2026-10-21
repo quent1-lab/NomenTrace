@@ -99,7 +99,7 @@ périmètre.
 | POST | `/api/organismes/{code}/membres` | Profil d'organisme (`identifiant`, `nom`, `profil`) ; compte créé au besoin, avec son jeton d'invitation |
 | PATCH, DELETE | `/api/organismes/{code}/membres/{id}` | Changement de profil ; retrait |
 | GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé, responsables achats, candidats ; nom et nom du projet |
-| POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `admin_identifiant`) : base créée et en ligne sans redémarrage |
+| POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `admin_identifiant`, `modele`) : base créée et en ligne sans redémarrage ; `modele`, un projet du même dossier dont il reprend les listes locales et les ensembles |
 | POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
 | DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
 | PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur), avec le rapport de la synchronisation ; nom d'équipe ; `budget_ht` (administrateur de l'organisme) |

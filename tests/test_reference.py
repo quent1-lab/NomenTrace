@@ -448,3 +448,64 @@ def test_rangement_refuse_sur_conflit_de_type(app: FastAPI, range_: TestClient) 
     assert reponse.status_code == 409
     assert "tension" in reponse.json()["erreur"]
     assert contenu(base(app, "beta")) == avant
+
+
+# --- 15b-3 : nouveau projet repris d'un modèle ---------------------------------------------------
+
+LISTES_LOCALES = (
+    "SELECT liste, code, libelle, ordre, actif FROM valeur_liste"
+    " WHERE liste IN ('statut_appro', 'statut_choix') ORDER BY liste, code"
+)
+ENSEMBLES = "SELECT code, nom, ordre, parent_code, description FROM ensemble ORDER BY code"
+
+
+def test_projet_repris_d_un_modele(app: FastAPI, range_: TestClient) -> None:
+    conn = db.connect(base(app, PROJET), creer=False)
+    try:
+        with db.transaction(conn):
+            conn.execute(
+                "INSERT INTO ensemble (code, nom, ordre, parent_code, responsable, budget_cible_ht,"
+                " statut_montage, archive) VALUES"
+                " ('ROUE', 'Roue', 2, NULL, 'Chef', 10, 'Monte', 0),"
+                " ('CHASSIS', 'Châssis', 1, NULL, 'Chef', 20, 'En cours', 0),"
+                " ('VIEUX', 'Ancien', 3, NULL, NULL, NULL, 'Non commence', 1)"
+            )
+            conn.execute("UPDATE ensemble SET parent_code = 'CHASSIS' WHERE code = 'ROUE'")
+            conn.execute(
+                "INSERT INTO valeur_liste (liste, code, libelle, ordre) VALUES"
+                " ('statut_choix', 'A revoir', 'À revoir', 9)"
+            )
+    finally:
+        conn.close()
+    corps = {"code": "beta", "nom_equipe": "Beta", "prefixe_id": "BET", "modele": PROJET}
+    assert range_.post("/api/dossiers/spoc/projets", json=corps).status_code == 201
+    actifs = (
+        "SELECT code, nom, ordre, parent_code, description FROM ensemble WHERE archive = 0"
+        " ORDER BY code"
+    )
+    assert lire(app, "beta", ENSEMBLES) == lire(app, PROJET, actifs)
+    assert len(lire(app, "beta", ENSEMBLES)) > 0
+    assert lire(app, "beta", LISTES_LOCALES) == lire(app, PROJET, LISTES_LOCALES)
+    # Rien de l'équipe du modèle : ni composants, ni affectations, ni responsables, ni budgets.
+    for requete in (
+        "SELECT COUNT(*) FROM composant",
+        "SELECT COUNT(*) FROM affectation",
+        "SELECT COUNT(*) FROM commande",
+        "SELECT COUNT(*) FROM ensemble"
+        " WHERE responsable IS NOT NULL OR budget_cible_ht IS NOT NULL",
+        "SELECT COUNT(*) FROM ensemble WHERE statut_montage <> 'Non commence'",
+    ):
+        assert lire(app, "beta", requete) == [(0,)], requete
+    assert empreinte(app, "beta") == empreinte(app, REF)
+
+
+def test_modele_d_un_autre_dossier_refuse(
+    app: FastAPI, range_: TestClient, dossier_data: Path
+) -> None:
+    creer_dossier(app, "meca", {"code": "autre", "nom": "Autre"})
+    corps = {"code": "gamma", "nom_equipe": "Gamma", "prefixe_id": "GAM", "modele": PROJET}
+    reponse = range_.post("/api/dossiers/autre/projets", json=corps)
+    assert reponse.status_code == 400
+    assert not (dossier_data / "projets" / "gamma").exists()
+    corps["modele"] = "inconnu"
+    assert range_.post("/api/dossiers/autre/projets", json=corps).status_code == 404
