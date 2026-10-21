@@ -27,13 +27,20 @@ function barre(pourcent) {
   return el("div", { class: "barre barre--fine" }, largeur(remplissage, pourcent ?? 0));
 }
 
+// Montant suivi d'un projet : l'engagé, ou le coût estimé des composants tant que rien
+// n'est engagé (il dit mieux où en est le projet).
+export function montantSuivi(resume) {
+  const engage = resume?.montant_engage_ht ?? null;
+  const cout = resume?.cout_ht ?? null;
+  const estime = Math.abs(engage ?? 0) < 0.005 && Math.abs(cout ?? 0) >= 0.005;
+  return { estime, montant: estime ? cout : engage };
+}
+
 function resume(carte) {
   if (carte.hors_ligne) return el("p", { class: "texte-doux texte-petit" }, "Hors ligne : sa base n'a pas pu être préparée.");
   if (!carte.resume) return null;
-  const { avancement_appro_pct: pct, budget_ht: budget, montant_engage_ht: engage, cout_ht: cout } = carte.resume;
-  // Rien d'engagé encore : le coût estimé des composants dit mieux où en est le projet.
-  const estime = Math.abs(engage ?? 0) < 0.005 && Math.abs(cout ?? 0) >= 0.005;
-  const montant = estime ? cout : engage;
+  const { avancement_appro_pct: pct, budget_ht: budget } = carte.resume;
+  const { estime, montant } = montantSuivi(carte.resume);
   return [
     el("div", { class: "carte__avancement-libelle" }, el("span", {}, "Approvisionnement"), el("span", {}, pct === null ? "—" : formatPourcent(pct, 0))),
     barre(pct),

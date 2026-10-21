@@ -7,7 +7,7 @@ import { champChoix, champNombre, champTexte, suivreModifications } from "../for
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
-import { afficherCompte, codeDepuis, formulairePanneau, libelleAcces, nomProjet } from "./elements.js";
+import { afficherCompte, codeDepuis, formulairePanneau, libelleAcces, montantSuivi, nomProjet } from "./elements.js";
 
 function prefixeDepuis(nom) {
   return codeDepuis(nom).replace(/-/g, "").toUpperCase().slice(0, 10);
@@ -74,6 +74,12 @@ function fixerBudget(carte, rafraichir) {
   budget.focus();
 }
 
+function montantEngage(resume) {
+  const { estime, montant } = montantSuivi(resume);
+  if (!estime) return formatMontant(montant);
+  return el("span", { class: "texte-doux", title: "Rien n'est engagé : coût estimé des composants" }, `${formatMontant(montant)} estimé`);
+}
+
 function etatReglages(dossier, carte) {
   if (!dossier.gestion) return null;
   const aJour = dossier.a_jour[carte.code];
@@ -96,7 +102,7 @@ function ligneProjet(dossier, carte, rafraichir) {
         ? el("button", { type: "button", class: "bouton-lien", title: "Fixer le budget", onclick: () => fixerBudget(carte, rafraichir) }, formatMontant(r.budget_ht) || "à fixer")
         : formatMontant(r.budget_ht),
     ),
-    el("td", { class: "nombre" }, formatMontant(r.montant_engage_ht)),
+    el("td", { class: "nombre" }, montantEngage(carte.resume)),
     dossier.gestion ? el("td", {}, etatReglages(dossier, carte)) : null,
     el("td", { class: "nombre" }, ouvrir),
   );
