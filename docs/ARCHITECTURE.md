@@ -139,6 +139,14 @@ La création d'un projet (`projets.creer_projet`) prépare sa base dans un dossi
 sous verrou, l'inscrit en dernier et la met en ligne dans le registre avec son fil d'export
 (`projets.mettre_en_ligne`), sans redémarrage.
 
+Les commandes communes (`routes/communes.py`) sont aussi des routes communes. Une commune
+écrit dans plusieurs bases sans transaction qui les couvre toutes : son en-tête et ses frais
+dans la référence du dossier, chaque ligne dans la copie de son projet. La cohérence tient à
+une règle de version (`services/communes_sync.py`) : version augmentée d'abord, écriture
+ensuite, puis synchronisation, qui recalcule toutes les parts depuis l'état et n'écrit que
+si la version n'a pas bougé. Une écriture interrompue laisse une copie en retard, rattrapée
+au passage suivant. Un projet hors ligne arrête la synchronisation avant toute écriture.
+
 Les réglages imposés par un dossier vivent dans sa référence, un projet `ref-<dossier>`
 réglé par les écrans ordinaires. `services/propagation.py` en recopie les tables imposées
 dans un projet par une synchronisation complète : la référence est attachée à la base du
@@ -215,6 +223,7 @@ les services.
 | `blocs`, `parametres`, `listes` | Blocs, paramètres du projet, listes de valeurs |
 | `ensembles`, `ensembles_arbre`, `ensembles_copie` | Ensembles et affectations, arborescence et budgets, duplication |
 | `commandes`, `receptions`, `mouvements`, `demandes_devis` | Achats, réceptions, stock, préparation des demandes de devis |
+| `communes`, `communes_sync` | Commandes communes d'un dossier : droits, en-tête, lignes, frais ; parts de chaque projet et synchronisation des copies |
 | `fournisseurs`, `fournisseurs_liste` | Fournisseurs, comparaison avec une liste Excel |
 | `documents`, `corbeille` | Fichiers joints, corbeille et accord des fichiers après restauration |
 | `import_lecture`, `import_colonnes`, `import_analyse`, `import_doublons`, `import_application`, `import_depots`, `modeles` | Travail en équipe par Excel |

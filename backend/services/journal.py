@@ -23,6 +23,8 @@ CLES_PRIMAIRES: dict[str, str] = {
     "document": "id",
     "attribut": "code",
     "frais_commande": "id",
+    "commune": "numero",
+    "frais_commune": "id",
 }
 
 

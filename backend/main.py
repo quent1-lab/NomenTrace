@@ -22,6 +22,7 @@ from backend.routes import (
     attributs,
     blocs,
     commandes,
+    communes,
     composants,
     documents,
     ensembles,
@@ -42,6 +43,7 @@ from backend.routes import (
 )
 from backend.securite import install_securite
 from backend.services import authentification, comptes, projets, reference, sauvegardes
+from backend.services import communes as services_communes
 from backend.services.export_excel import PlanificateurExport
 
 journal_log = logging.getLogger("nomentrace")
@@ -82,7 +84,7 @@ MODULES = (
 )
 ROUTEURS_PROJET = (session.router_projet, *(module.router for module in MODULES))
 # Routes communes : connexion, accueil, organismes, dossiers ; aucune base de projet.
-ROUTEURS_COMMUNS = (session.router, hierarchie.router)
+ROUTEURS_COMMUNS = (session.router, hierarchie.router, communes.router)
 
 
 def _configure_logging() -> None:
@@ -194,6 +196,7 @@ def _preparer_projets(etat: Any, ancienne_base: Path) -> None:
     conn = db.connect(etat.chemin_comptes)
     try:
         reference.reprendre(conn, etat.registre, (etat.dossier_data, etat.dossier_echange))
+        services_communes.reprendre(conn, etat.registre)
     finally:
         conn.close()
     for code, emp in etat.registre.projets.items():

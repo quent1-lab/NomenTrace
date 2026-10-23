@@ -1,4 +1,5 @@
-// Page d'un dossier (/d/<code>/) : ses projets en tableau, ses responsables achats, et pour
+// Page d'un dossier (/d/<code>/) : ses projets en tableau, ses commandes communes, ses
+// responsables achats, et pour
 // l'administrateur de l'organisme la création d'un projet et le nom du dossier.
 
 import { api } from "../api.js";
@@ -7,6 +8,7 @@ import { champChoix, champNombre, champTexte, suivreModifications } from "../for
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { panneauCommunes } from "./communes.js";
 import { afficherCompte, codeDepuis, formulairePanneau, libelleAcces, montantSuivi, nomProjet } from "./elements.js";
 
 function prefixeDepuis(nom) {
@@ -168,6 +170,36 @@ function panneauDossier(dossier, rafraichir) {
   return el("section", { class: "panneau" }, el("h2", {}, "Dossier"), formulaire);
 }
 
+function sectionProjets(dossier, rafraichir) {
+  return el(
+    "section",
+    { class: "panneau" },
+    dossier.projets.length
+      ? el(
+          "div",
+          { class: "table-defilante" },
+          el(
+            "table",
+            { class: "table" },
+            el(
+              "thead",
+              {},
+              el(
+                "tr",
+                {},
+                ["Projet", "Votre accès"].map((t) => el("th", {}, t)),
+                ["Appro.", "Budget HT", "Engagé HT"].map((t) => el("th", { class: "nombre" }, t)),
+                dossier.gestion ? el("th", {}, "Réglages communs") : null,
+                el("th", {}),
+              ),
+            ),
+            el("tbody", {}, dossier.projets.map((carte) => ligneProjet(dossier, carte, rafraichir))),
+          ),
+        )
+      : el("p", { class: "texte-doux" }, "Aucun projet dans ce dossier."),
+  );
+}
+
 export async function afficherDossier(code, { contenu, fil }) {
   const rafraichir = () => afficherDossier(code, { contenu, fil });
   const dossier = await api.getDossier(code);
@@ -188,31 +220,10 @@ export async function afficherDossier(code, { contenu, fil }) {
       "div",
       { class: "commun__colonnes" },
       el(
-        "section",
-        { class: "panneau" },
-        dossier.projets.length
-          ? el(
-              "div",
-              { class: "table-defilante" },
-              el(
-                "table",
-                { class: "table" },
-                el(
-                  "thead",
-                  {},
-                  el(
-                    "tr",
-                    {},
-                    ["Projet", "Votre accès"].map((t) => el("th", {}, t)),
-                    ["Appro.", "Budget HT", "Engagé HT"].map((t) => el("th", { class: "nombre" }, t)),
-                    dossier.gestion ? el("th", {}, "Réglages communs") : null,
-                    el("th", {}),
-                  ),
-                ),
-                el("tbody", {}, dossier.projets.map((carte) => ligneProjet(dossier, carte, rafraichir))),
-              ),
-            )
-          : el("p", { class: "texte-doux" }, "Aucun projet dans ce dossier."),
+        "div",
+        { class: "commun__principal" },
+        sectionProjets(dossier, rafraichir),
+        panneauCommunes(code),
       ),
       el("aside", { class: "commun__cote" }, panneauResponsables(dossier, rafraichir), panneauDossier(dossier, rafraichir)),
     ),

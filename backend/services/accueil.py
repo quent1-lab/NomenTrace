@@ -122,7 +122,7 @@ def _destination(
     return f"/p/{cartes[0]['code']}/" if seul_membre or serveur_sans_structure else None
 
 
-def _compte(compte: Utilisateur) -> dict:
+def resume_compte(compte: Utilisateur) -> dict:
     return {"nom": compte.nom, "admin_serveur": compte.admin_serveur, "local": compte.local}
 
 
@@ -157,7 +157,7 @@ def get_accueil(conn: sqlite3.Connection, registre: Registre, compte: Utilisateu
             )
     hors_dossier = [cartes[p["code"]] for p in projets if p["dossier"] is None]
     return {
-        "compte": _compte(compte),
+        "compte": resume_compte(compte),
         "organismes": resultat,
         "hors_dossier": hors_dossier,
         "destination": _destination(compte, roles, list(cartes.values()), len(organismes)),
@@ -180,7 +180,7 @@ def get_vue_dossier(
     return {
         **dossier,
         "organisme": hierarchie.get_organisme(conn, dossier["organisme"]),
-        "compte": _compte(compte),
+        "compte": resume_compte(compte),
         "gestion": gestion,
         "reference": reference.code_reference(code) if gestion else None,
         "a_jour": reference.etat_des_projets(conn, registre, code) if gestion else {},
@@ -222,7 +222,7 @@ def get_vue_organisme(
     )
     return {
         **organisme,
-        "compte": _compte(compte),
+        "compte": resume_compte(compte),
         "gestion": gestion,
         "fournisseurs": reference.code_organisme(code),
         "dossiers": dossiers,

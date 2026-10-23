@@ -6,11 +6,27 @@ import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
-import { aPermission, nomAuteur } from "../session.js";
+import { aPermission, codeDossier, nomAuteur } from "../session.js";
 import { afficherAvertissements, afficherErreur, el, enregistrerFichier, lienExterne, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE, valeursListe } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { lienFournisseur } from "./fournisseurs_commun.js";
+
+// Une commande commune se gère depuis la page du dossier : sa copie est en lecture seule ici.
+function modifiable() {
+  return aPermission("achats") && !etat.commande?.commune;
+}
+
+function bandeauCommune(c) {
+  if (!c.commune) return null;
+  const dossier = codeDossier();
+  return el(
+    "div",
+    { class: "bandeau-avertissement bandeau-avertissement--info" },
+    el("span", {}, "Commande commune du dossier, gérée par ses responsables achats. Ses lignes, sa part des frais et sa part du montant réel se consultent ici."),
+    dossier ? el("a", { href: `/d/${dossier}/#/communes/${c.commune}` }, ` Ouvrir ${c.commune}`) : null,
+  );
+}
 
 const SEUIL_ECART_PCT = 10;
 let etat = null;
@@ -23,7 +39,7 @@ function ecartPrix(ligne) {
 }
 
 function celluleEditable(ligne, definition, contenu) {
-  if (!aPermission("achats")) return el("td", { class: "nombre" }, contenu);
+  if (!modifiable()) return el("td", { class: "nombre" }, contenu);
   const td = el("td", { class: "nombre editable" }, contenu);
   td.addEventListener("click", () =>
     editerCellule(td, definition, ligne, {
@@ -39,7 +55,7 @@ function ligneCommande(ligne) {
   const attendent = ligne.ensembles.length
     ? ligne.ensembles.map((e) => el("a", { class: "etiquette", href: lienRoute(`/ensembles/${e.code}`), title: `${e.qte} affecté(s)` }, `${e.code} ×${e.qte}`))
     : el("span", { class: "texte-doux" }, "—");
-  const achats = aPermission("achats");
+  const achats = modifiable();
   const statut = el("td", { class: achats ? "editable" : "" }, libelle(ligne.statut_ligne));
   if (achats) {
     statut.addEventListener("click", () =>
@@ -165,7 +181,7 @@ function sectionDemande() {
 // --- Frais (livraison, douane, facturation…) ----------------------------------------------
 
 function ligneFrais(frais) {
-  const achats = aPermission("achats");
+  const achats = modifiable();
   const montant = el("td", { class: achats ? "nombre editable" : "nombre" }, formatMontant(frais.montant_ht));
   if (achats) {
     montant.addEventListener("click", () =>
@@ -290,7 +306,7 @@ function confirmation(date, confirmee) {
 // Ce que le suivi des achats de l'établissement a appris de la commande.
 function blocSuivi(c) {
   if (!c.date_transmission_suivi) {
-    if (!aPermission("achats") || !etat.lignes.length) return null;
+    if (!modifiable() || !etat.lignes.length) return null;
     const transmettre = async () => {
       try {
         await api.patchCommande(c.numero, { date_transmission_suivi: aujourdhui() });
@@ -316,7 +332,7 @@ function blocSuivi(c) {
 
 function infos() {
   const c = etat.commande;
-  const statut = el("select", { class: "filtre", "aria-label": "Statut de la commande", disabled: !aPermission("achats") }, STATUTS_COMMANDE.map((s) => el("option", { value: s, selected: s === c.statut }, libelle(s))));
+  const statut = el("select", { class: "filtre", "aria-label": "Statut de la commande", disabled: !modifiable() }, STATUTS_COMMANDE.map((s) => el("option", { value: s, selected: s === c.statut }, libelle(s))));
   statut.addEventListener("change", async () => {
     try {
       await api.patchCommande(c.numero, { statut: statut.value });
@@ -355,23 +371,24 @@ function infos() {
 
 function rendre() {
   const c = etat.commande;
-  const receptionnable = c.type === "Commande" && ["Commande", "Livre partiel"].includes(c.statut) && etat.lignes.length > 0;
+  const receptionnable = !c.commune && c.type === "Commande" && ["Commande", "Livre partiel"].includes(c.statut) && etat.lignes.length > 0;
   etat.conteneur.replaceChildren(
     el("p", { class: "fil" }, el("a", { href: "#/achats" }, "← Achats")),
     el(
       "div",
       { class: "titre-page" },
-      el("h1", {}, `${c.numero} `, el("span", { class: "etiquette" }, c.type), " ", badgeStatut(c)),
+      el("h1", {}, `${c.numero} `, el("span", { class: "etiquette" }, c.type), " ", badgeStatut(c), c.commune ? el("span", { class: "etiquette etiquette--commune" }, `Commune ${c.commune}`) : null),
       el(
         "div",
         { class: "actions" },
         receptionnable && !etat.reception ? el("button", { type: "button", class: "bouton si-achats", onclick: () => { etat.reception = true; rendre(); } }, "Réceptionner") : null,
-        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireCommande({ commande: c, fournisseurs: etat.fournisseurs, surEnregistre: recharger }) }, "Modifier"),
-        el("button", { type: "button", class: "bouton bouton--danger si-achats", onclick: archiver }, "Archiver"),
+        c.commune ? null : el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireCommande({ commande: c, fournisseurs: etat.fournisseurs, surEnregistre: recharger }) }, "Modifier"),
+        c.commune ? null : el("button", { type: "button", class: "bouton bouton--danger si-achats", onclick: archiver }, "Archiver"),
       ),
     ),
+    bandeauCommune(c),
     infos(),
-    etat.lignes.length && !etat.reception ? sectionDemande() : "",
+    etat.lignes.length && !etat.reception && !c.commune ? sectionDemande() : "",
     etat.reception
       ? modeReception()
       : el(
@@ -380,10 +397,10 @@ function rendre() {
           el("h2", {}, "Lignes"),
           etat.lignes.length || etat.frais.length ? tableLignes() : el("p", { class: "texte-doux" }, "Aucune ligne pour l'instant."),
           el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %.`),
-          aPermission("achats") ? el("h3", { class: "sous-titre" }, "Ajouter une ligne") : null,
-          aPermission("achats") ? formulaireAjout() : null,
-          aPermission("achats") ? el("h3", { class: "sous-titre" }, "Ajouter un frais") : null,
-          aPermission("achats") ? formulaireFrais() : null,
+          modifiable() ? el("h3", { class: "sous-titre" }, "Ajouter une ligne") : null,
+          modifiable() ? formulaireAjout() : null,
+          modifiable() ? el("h3", { class: "sous-titre" }, "Ajouter un frais") : null,
+          modifiable() ? formulaireFrais() : null,
         ),
     el(
       "div",
@@ -393,7 +410,7 @@ function rendre() {
         typeParDefaut: etat.commande.type === "Devis" ? "Devis" : "Bon de commande",
         aide: "Ils apparaissent aussi dans la fiche de chaque composant de la commande.",
         deposer: (donnees, progression) => api.deposerDocumentsCommande(etat.numero, donnees, progression),
-        depot: aPermission("achats"),
+        depot: modifiable(),
         surChangement: recharger,
       }),
     ),

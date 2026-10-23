@@ -362,6 +362,60 @@ class LigneModif(Modele):
     commentaire: str | None = None
 
 
+class CommuneCreation(Modele):
+    type: TypeCommande = "Commande"
+    statut: StatutCommande = "A demander"
+    fournisseur_nom: str = Field(min_length=1)
+    demande_par: str | None = None
+    date_demande: str | None = Field(default=None, pattern=MOTIF_DATE)
+    date_reception_devis: str | None = Field(default=None, pattern=MOTIF_DATE)
+    date_commande: str | None = Field(default=None, pattern=MOTIF_DATE)
+    livraison_annoncee: str | None = Field(default=None, pattern=MOTIF_DATE)
+    taux_tva: float | None = Field(default=None, ge=0, lt=1)
+    reference_externe: str | None = None
+    lien_document: Lien = None
+    commentaire: str | None = None
+
+
+class CommuneModif(Modele):
+    type: TypeCommande | None = None
+    statut: StatutCommande | None = None
+    fournisseur_nom: str | None = Field(default=None, min_length=1)
+    demande_par: str | None = None
+    date_demande: str | None = Field(default=None, pattern=MOTIF_DATE)
+    date_reception_devis: str | None = Field(default=None, pattern=MOTIF_DATE)
+    date_commande: str | None = Field(default=None, pattern=MOTIF_DATE)
+    livraison_annoncee: str | None = Field(default=None, pattern=MOTIF_DATE)
+    taux_tva: float | None = Field(default=None, ge=0, lt=1)
+    reference_externe: str | None = None
+    lien_document: Lien = None
+    commentaire: str | None = None
+    # Suivi tenu par l'établissement : le montant réel est réparti entre les projets.
+    date_transmission_suivi: str | None = Field(default=None, pattern=MOTIF_DATE)
+    montant_commande_ht: float | None = Field(default=None, ge=0)
+    date_reception_annoncee: str | None = Field(default=None, pattern=MOTIF_DATE)
+    commentaire_suivi: str | None = None
+
+
+class LigneCommune(Modele):
+    projet: str = Field(min_length=1)
+    composant_id: str = Field(min_length=1)
+    qte_commandee: int = Field(gt=0)
+    pu_ht_devis: float | None = Field(default=None, ge=0)
+    commentaire: str | None = None
+
+
+class LignesCommune(Modele):
+    lignes: list[LigneCommune] = Field(min_length=1)
+
+
+class LigneCommuneModif(Modele):
+    qte_commandee: int | None = Field(default=None, gt=0)
+    pu_ht_devis: float | None = Field(default=None, ge=0)
+    statut_ligne: Literal["A commander", "Commandee", "Annulee"] | None = None
+    commentaire: str | None = None
+
+
 class MouvementCreation(Modele):
     date: str = Field(pattern=MOTIF_DATE)
     composant_id: str = Field(min_length=1)

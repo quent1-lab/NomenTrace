@@ -335,6 +335,46 @@ valeurs, paramètres de l'établissement, TVA, champs obligatoires, nom du proje
 préfixe, logo. Un projet est à jour quand son empreinte égale celle de la référence, relue à
 chaque contrôle.
 
+## Commandes communes
+
+Une commande commune d'un dossier a son en-tête et ses frais dans la référence du dossier,
+ses lignes dans les projets. Les tables `commune`, `commune_projet` et `frais_commune`
+existent dans toute base mais ne sont remplies que dans une référence de dossier.
+
+| Table | Rôle | Clé |
+|---|---|---|
+| `commune` | En-tête : `numero` (`CC-NNN`), mêmes champs qu'une commande, `version` (augmentée à chaque écriture, ligne comprise), `statut_deduit` et `estime_ht` (recalculés) | `numero` |
+| `commune_projet` | Projets présents et numéro local (`CMD-NNN`) de leur copie | `numero`, `projet` |
+| `frais_commune` | Frais de la commune, typés comme `frais_commande` | `id` |
+
+Dans chaque projet présent, une commande ordinaire, sa copie, porte `commune` (le numéro
+`CC-NNN`) et `version_commune`. Ses lignes sont les seules lignes de ce projet dans la
+commune. Tout le reste s'en déduit et y est réécrit par la synchronisation : l'en-tête
+recopié, le statut, une ligne de `frais_commande` par frais de la commune pour la part du
+projet, et `montant_commande_ht` pour sa part du montant réel. Les vues du projet comptent
+la copie comme toute commande, sans changement.
+
+```
+n                  = nombre de projets ayant au moins une ligne non annulée
+part de frais      = montant du frais / n pour ces projets, 0 pour les autres
+estime_projet      = somme(qte_commandee * pu_ht_devis) des lignes non annulées
+                     (prix absent : 0) + ses parts de frais
+part du réel       = reel * estime_projet / somme des estimés,
+                     ou reel / n si la somme des estimés est nulle ;
+                     le dernier projet prend le reste : la somme des parts vaut le réel
+statut de la copie = statut de la commune, sauf une fois la commune passée (Commande,
+                     Livre partiel, Livre) : Livre si toutes ses lignes non annulées sont
+                     reçues, Livre partiel si une réception a eu lieu, Commande sinon
+```
+
+Les parts sont stockées en pleine précision. Une écriture augmente d'abord la version de la
+commune, puis écrit dans le projet, puis synchronise ; une synchronisation n'écrit une
+copie que si la version n'a pas bougé depuis sa lecture. Une copie de version inférieure
+est rattrapée à l'ouverture de la commune et au démarrage. La table `commune_ecriture` (une
+ligne, `ouverte`) porte le verrou : des déclencheurs refusent toute écriture locale sur une
+copie, ses lignes, ses frais, ses documents et ses mouvements de stock, hors des écritures
+de la commune. Le renommage d'un fournisseur passe, par `ON UPDATE CASCADE`.
+
 ## Historique
 
 La frise de la fiche d'un composant est assemblée en Python (`backend/services/historique.py`)

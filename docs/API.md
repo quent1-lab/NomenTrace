@@ -120,6 +120,27 @@ suppression `/api/nettoyage/entites/fournisseur/{nom}`, sous l'adresse de sa ré
 et « achats et stock » y sont administrateurs, « lecture » lecteur. `GET
 /api/organismes/{code}` donne le code de cette référence (`fournisseurs`).
 
+## Commandes communes
+
+Routes communes, hors de tout projet. Toutes demandent de voir le dossier ; les écritures,
+d'être responsable achats du dossier ou administrateur de l'organisme au profil « gestion »
+ou « achats et stock » (403 sinon). Une écriture répond la commune relue, avec le rapport de
+la synchronisation (`synchronisation` : projets écrits, projets hors ligne, `perimee`).
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET, POST | `/api/dossiers/{code}/communes` | Communes actives avec projets, statut, estimé et réel, `acheteur` ; nouvelle commune (`fournisseur_nom` de la liste de l'organisme, champs d'une commande) |
+| GET | `/api/dossiers/{code}/communes/fournisseurs` | Fournisseurs validés de l'organisme |
+| GET, PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}` | Commune, lignes par projet, part de chaque projet, frais, projets hors ligne ; modification de l'en-tête (Livré et Livré partiel refusés, 400) ; archivage, copies comprises |
+| GET | `/api/dossiers/{code}/communes/{numero}/candidats` | Composants achetés de chaque projet en ligne, avec fournisseur et reste à commander |
+| POST | `/api/dossiers/{code}/communes/{numero}/lignes` | Lignes (`projet`, `composant_id`, `qte_commandee`, `pu_ht_devis`, `commentaire`), chacune dans la copie de son projet, créée au besoin |
+| PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/lignes/{projet}/{id}` | Quantité, prix, commentaire, statut (À commander, Commandée, Annulée) ; suppression d'une ligne sans réception |
+| POST | `/api/dossiers/{code}/communes/{numero}/frais` | Nouveau frais |
+| PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/frais/{id}` | Modification, retrait d'un frais |
+
+Dans un projet, la copie se lit par les routes des commandes (`commune` donne son numéro) ;
+toute écriture sur elle répond 409.
+
 ## Projet, pilotage et historique
 
 | Méthode | Chemin | Rôle |

@@ -19,7 +19,7 @@ from typing import Any
 from backend import db
 from backend.aiguillage import code_valide
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
-from backend.services import comptes, duplication, projets, propagation, reference
+from backend.services import communes_sync, comptes, duplication, projets, propagation, reference
 from backend.services.droits import (
     ADMINISTRATEUR,
     GESTION,
@@ -281,6 +281,8 @@ def patch_projet(
     _exiger_patch_projet(conn, compte, projet, modifs)
     rapport = None
     if "dossier" in modifs and modifs["dossier"] != projet["dossier"]:
+        if projet["dossier"] is not None and code in registre.projets:
+            communes_sync.exiger_sans_commune(registre.projets[code].base)
         if modifs["dossier"] is None:
             reference.sortir(registre, code)
         else:

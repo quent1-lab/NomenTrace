@@ -1,8 +1,10 @@
-// Pages communes, hors de tout projet : accueil (/), dossier (/d/<code>/), organisme
-// (/o/<code>/). Le serveur sert la même page pour les trois ; elle lit son adresse.
+// Pages communes, hors de tout projet : accueil (/), dossier (/d/<code>/), commande commune
+// (/d/<code>/#/communes/CC-NNN), organisme (/o/<code>/). Le serveur sert la même page pour
+// tous ; elle lit son adresse.
 // Un compte qui n'a qu'un projet est envoyé directement dessus, sauf avec « ?accueil ».
 
 import { api } from "./api.js";
+import { afficherCommune } from "./commun/communes.js";
 import { afficherDossier } from "./commun/dossier.js";
 import { afficherCompte, carteProjet, codeDepuis, formulairePanneau } from "./commun/elements.js";
 import { afficherOrganisme } from "./commun/organisme.js";
@@ -109,7 +111,9 @@ async function afficherAccueil() {
 async function demarrer() {
   const [, niveau, code] = window.location.pathname.match(/^\/([do])\/([a-z0-9][a-z0-9-]*)\/$/) ?? [];
   try {
-    if (niveau === "d") await afficherDossier(code, { contenu, fil });
+    const commune = window.location.hash.match(/^#\/communes\/(CC-\d+)$/)?.[1];
+    if (niveau === "d" && commune) await afficherCommune(code, commune, { contenu, fil });
+    else if (niveau === "d") await afficherDossier(code, { contenu, fil });
     else if (niveau === "o") await afficherOrganisme(code, { contenu, fil });
     else await afficherAccueil();
   } catch (erreur) {
@@ -117,4 +121,5 @@ async function demarrer() {
   }
 }
 
+window.addEventListener("hashchange", demarrer);
 demarrer();

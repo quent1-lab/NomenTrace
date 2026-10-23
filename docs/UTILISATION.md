@@ -559,6 +559,36 @@ chaque projet. Un fournisseur retiré de la liste reste archivé dans les projet
 citent. Au rangement d'un projet, ses fournisseurs absents de la liste la rejoignent ; pour
 un nom déjà présent, majuscules et accents mis à part, la fiche de l'organisme fait foi.
 
+### Les commandes communes
+
+Une commande commune regroupe chez un même fournisseur les besoins de plusieurs projets du
+dossier, pour ne payer qu'une fois le port ou atteindre un minimum de commande. Elle se
+gère depuis la page du dossier, panneau « Commandes communes », par les responsables
+achats du dossier et les administrateurs de l'organisme aux profils « Gestion complète » et
+« Achats et stock ». Les autres la consultent.
+
+« Nouvelle commande commune » demande le fournisseur, pris dans la liste de l'organisme. Sur
+la page de la commande, « Ajouter des composants » propose, projet par projet, les
+composants de ce fournisseur qui restent à commander, avec la quantité qui manque ; on coche
+ceux qu'on prend. Un composant d'un autre fournisseur s'ajoute à la main, en choisissant le
+projet puis le composant. Un projet rejoint la commande avec sa première ligne. Les lignes
+se modifient, s'annulent ou se suppriment depuis la même page ; les frais (livraison,
+douane…) s'y ajoutent aussi.
+
+Chaque projet présent a dans ses achats sa propre commande, marquée « Commune CC-003 ». Elle
+porte ses seules lignes, sa part des frais et sa part du montant réel, et compte dans son
+engagé comme toute commande. Elle s'y consulte sans se modifier. Les frais se partagent à
+parts égales entre les projets qui ont au moins une ligne non annulée. Le montant réel, saisi
+dans « Modifier » une fois connu, se répartit au prorata de l'estimé de chaque projet, ses
+lignes plus sa part des frais : avec 300 € de lignes pour un projet, 100 € pour l'autre et
+20 € de port, un réel de 410 € donne 302,62 € et 107,38 €. Une ligne sans prix compte pour
+zéro dans l'estimé et la page la signale. Le statut « Livré » se déduit des réceptions et ne
+se choisit pas ; la réception d'une commande commune n'est pas encore ouverte.
+
+Un projet qui a des lignes dans une commande commune active ne peut pas quitter son
+dossier : annuler ses lignes ou archiver la commande d'abord. Si un projet présent est hors
+ligne, la page le signale et la répartition attend son retour.
+
 ## Gérer les comptes
 
 Paramètres › Utilisateurs, réservé à l'administrateur, liste les comptes avec leur rôle,

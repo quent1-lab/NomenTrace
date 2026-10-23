@@ -35,7 +35,7 @@ function rendreTable() {
       el(
         "tr",
         { class: "ligne-cliquable", onclick: () => naviguer(`/achats/${c.numero}`) },
-        el("td", { class: "code" }, c.numero),
+        el("td", { class: "code" }, c.numero, c.commune ? el("span", { class: "etiquette etiquette--commune", title: "Commande commune du dossier" }, ` ${c.commune}`) : null),
         el("td", {}, c.type),
         el("td", {}, badgeStatut(c), " ", badgeRetard(c)),
         el("td", {}, c.fournisseur_nom ?? "—"),
