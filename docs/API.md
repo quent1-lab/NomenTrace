@@ -150,7 +150,8 @@ seule sa réception y est permise, avec `qte_recue_lue` sur chaque ligne (400 sa
 écart). Toute autre écriture sur elle répond 409. Pour toute commande, `qte_recue_lue` est
 accepté et vérifié de la même façon. `GET /api/session` dit si le compte voit le dossier du
 projet (`voit_dossier`). Le suivi de l'établissement d'un projet ignore les copies et les
-lignes des communes.
+lignes des communes. L'analyse d'un classeur de suivi donne aussi
+`nb_lignes_a_completer` : lignes déjà présentes dont des cases vides seront remplies.
 
 ## Projet, pilotage et historique
 

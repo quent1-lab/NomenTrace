@@ -309,6 +309,7 @@ function blocSuivi(c) {
   if (!c.date_transmission_suivi) {
     if (!modifiable() || !etat.lignes.length) return null;
     const transmettre = async () => {
+      if (!c.date_reception_devis && !confirm("La date de réception du devis est vide : la colonne « date devis » du fichier restera vide jusqu'à ce qu'elle soit saisie ici (le fichier sera alors complété au passage suivant). Transmettre quand même ?")) return;
       try {
         await api.patchCommande(c.numero, { date_transmission_suivi: aujourdhui() });
         masquerErreur();

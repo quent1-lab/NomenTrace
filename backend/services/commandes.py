@@ -59,6 +59,17 @@ def _marquer_lignes_commandees(conn: sqlite3.Connection, numero: str) -> None:
         )
 
 
+def date_devis_au_statut(avant: dict, apres: dict) -> dict[str, str]:
+    """Passage à « Devis reçu » sans date de réception du devis : celle du jour."""
+    if (
+        apres.get("statut") == "Devis recu"
+        and avant.get("statut") != "Devis recu"
+        and not apres.get("date_reception_devis")
+    ):
+        return {"date_reception_devis": date.today().isoformat()}
+    return {}
+
+
 def list_commandes(
     conn: sqlite3.Connection, statut: str | None = None, fournisseur: str | None = None
 ) -> list[dict]:
@@ -108,6 +119,7 @@ def patch_commande(conn: sqlite3.Connection, numero: str, modifications: dict[st
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
         apres = {**avant, **modifications}
+        modifications = {**modifications, **date_devis_au_statut(avant, apres)}
         if _est_engagee(apres) and not _est_engagee(avant):
             if not apres.get("date_commande"):
                 modifications = {**modifications, "date_commande": date.today().isoformat()}

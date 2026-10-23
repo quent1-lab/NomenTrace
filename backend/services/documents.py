@@ -13,6 +13,7 @@ import sqlite3
 import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -174,7 +175,25 @@ def add_document(
         cle = commande or composant
         table = "commande" if commande else "composant"
         journal.write_journal(conn, table, cle, f"document {identifiant}", None, nom)
+        if commande and meta["type_document"] == "Devis":
+            _dater_devis(conn, commande)
     return get_document(conn, identifiant)
+
+
+def _dater_devis(conn: sqlite3.Connection, numero: str) -> None:
+    """Un devis joint à une commande sans date de réception du devis la date du jour.
+    La copie d'une commande commune est datée par sa commune (communes.dater_devis)."""
+    commande = db.fetch_one(
+        conn, "SELECT date_reception_devis, commune FROM commande WHERE numero = ?", (numero,)
+    )
+    if commande and not commande["date_reception_devis"] and commande["commune"] is None:
+        journal.update_with_journal(
+            conn,
+            "commande",
+            numero,
+            {"date_reception_devis": date.today().isoformat()},
+            frozenset({"date_reception_devis"}),
+        )
 
 
 def _insert_fiche(conn: sqlite3.Connection, fichier: Path, valeurs: dict[str, Any]) -> int:

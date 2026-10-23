@@ -313,8 +313,10 @@ def analyse(conn: sqlite3.Connection, contenu: bytes) -> dict:
                 }
             )
     presentes = {modele.reference(rang) for rang in modele.lignes()}
-    a_ajouter = [ligne for ligne in lignes_a_transmettre(conn) if ligne["ref"] not in presentes]
+    transmises = lignes_a_transmettre(conn)
+    a_ajouter = [ligne for ligne in transmises if ligne["ref"] not in presentes]
     return {
+        "nb_lignes_a_completer": nb_lignes_a_completer(modele, transmises),
         "propositions": propositions,
         "lignes_inconnues": [f"ligne {i}" if isinstance(i, int) else i for i in inconnues],
         "nb_lignes_a_ajouter": len(a_ajouter),
@@ -441,7 +443,50 @@ def _inserer_avant_total(modele: Modele, nombre: int) -> None:
     modele.total = nouveau_total
 
 
+def _valeurs(ligne: dict) -> dict[str, Any]:
+    """Ce que Nomentrace écrit d'une ligne, colonne par colonne."""
+    return {
+        "fournisseur": ligne["fournisseur"],
+        "reference": ligne["reference"],
+        "designation": ligne["designation"],
+        "qte": ligne["qte"],
+        "montant": round(ligne["montant"], 2) if ligne["montant"] is not None else None,
+        "date_devis": date.fromisoformat(ligne["date_devis"]) if ligne["date_devis"] else None,
+    }
+
+
+def _vide(cellule: Cell | None) -> bool:
+    return cellule is not None and (cellule.value is None or str(cellule.value).strip() == "")
+
+
+def _cases_a_completer(modele: Modele, lignes: list[dict]) -> dict[int, dict[str, Any]]:
+    """Lignes déjà écrites par Nomentrace : leurs cases vides qu'il sait maintenant remplir
+    (une date de devis saisie après la transmission, par exemple). Une case remplie, par
+    l'établissement ou à la main, n'est jamais réécrite."""
+    par_ref = {ligne["ref"]: ligne for ligne in lignes}
+    cases: dict[int, dict[str, Any]] = {}
+    for rang in modele.lignes():
+        ligne = par_ref.get(modele.reference(rang) or "")
+        if ligne is None:
+            continue
+        manquantes = {
+            cle: valeur
+            for cle, valeur in _valeurs(ligne).items()
+            if valeur is not None and _vide(modele.cellule(rang, cle))
+        }
+        if manquantes:
+            cases[rang] = manquantes
+    return cases
+
+
 def ajouter_lignes(modele: Modele, lignes: list[dict]) -> None:
+    """Complète les cases vides des lignes déjà écrites, puis ajoute les lignes nouvelles."""
+    completees = _cases_a_completer(modele, lignes)
+    for rang, manquantes in completees.items():
+        for cle, valeur in manquantes.items():
+            _ecrire(modele.cellule(rang, cle), valeur)
+    if completees:
+        journal_log.info("Suivi des achats : %d ligne(s) complétée(s)", len(completees))
     presentes = {modele.reference(rang) for rang in modele.lignes()}
     nouvelles = [ligne for ligne in lignes if ligne["ref"] not in presentes]
     if not nouvelles:
@@ -456,15 +501,11 @@ def ajouter_lignes(modele: Modele, lignes: list[dict]) -> None:
         _inserer_avant_total(modele, manque)
         libres += list(range(debut, debut + manque))
     for rang, ligne in zip(libres, nouvelles, strict=False):
-        _ecrire(modele.cellule(rang, "fournisseur"), ligne["fournisseur"])
-        _ecrire(modele.cellule(rang, "reference"), ligne["reference"])
-        _ecrire(modele.cellule(rang, "designation"), ligne["designation"])
-        _ecrire(modele.cellule(rang, "qte"), ligne["qte"])
-        _ecrire(
-            modele.cellule(rang, "montant"),
-            round(ligne["montant"], 2) if ligne["montant"] is not None else None,
-        )
-        if ligne["date_devis"]:
-            _ecrire(modele.cellule(rang, "date_devis"), date.fromisoformat(ligne["date_devis"]))
+        for cle, valeur in _valeurs(ligne).items():
+            _ecrire(modele.cellule(rang, cle), valeur)
         modele.feuille.cell(rang, modele.col_reference, ligne["ref"])
     journal_log.info("Suivi des achats : %d ligne(s) ajoutée(s)", len(nouvelles))
+
+
+def nb_lignes_a_completer(modele: Modele, lignes: list[dict]) -> int:
+    return len(_cases_a_completer(modele, lignes))

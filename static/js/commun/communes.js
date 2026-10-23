@@ -417,6 +417,7 @@ function infos() {
   const paires = [
     ["Fournisseur", c.fournisseur_nom],
     ["Demandée par", c.demande_par || "—"],
+    ["Devis reçu le", formatDate(c.date_reception_devis) || "—"],
     ["Commandée le", formatDate(c.date_commande) || "—"],
     ["Livraison annoncée", formatDate(c.livraison_annoncee) || "—"],
     ["Réception réelle", formatDate(c.date_reception_reelle) || "—"],
@@ -565,6 +566,7 @@ function blocSuivi() {
   if (!c.acheteur || c.archive || !c.projets.length) return null;
   const transmettre = () =>
     agir(async () => {
+      if (!c.date_reception_devis && !confirm("La date de réception du devis est vide : la colonne « date devis » du fichier restera vide jusqu'à ce qu'elle soit saisie ici (le fichier sera alors complété au passage suivant). Transmettre quand même ?")) return;
       await api.patchCommune(etat.code, etat.numero, { date_transmission_suivi: new Date().toISOString().slice(0, 10) });
       await recharger();
     });

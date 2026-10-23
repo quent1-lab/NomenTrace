@@ -782,3 +782,19 @@ def test_session_dit_si_le_dossier_est_visible(app: FastAPI, client: TestClient)
     membre = connecter(app, "membre@ecole.test")
     assert membre.get(f"/p/{PROJET}/api/session").json()["voit_dossier"] is False
     assert client.get(f"/p/{PROJET}/api/session").json()["voit_dossier"] is True
+
+
+# --- 12. Date du devis posée d'elle-même --------------------------------------------------------
+
+
+def test_commune_datee_au_devis(app: FastAPI, client: TestClient, exemple: str) -> None:
+    from datetime import date
+
+    aujourd_hui = date.today().isoformat()
+    assert client.get(f"{URL}/{exemple}").json()["date_reception_devis"] is None
+    _deposer(client, exemple)  # un Devis
+    assert client.get(f"{URL}/{exemple}").json()["date_reception_devis"] == aujourd_hui
+    assert copie(app, "beta", exemple)["date_reception_devis"] == aujourd_hui
+    autre = nouvelle(client, statut="Devis demande")
+    client.patch(f"{URL}/{autre}", json={"statut": "Devis recu"})
+    assert client.get(f"{URL}/{autre}").json()["date_reception_devis"] == aujourd_hui

@@ -376,7 +376,15 @@ date du devis) et une par frais. Une colonne masquée à droite du modèle porte
 référence Nomentrace de chaque ligne : c'est elle qui retrouve la ligne au retour, et
 une ligne n'est jamais ajoutée deux fois. Quand les lignes prévues par le modèle ne
 suffisent pas, des lignes s'insèrent avant le total, dont les sommes s'étendent. Une ligne
-saisie à la main, sans référence, est signalée et ignorée.
+saisie à la main, sans référence, est signalée et ignorée. À chaque passage, les cases
+encore vides d'une ligne déjà écrite sont complétées de ce que Nomentrace sait depuis, par
+exemple une date de devis saisie après la transmission ; une case remplie, par
+l'établissement ou à la main, n'est jamais réécrite.
+
+La date du devis vient du champ « Réception du devis » de la commande. Elle se pose d'elle-même,
+à la date du jour, quand la commande passe au statut « Devis reçu » ou quand un document de
+type Devis y est joint, si elle était vide. Transmettre au suivi une commande sans date de
+devis demande confirmation.
 
 Le montant de la commande saisi par l'établissement, frais compris, remplace l'estimation
 dans le montant engagé. Une ligne colorée « livré » ne réceptionne rien : elle note une

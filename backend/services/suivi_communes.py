@@ -187,8 +187,10 @@ def analyse(
     finally:
         ref.close()
     presentes = {modele.reference(rang) for rang in modele.lignes()}
-    a_ajouter = [ligne for ligne in lignes_a_transmettre(emp) if ligne["ref"] not in presentes]
+    transmises = lignes_a_transmettre(emp)
+    a_ajouter = [ligne for ligne in transmises if ligne["ref"] not in presentes]
     return {
+        "nb_lignes_a_completer": suivi_achats.nb_lignes_a_completer(modele, transmises),
         "propositions": propositions,
         "lignes_inconnues": [f"ligne {i}" if isinstance(i, int) else i for i in inconnues],
         "nb_lignes_a_ajouter": len(a_ajouter),

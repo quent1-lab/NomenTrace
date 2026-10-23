@@ -71,6 +71,9 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
       : null,
     el("h3", {}, "Ajouts au fichier"),
     el("p", {}, ajout),
+    analyse.nb_lignes_a_completer
+      ? el("p", {}, `${analyse.nb_lignes_a_completer} ligne(s) déjà présente(s) dont des cases vides seront complétées (date du devis, par exemple) ; une case déjà remplie n'est jamais réécrite.`)
+      : null,
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),
       el("button", { type: "button", class: "bouton", onclick: appliquer }, "Appliquer et télécharger le fichier"),

@@ -6,7 +6,7 @@ légende des couleurs, titres de colonnes, lignes de données, ligne TOTAL avec 
 
 import io
 import json
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi.testclient import TestClient
 from openpyxl import Workbook, load_workbook
@@ -189,3 +189,66 @@ def test_classeur_sans_le_modele_refuse(client_essai: TestClient) -> None:
     )
     assert reponse.status_code == 400
     assert "modèle de suivi" in reponse.json()["erreur"]
+
+
+def _sans_date_de_devis(client: TestClient) -> str:
+    numero = client.post(
+        "/api/commandes",
+        json={"fournisseur_nom": "Mouser", "type": "Devis", "statut": "Devis demande"},
+    ).json()["numero"]
+    ligne = {"composant_id": "ESSAI-ALI-001", "qte_commandee": 2, "pu_ht_devis": 1.25}
+    client.post(f"/api/commandes/{numero}/lignes", json=ligne)
+    client.patch(f"/api/commandes/{numero}", json={"date_transmission_suivi": "2026-10-06"})
+    return numero
+
+
+def test_case_vide_completee_au_passage_suivant(client_essai: TestClient) -> None:
+    """Transmise sans date de devis ; la date saisie ensuite remplit la case vide de la ligne
+    déjà écrite, et une case remplie à la main n'est jamais réécrite."""
+    numero = _sans_date_de_devis(client_essai)
+    premier = load_workbook(io.BytesIO(_appliquer(client_essai, _modele())))
+    feuille = premier.active
+    assert feuille["F10"].value is None
+    feuille["A10"] = "Mouser France"  # retouché à la main dans le fichier
+    flux = io.BytesIO()
+    premier.save(flux)
+    client_essai.patch(f"/api/commandes/{numero}", json={"date_reception_devis": "2026-10-09"})
+    assert _analyse(client_essai, flux.getvalue())["nb_lignes_a_completer"] == 1
+    second = load_workbook(io.BytesIO(_appliquer(client_essai, flux.getvalue()))).active
+    assert second["F10"].value == datetime(2026, 10, 9)
+    assert second["A10"].value == "Mouser France"
+    assert [r for r in range(10, 20) if second.cell(r, 12).value] == [10]
+
+
+def test_date_du_devis_au_statut_devis_recu(client_essai: TestClient) -> None:
+    numero = _sans_date_de_devis(client_essai)
+    client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Devis recu"})
+    assert client_essai.get(f"/api/commandes/{numero}").json()["date_reception_devis"] == (
+        date.today().isoformat()
+    )
+    # Une date déjà saisie n'est pas remplacée.
+    autre = _commande(client_essai, ["ESSAI-ALI-002"])
+    client_essai.patch(f"/api/commandes/{autre}", json={"statut": "Devis demande"})
+    client_essai.patch(f"/api/commandes/{autre}", json={"statut": "Devis recu"})
+    assert (
+        client_essai.get(f"/api/commandes/{autre}").json()["date_reception_devis"] == "2026-10-05"
+    )
+
+
+def test_date_du_devis_au_depot_d_un_devis(client_essai: TestClient) -> None:
+    numero = _sans_date_de_devis(client_essai)
+
+    def deposer(type_document: str) -> None:
+        reponse = client_essai.post(
+            f"/api/commandes/{numero}/documents",
+            files=[("fichiers", (f"{type_document}.pdf", f"%PDF {type_document}".encode()))],
+            data={"type_document": type_document},
+        )
+        assert reponse.status_code == 201, reponse.text
+
+    deposer("Facture")
+    assert client_essai.get(f"/api/commandes/{numero}").json()["date_reception_devis"] is None
+    deposer("Devis")
+    assert client_essai.get(f"/api/commandes/{numero}").json()["date_reception_devis"] == (
+        date.today().isoformat()
+    )

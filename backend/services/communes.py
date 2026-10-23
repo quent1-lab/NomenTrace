@@ -369,6 +369,7 @@ def patch_commune(
     try:
         avant = _get(ref, numero)
         apres = {**avant, **modifs}
+        modifs = {**modifs, **commandes.date_devis_au_statut(avant, apres)}
         engagee = communes_sync.est_engagee(apres["type"], apres["statut"])
         if engagee and not apres.get("date_commande"):
             modifs = {**modifs, "date_commande": date.today().isoformat()}
@@ -382,6 +383,23 @@ def patch_commune(
         ref.close()
     rapport = communes_sync.synchroniser(emp, numero, compte.nom)
     return {**_lecture(conn, emp, numero, True), "synchronisation": rapport}
+
+
+def dater_devis(
+    conn: sqlite3.Connection, registre: Registre, compte: Utilisateur, cible: tuple[str, str]
+) -> None:
+    """Un devis joint à une commune sans date de réception du devis : celle du jour."""
+    code, numero = cible
+    emp = emplacements(conn, registre, _dossier(conn, compte, code, ecriture=True))
+    ref = db.connect(emp.reference, creer=False)
+    try:
+        date_devis = _get(ref, numero)["date_reception_devis"]
+    finally:
+        ref.close()
+    if not date_devis:
+        patch_commune(
+            conn, registre, compte, code, numero, {"date_reception_devis": date.today().isoformat()}
+        )
 
 
 # --- Lignes -------------------------------------------------------------------------------------

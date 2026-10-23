@@ -315,9 +315,12 @@ async def create_documents(
         (f.filename or "document", await f.read(documents.TAILLE_MAX + 1)) for f in fichiers
     ]
     meta = {"type_document": type_document, "commentaire": commentaire}
-    return await run_in_threadpool(
+    resultat = await run_in_threadpool(
         communes_documents.deposer, emp, participants, compte.nom, (contenus, meta)
     )
+    if type_document == "Devis":
+        await run_in_threadpool(communes.dater_devis, conn, registre, compte, (code, numero))
+    return resultat
 
 
 @router.delete("/{numero}/documents/{empreinte}")
