@@ -3496,3 +3496,185 @@ fieldset.verrou {
   padding: 0;
   border: 0;
 }
+
+/* --- Téléphone : en-tête, tiroir, onglets, filtres, cibles tactiles -------------------------- */
+
+/* Un tableau qui défile dans son cadre plutôt que d'élargir la page. */
+.table-cadre {
+  overflow-x: auto;
+}
+
+/* Compte au pied du tiroir et bouton des filtres : seulement sur téléphone. */
+.menu__compte,
+.filtres__deplier {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  /* En-tête d'un projet : la marque et le nom du projet ; le compte, le retour aux projets
+     et la déconnexion passent au pied du tiroir du menu. */
+  .entete__utilisateur--projet {
+    display: none;
+  }
+
+  .entete__marque {
+    align-items: center;
+    gap: var(--espace-2);
+  }
+
+  .entete__titre {
+    font-size: 16px;
+  }
+
+  .entete__projet {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--taille-petit);
+  }
+
+  [data-menu] .menu__compte {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--espace-2);
+    margin: var(--espace-4);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--couleur-bordure);
+    font-size: var(--taille-petit);
+    color: var(--couleur-texte-doux);
+  }
+
+  /* Dans le tiroir, qui l'on est d'abord, puis les boutons. */
+  .menu__compte .entete__nom {
+    order: -2;
+    color: var(--couleur-texte);
+  }
+
+
+  .menu__compte .entete__role {
+    display: inline-block;
+    order: -1;
+    border-color: var(--couleur-bordure);
+  }
+
+  /* Pages communes : le fil passe en entier sous la marque ; le nom du compte s'efface. */
+  .entete--commun .entete__marque {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .entete--commun .entete__projet {
+    flex-basis: 100%;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .entete--commun .entete__nom {
+    display: none;
+  }
+
+  /* Onglets sur une seule ligne qui défile ; l'onglet ouvert est ramené en vue. */
+  .onglets {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .onglet {
+    flex: 0 0 auto;
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  /* Réglages : libellé au-dessus du champ, comme les autres formulaires. */
+  .formulaire--reglages .ligne-champ {
+    grid-template-columns: 1fr;
+  }
+
+  /* Filtres des composants repliés derrière un bouton ; la recherche reste visible. */
+  .filtres__deplier {
+    display: inline-flex;
+  }
+
+  .filtres--repliables:not(.filtres--ouverts) > :not(.filtre--recherche):not(.filtres__deplier) {
+    display: none;
+  }
+
+  .filtres--repliables > .filtre--recherche {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* Rien ne se coupe au milieu d'un mot. */
+  .barre-actions-lot {
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+
+  .bouton,
+  .etiquette,
+  .bandeau-avertissement a {
+    white-space: nowrap;
+  }
+
+  /* Cibles tactiles : 40 px de haut au moins pour ce qu'on touche du doigt. */
+  .bouton,
+  .champ,
+  .filtre,
+  select {
+    min-height: 40px;
+  }
+
+  .bouton--petit {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 800px) {
+  /* Un lien en forme de bouton centre son texte comme un bouton. */
+  a.bouton {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+@media (max-width: 800px) {
+  /* Bouton du menu et recherche globale à la taille du doigt. */
+  .entete__menu {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+  }
+
+  .recherche-globale__champ {
+    min-height: 40px;
+  }
+
+  /* Lignes de tableau plus hautes : une ligne se touche sans toucher sa voisine. */
+  .table td {
+    padding-top: var(--espace-2);
+    padding-bottom: var(--espace-2);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .bouton-icone {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .bouton-lien {
+    padding: var(--espace-2) var(--espace-1);
+  }
+
+  /* Petite icône, grande zone de toucher, sans décaler le texte autour. */
+  .lien-produit {
+    margin: -6px;
+    padding: 8px;
+  }
+}

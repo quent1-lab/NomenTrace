@@ -181,19 +181,9 @@ function lienProjets() {
   return el("a", { class: "bouton bouton--petit bouton--discret", href: "/?accueil" }, "Vos projets");
 }
 
-// Nom de l'utilisateur, son rôle et la déconnexion ; rien en mode local, sans compte.
-function afficherUtilisateur() {
-  const zone = document.getElementById("entete-utilisateur");
-  const moi = utilisateur();
-  if (!moi || modeLocal()) {
-    zone.replaceChildren(
-      lienProjets(),
-      el("span", { class: "entete__role", title: "Lancé sans connexion, sur ce poste seulement" }, "Mode local"),
-    );
-    return;
-  }
-  const deconnexion = el("button", { type: "button", class: "bouton bouton--petit bouton--discret" }, "Déconnexion");
-  deconnexion.addEventListener("click", async () => {
+function boutonDeconnexion() {
+  const bouton = el("button", { type: "button", class: "bouton bouton--petit bouton--discret" }, "Déconnexion");
+  bouton.addEventListener("click", async () => {
     try {
       await api.deconnecter();
     } catch (erreur) {
@@ -202,12 +192,27 @@ function afficherUtilisateur() {
     }
     window.location.assign("/connexion.html");
   });
-  zone.replaceChildren(
+  return bouton;
+}
+
+// Nom de l'utilisateur, son rôle et la déconnexion ; rien en mode local, sans compte. Le même
+// contenu va dans l'en-tête (bureau) et au pied du tiroir du menu (téléphone).
+function contenuCompte() {
+  const moi = utilisateur();
+  if (!moi || modeLocal()) {
+    return [lienProjets(), el("span", { class: "entete__role", title: "Lancé sans connexion, sur ce poste seulement" }, "Mode local")];
+  }
+  return [
     lienProjets(),
     el("span", { class: "entete__nom", title: moi.identifiant }, moi.nom),
     el("span", { class: "entete__role" }, libelleRole(moi.role)),
-    deconnexion,
-  );
+    boutonDeconnexion(),
+  ];
+}
+
+function afficherUtilisateur() {
+  document.getElementById("entete-utilisateur").replaceChildren(...contenuCompte());
+  document.getElementById("menu-compte").replaceChildren(...contenuCompte());
 }
 
 async function demarrer() {

@@ -477,10 +477,14 @@ async function afficherOngletSauvegardes(cible) {
       retourSauvegarde,
       lignes.length
         ? el(
-            "table",
-            { class: "table table--dense table--parametres" },
-            el("thead", {}, el("tr", {}, el("th", {}, "Date"), el("th", {}, "Fichier"), el("th", { class: "nombre" }, "Taille"), el("th", {}))),
-            el("tbody", {}, lignes),
+            "div",
+            { class: "table-cadre" },
+            el(
+              "table",
+              { class: "table table--dense table--parametres" },
+              el("thead", {}, el("tr", {}, el("th", {}, "Date"), el("th", {}, "Fichier"), el("th", { class: "nombre" }, "Taille"), el("th", {}))),
+              el("tbody", {}, lignes),
+            ),
           )
         : el("p", { class: "texte-doux" }, "Aucune sauvegarde pour l'instant."),
     ),
@@ -529,6 +533,8 @@ export async function afficherParametres(conteneur, parametres) {
       ? message(`Paramètres communs du dossier « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
       : null;
   conteneur.replaceChildren(...[titre, bandeau, barre, corps].filter(Boolean));
+  // Sur téléphone, les onglets défilent sur une ligne : l'onglet ouvert reste en vue.
+  barre.querySelector(".onglet--actif")?.scrollIntoView({ block: "nearest", inline: "center" });
   const [, , afficher] = visibles.find(([code]) => code === courant);
   try {
     await afficher(corps, parametres);

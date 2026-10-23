@@ -393,7 +393,7 @@ function sectionFrais() {
     { class: "panneau" },
     el("h2", {}, "Frais"),
     c.frais.length
-      ? el(
+      ? el("div", { class: "table-cadre" }, el(
           "table",
           { class: "table table--dense" },
           el("thead", {}, el("tr", {}, entetes.map((t, i) => el("th", { class: [2, 3].includes(i) ? "nombre" : "" }, t)))),
@@ -406,7 +406,7 @@ function sectionFrais() {
               el("td", { class: "nombre" }, c.acheteur && !c.archive ? el("button", { type: "button", class: "bouton-lien texte-alerte", onclick: () => retirer(f) }, "Retirer") : null),
             ),
           )),
-        )
+        ))
       : el("p", { class: "texte-doux" }, "Aucun frais."),
     c.acheteur && !c.archive ? formulaireFrais() : null,
   );

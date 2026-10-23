@@ -180,10 +180,22 @@ function barreFiltres() {
   });
   // Les filtres proposent aussi les valeurs désactivées : des composants peuvent les porter.
   const tousLibelles = (liste) => valeursListe(liste, { inclureInactives: true });
+  // Sur téléphone, seuls la recherche et ce bouton restent visibles tant qu'on ne déplie pas.
+  const actifs = FILTRES_TEXTE.filter((c) => c !== "q" && etat.filtres[c]).length + FILTRES_CASES.filter((c) => etat.filtres[c]).length;
+  const deplier = el(
+    "button",
+    { type: "button", class: "bouton bouton--discret filtres__deplier", "aria-expanded": "false" },
+    actifs ? `Filtres (${actifs})` : "Filtres",
+  );
+  deplier.addEventListener("click", () => {
+    const ouvert = deplier.parentElement.classList.toggle("filtres--ouverts");
+    deplier.setAttribute("aria-expanded", String(ouvert));
+  });
   return el(
     "div",
-    { class: "filtres" },
+    { class: "filtres filtres--repliables" },
     recherche,
+    deplier,
     selectFiltre("bloc", "Tous les blocs", etat.blocs.map((b) => [b.code, `${b.code} · ${b.nom}`])),
     selectFiltre("ensemble", "Tous les ensembles", etat.ensembles.map((e) => [e.code, `${" ".repeat(e.niveau - 1)}${e.code} · ${e.nom}`])),
     caseSousEnsembles(),

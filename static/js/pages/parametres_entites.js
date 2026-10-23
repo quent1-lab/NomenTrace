@@ -13,11 +13,16 @@ import { A_VALIDER, archiverFournisseur, lienFournisseur, ouvrirFormulaireFourni
 
 function table(entetes, lignes, vide) {
   if (!lignes.length) return el("p", { class: "texte-doux" }, vide);
+  // Le tableau défile dans son cadre : sur téléphone, il n'élargit jamais la page.
   return el(
-    "table",
-    { class: "table table--dense table--parametres" },
-    el("thead", {}, el("tr", {}, entetes.map(([texte, classe]) => el("th", { class: classe }, texte)))),
-    el("tbody", {}, lignes),
+    "div",
+    { class: "table-cadre" },
+    el(
+      "table",
+      { class: "table table--dense table--parametres" },
+      el("thead", {}, el("tr", {}, entetes.map(([texte, classe]) => el("th", { class: classe }, texte)))),
+      el("tbody", {}, lignes),
+    ),
   );
 }
 

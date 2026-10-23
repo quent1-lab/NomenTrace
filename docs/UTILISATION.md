@@ -43,7 +43,9 @@ modification, le bouton « Enregistrer » reste grisé tant qu'aucune valeur n'a
 redevient si l'on revient aux valeurs de départ.
 
 Sur un téléphone, le menu devient un tiroir que le même bouton ouvre par-dessus la page ;
-il se referme dès qu'on choisit un écran. Les fiches occupent tout l'écran, chaque libellé
+il se referme dès qu'on choisit un écran. Son pied porte le compte, le retour à vos projets et
+la déconnexion. Les filtres de la liste des composants se déplient d'un bouton « Filtres »,
+la recherche restant visible, et les onglets des paramètres défilent sur une ligne. Les fiches occupent tout l'écran, chaque libellé
 au-dessus de sa valeur, et les tableaux larges défilent de côté dans leur cadre, la
 première colonne de la liste des composants restant visible. La saisie reste plus
 confortable sur un ordinateur.

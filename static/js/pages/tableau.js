@@ -111,14 +111,18 @@ function tableTop(composants) {
     { class: "panneau" },
     el("h2", {}, "Les dix composants les plus coûteux"),
     el(
-      "table",
-      { class: "table" },
+      "div",
+      { class: "table-cadre" },
       el(
-        "thead",
-        {},
-        el("tr", {}, ["ID", "Désignation", "Bloc", "Qté", "PU HT", "Total HT"].map((t, i) => el("th", { class: i >= 3 ? "nombre" : "" }, t))),
+        "table",
+        { class: "table" },
+        el(
+          "thead",
+          {},
+          el("tr", {}, ["ID", "Désignation", "Bloc", "Qté", "PU HT", "Total HT"].map((t, i) => el("th", { class: i >= 3 ? "nombre" : "" }, t))),
+        ),
+        el("tbody", {}, lignes),
       ),
-      el("tbody", {}, lignes),
     ),
   );
 }
