@@ -52,6 +52,11 @@ attributs, établissement, logo et budget, recopiés dans chacun à chaque modif
 nouveau projet peut reprendre d'un autre ses statuts et son arborescence d'ensembles. Les
 fournisseurs sont communs à l'organisme, tenus depuis sa page.
 
+Les responsables achats d'un dossier passent des commandes communes à plusieurs projets
+chez un même fournisseur. Chaque projet a sa commande, avec ses lignes, sa part des frais et
+sa part du montant réel, et la reçoit lui-même ; documents, demande de devis et suivi de
+l'établissement se font une fois pour toute la commune.
+
 ## Plus tard
 
 Ces évolutions sont retenues, sans ordre ni date arrêtés.
@@ -77,8 +82,7 @@ Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvren
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.
 
-Pour le travail à plusieurs projets : les commandes communes à plusieurs
-projets, avec leurs frais partagés, et le catalogue des références déjà achetées dans le
+Pour le travail à plusieurs projets : le catalogue des références déjà achetées dans le
 dossier.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en

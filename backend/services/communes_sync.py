@@ -64,6 +64,8 @@ class Emplacements:
     organisme: Path | None
     projets: dict[str, Path]  # projets du dossier en ligne
     hors_ligne: set[str] = field(default_factory=set)
+    # dossier des documents de chaque projet en ligne
+    documents: dict[str, Path] = field(default_factory=dict)
 
 
 # --- Calculs (purs) ----------------------------------------------------------------------------
@@ -95,14 +97,18 @@ def statut_deduit(type_commande: str, statut: str, lignes: list[dict]) -> str:
 
 
 def repartir(
-    lignes: dict[str, list[dict]], frais: list[dict], reel: float | None
+    lignes: dict[str, list[dict]],
+    frais: list[dict],
+    reel: float | None,
+    reel_lignes: dict[str, float] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Part de chaque projet : frais, estimé et montant réel, en pleine précision.
 
     Les frais se partagent à parts égales entre les projets présents (au moins une ligne non
     annulée). Le réel se répartit au prorata de l'estimé ; estimé total nul : parts égales
     entre les présents. La somme des parts du réel vaut le réel (le dernier présent prend le
-    reste).
+    reste). Avec `reel_lignes` (montant lu ligne par ligne, par projet), la part du réel d'un
+    projet est la somme de ses lignes plus sa part des frais.
     """
     projets = sorted(lignes)
     presents = [p for p in projets if actives(lignes[p])]
@@ -123,6 +129,12 @@ def repartir(
                 1 for ligne in actives(lignes[projet]) if ligne["pu_ht_devis"] is None
             ),
         }
+    if reel_lignes is not None:
+        for projet in projets:
+            present = parts[projet]["present"]
+            lu = reel_lignes.get(projet) or 0.0
+            parts[projet]["reel_ht"] = lu + parts[projet]["frais_ht"] if present else 0.0
+        return parts
     if reel is None or not presents:
         return parts
     total = sum(parts[p]["estime_ht"] for p in presents)
@@ -165,6 +177,17 @@ def lire_participants(ref: sqlite3.Connection, numero: str) -> dict[str, str]:
         (numero,),
     ).fetchall()
     return {ligne["projet"]: ligne["numero_local"] for ligne in lignes}
+
+
+def lire_reel_lignes(ref: sqlite3.Connection, commune: dict) -> dict[str, float] | None:
+    """Montant réel lu ligne par ligne, par projet ; None quand le réel est un total."""
+    if commune.get("mode_reel") != "lignes":
+        return None
+    lignes = ref.execute(
+        "SELECT projet, reel_lignes_ht FROM commune_projet WHERE numero = ?",
+        (commune["numero"],),
+    ).fetchall()
+    return {ligne[0]: ligne[1] or 0.0 for ligne in lignes}
 
 
 def lire_frais(ref: sqlite3.Connection, numero: str) -> list[dict]:
@@ -367,7 +390,12 @@ def synchroniser(emp: Emplacements, numero: str, auteur: str | None = None) -> d
             )
             return {"ecrites": [], "manquants": manquants, "perimee": False}
         lignes = {p: lignes_du_projet(emp.projets[p], n) for p, n in participants.items()}
-        parts = repartir(lignes, lire_frais(ref, numero), commune["montant_commande_ht"])
+        parts = repartir(
+            lignes,
+            lire_frais(ref, numero),
+            commune["montant_commande_ht"],
+            lire_reel_lignes(ref, commune),
+        )
         ecrites = []
         for projet, numero_local in participants.items():
             if _version(ref, numero) != commune["version"]:
@@ -379,12 +407,15 @@ def synchroniser(emp: Emplacements, numero: str, auteur: str | None = None) -> d
             finally:
                 conn.close()
         toutes = [ligne for lp in lignes.values() for ligne in lp]
+        statut = statut_deduit(commune["type"], commune["statut"], toutes)
+        livree = max((ligne["date_reception"] or "" for ligne in actives(toutes)), default="")
         with db.transaction(ref):
             ref.execute(
-                "UPDATE commune SET statut_deduit = ?, estime_ht = ? WHERE numero = ?"
-                " AND version = ?",
+                "UPDATE commune SET statut_deduit = ?, date_reception_reelle = ?, estime_ht = ?"
+                " WHERE numero = ? AND version = ?",
                 (
-                    statut_deduit(commune["type"], commune["statut"], toutes),
+                    statut,
+                    (livree or None) if statut == "Livre" else None,
                     sum(p["estime_ht"] for p in parts.values())
                     + (0.0 if parts else sum(f["montant_ht"] for f in lire_frais(ref, numero))),
                     numero,

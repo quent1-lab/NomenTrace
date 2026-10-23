@@ -3411,6 +3411,10 @@ body:not(.peut-ensembles) .si-ensembles {
   white-space: nowrap;
 }
 
+.formulaire-ligne--repli {
+  flex-wrap: wrap;
+}
+
 .etiquette--commune {
   background: var(--couleur-ardoise-fonce);
   color: #ffffff;

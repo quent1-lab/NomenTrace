@@ -5,8 +5,8 @@ from datetime import date
 from typing import Any
 
 from backend import db
-from backend.erreurs import ErreurMetier
-from backend.services import commandes, journal
+from backend.erreurs import Conflit, ErreurMetier
+from backend.services import commandes, communes_sync, journal
 
 STATUTS_RECEPTIONNABLES: frozenset[str] = frozenset({"Commande", "Livre partiel", "Livre"})
 
@@ -64,31 +64,57 @@ def _new_statut(conn: sqlite3.Connection, numero: str) -> str:
     return "Livre" if reste == 0 else "Livre partiel"
 
 
-def receive_commande(conn: sqlite3.Connection, numero: str, reception: dict[str, Any]) -> dict:
-    """Réceptionne une livraison : quantités reçues ligne par ligne, stock et statut."""
-    reception = {**reception, "date": reception.get("date") or date.today().isoformat()}
-    quantites = {ligne["id"]: ligne["qte"] for ligne in reception["lignes"] if ligne["qte"] > 0}
-    if not quantites:
-        raise ErreurMetier("Aucune quantité reçue n'a été saisie.")
-    avertissements = []
-    with db.transaction(conn):
-        _check_commande(commandes.get_commande(conn, numero))
-        lignes = {ligne["id"]: ligne for ligne in commandes.list_lignes(conn, numero)}
-        for identifiant, qte in quantites.items():
-            ligne = lignes.get(identifiant)
-            if ligne is None:
-                raise ErreurMetier(
-                    f"La ligne {identifiant} n'appartient pas à la commande {numero}."
-                )
-            if ligne["statut_ligne"] == "Annulee":
-                raise ErreurMetier(f"La ligne {identifiant} est annulée : rien à réceptionner.")
-            avertissement = _receive_line(conn, ligne, qte, reception)
-            if avertissement:
-                avertissements.append(avertissement)
-        modifs = {"statut": _new_statut(conn, numero)}
-        if modifs["statut"] == "Livre":
-            modifs["date_reception_reelle"] = reception["date"]
-        journal.update_with_journal(
-            conn, "commande", numero, modifs, frozenset({"statut", "date_reception_reelle"})
+def check_lue(ligne: dict, lue: int | None) -> None:
+    """La saisie porte la quantité reçue qu'elle a lue : un écart veut dire qu'une autre
+    réception est passée entre-temps (depuis la commune ou depuis le projet)."""
+    if lue is not None and lue != ligne["qte_recue"]:
+        raise Conflit(
+            f"{ligne['composant_id']} : {ligne['qte_recue']} déjà reçu(s), {lue} lu(s) à"
+            " l'ouverture de la réception. Une autre réception est passée entre-temps :"
+            " recharger la page avant de saisir."
         )
+
+
+def receive_lignes(conn: sqlite3.Connection, numero: str, reception: dict[str, Any]) -> list[str]:
+    """Réceptionne les lignes d'une commande, dans la transaction de l'appelant ; renvoie
+    les avertissements. `reception["lignes"]` : id, qte, et qte_recue_lue facultative."""
+    saisies = [ligne for ligne in reception["lignes"] if ligne["qte"] > 0]
+    if not saisies:
+        raise ErreurMetier("Aucune quantité reçue n'a été saisie.")
+    _check_commande(commandes.get_commande(conn, numero))
+    lignes = {ligne["id"]: ligne for ligne in commandes.list_lignes(conn, numero)}
+    avertissements = []
+    for saisie in saisies:
+        ligne = lignes.get(saisie["id"])
+        if ligne is None:
+            raise ErreurMetier(f"La ligne {saisie['id']} n'appartient pas à la commande {numero}.")
+        if ligne["statut_ligne"] == "Annulee":
+            raise ErreurMetier(f"La ligne {saisie['id']} est annulée : rien à réceptionner.")
+        check_lue(ligne, saisie.get("qte_recue_lue"))
+        avertissement = _receive_line(conn, ligne, saisie["qte"], reception)
+        if avertissement:
+            avertissements.append(avertissement)
+    modifs = {"statut": _new_statut(conn, numero)}
+    if modifs["statut"] == "Livre":
+        modifs["date_reception_reelle"] = reception["date"]
+    journal.update_with_journal(
+        conn, "commande", numero, modifs, frozenset({"statut", "date_reception_reelle"})
+    )
+    return avertissements
+
+
+def receive_commande(conn: sqlite3.Connection, numero: str, reception: dict[str, Any]) -> dict:
+    """Réceptionne une livraison : quantités reçues ligne par ligne, stock et statut.
+
+    La copie d'une commande commune se reçoit aussi depuis son projet : son verrou est levé
+    le temps de la réception (communes_sync.ouverte), seule écriture qu'elle accepte ici.
+    """
+    reception = {**reception, "date": reception.get("date") or date.today().isoformat()}
+    commune = commandes.get_commande(conn, numero).get("commune")
+    if commune is not None and any(
+        ligne.get("qte_recue_lue") is None for ligne in reception["lignes"] if ligne["qte"] > 0
+    ):
+        raise ErreurMetier("La réception d'une commande commune doit dire ce qu'elle a lu.")
+    with communes_sync.ouverte(conn) if commune else db.transaction(conn):
+        avertissements = receive_lignes(conn, numero, reception)
     return {"commande": commandes.get_commande(conn, numero), "avertissements": avertissements}

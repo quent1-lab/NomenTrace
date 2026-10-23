@@ -50,14 +50,6 @@ def get_donnees(
 ) -> dict:
     """Tout ce que le document affiche, lu en base."""
     commande = commandes.get_commande(conn, numero)
-    fournisseur = (
-        db.fetch_one(
-            conn,
-            "SELECT nom, numero_compte FROM fournisseur WHERE nom = ?",
-            (commande["fournisseur_nom"],),
-        )
-        or {}
-    )
     lignes = db.fetch_all(
         conn,
         "SELECT c.ref_fabricant, c.designation, c.fabricant, l.qte_commandee AS qte,"
@@ -65,9 +57,31 @@ def get_donnees(
         " WHERE l.commande_numero = ? AND l.statut_ligne <> 'Annulee' ORDER BY l.id",
         (numero,),
     )
+    return assembler(conn, conn, commande, lignes, demandeur, reponse_avant)
+
+
+def assembler(
+    conn: sqlite3.Connection,
+    conn_fournisseurs: sqlite3.Connection | None,
+    commande: dict,
+    lignes: list[dict],
+    demandeur: dict,
+    reponse_avant: str | None,
+) -> dict:
+    """Données du document : établissement, logo et nom du projet lus dans `conn` (un projet
+    ou la référence d'un dossier), fiche du fournisseur dans `conn_fournisseurs`."""
+    fournisseur = (
+        db.fetch_one(
+            conn_fournisseurs,
+            "SELECT nom, numero_compte FROM fournisseur WHERE nom = ?",
+            (commande["fournisseur_nom"],),
+        )
+        if conn_fournisseurs is not None
+        else None
+    ) or {}
     reglages = parametres.list_parametres(conn)
     return {
-        "numero": numero,
+        "numero": commande["numero"],
         "date": date.today().isoformat(),
         "reponse_avant": reponse_avant,
         "projet": reglages.get("nom_projet") or "",
@@ -88,6 +102,24 @@ def get_donnees(
         "lignes": lignes,
         "logo": logo.get_logo(conn),
     }
+
+
+def regrouper(lignes: list[dict]) -> list[dict]:
+    """Lignes de plusieurs projets : un même article (référence, désignation, fabricant,
+    lien) n'apparaît qu'une fois au fournisseur, quantités additionnées."""
+    regroupees: dict[tuple, dict] = {}
+    for ligne in lignes:
+        cle = (
+            ligne["ref_fabricant"],
+            ligne["designation"],
+            ligne["fabricant"],
+            ligne["lien_produit"],
+        )
+        if cle in regroupees:
+            regroupees[cle]["qte"] += ligne["qte"]
+        else:
+            regroupees[cle] = dict(ligne)
+    return list(regroupees.values())
 
 
 def _taille_logo(image: dict, largeur_max: float, hauteur_max: float) -> tuple[float, float]:

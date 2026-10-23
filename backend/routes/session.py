@@ -13,7 +13,14 @@ from fastapi import APIRouter, Depends, Request, Response
 from backend.deps import COOKIE_SESSION, Connecte, get_conn, get_conn_comptes, get_projet
 from backend.erreurs import ErreurMetier
 from backend.models import Connexion, InvitationAcceptation, InvitationVerification
-from backend.services import authentification, comptes, parametres, projets, reference
+from backend.services import (
+    authentification,
+    comptes,
+    hierarchie,
+    parametres,
+    projets,
+    reference,
+)
 
 router = APIRouter(prefix="/api", tags=["session"])
 router_projet = APIRouter(prefix="/api", tags=["session"])
@@ -71,11 +78,16 @@ def read_session(
     request: Request, utilisateur: Connecte, conn: Conn, conn_comptes: ConnComptes
 ) -> dict:
     nom_projet = parametres.get_parametre(conn, "nom_projet") if utilisateur.role else None
+    situation = reference.situation(conn_comptes, conn, get_projet(request))
+    # La page du dossier (commandes communes) ne s'ouvre qu'à qui voit le dossier.
+    dossier = situation["dossier"] and hierarchie.get_dossier(conn_comptes, situation["dossier"])
     return {
         "utilisateur": utilisateur.description(),
         "nom_projet": nom_projet,
         "nom_equipe": projets.get_nom_equipe(conn_comptes, get_projet(request)),
-        **reference.situation(conn_comptes, conn, get_projet(request)),
+        **situation,
+        "voit_dossier": bool(dossier)
+        and hierarchie.voit_dossier(conn_comptes, utilisateur, dossier),
         "mode_local": request.app.state.mode_local,
     }
 

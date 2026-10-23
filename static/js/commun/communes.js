@@ -2,13 +2,15 @@
 // commune (/d/<code>/#/communes/CC-NNN). Ses lignes vivent dans les projets, son en-tête et
 // ses frais dans le dossier ; le serveur calcule la part de chaque projet.
 
-import { api } from "../api.js";
+import { api, lienFichierCommune } from "../api.js";
+import { sectionDocuments } from "../documents.js";
 import { badgeStatut } from "../badges.js";
 import { formatDate, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
-import { afficherErreur, el, lienExterne, masquerErreur } from "../ui.js";
+import { afficherErreur, el, enregistrerFichier, lienExterne, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, TYPES_COMMANDE } from "../valeurs.js";
+import { ouvrirSuivi } from "../pages/achats_suivi.js";
 import { afficherCompte, formulairePanneau } from "./elements.js";
 
 // Livré et Livré partiel se déduisent des réceptions : on ne les choisit pas.
@@ -85,7 +87,12 @@ export function panneauCommunes(code) {
           "div",
           { class: "titre-section" },
           el("h2", {}, "Commandes communes"),
-          acheteur ? el("button", { type: "button", class: "bouton", onclick: () => nouvelleCommune(code).catch(afficherErreur) }, "Nouvelle commande commune") : null,
+          acheteur
+            ? el("div", { class: "actions" },
+                el("button", { type: "button", class: "bouton bouton--discret", onclick: () => ouvrirSuivi(() => window.location.reload(), { analyser: (d, p) => api.analyserSuiviCommunes(code, d, p), appliquer: (d) => api.appliquerSuiviCommunes(code, d) }) }, "Suivi de l'établissement"),
+                el("button", { type: "button", class: "bouton", onclick: () => nouvelleCommune(code).catch(afficherErreur) }, "Nouvelle commande commune"),
+              )
+            : null,
         ),
         communes.length
           ? el(
@@ -111,6 +118,11 @@ export function panneauCommunes(code) {
 // --- Page d'une commune --------------------------------------------------------------------------
 
 let etat = null;
+
+// Une commune passée (Commandé ou Livré partiel) se réceptionne.
+function receptionnable(c) {
+  return c.type === "Commande" && ["Commande", "Livre partiel"].includes(c.statut_affiche) && c.projets.some((p) => p.lignes.some((l) => l.statut_ligne !== "Annulee"));
+}
 
 async function recharger() {
   etat.commune = await api.getCommune(etat.code, etat.numero);
@@ -417,7 +429,14 @@ function infos() {
     { class: "panneau" },
     el("dl", { class: "infos-commune" }, paires.flatMap(([t, v]) => [el("dt", {}, t), el("dd", {}, v)])),
     c.commentaire ? el("p", { class: "texte-doux" }, c.commentaire) : null,
+    blocSuivi(),
   );
+}
+
+function explicationReel(c) {
+  if (c.montant_commande_ht == null) return "Le montant réel, lu dans le suivi de l'établissement ou saisi dans « Modifier », sera réparti entre les projets.";
+  if (c.mode_reel === "lignes") return "Réel lu ligne par ligne dans le suivi de l'établissement : chaque projet a la somme de ses lignes, plus sa part des frais.";
+  return "Réel pour toute la commande, réparti au prorata de l'estimé. Frais à parts égales entre les projets présents.";
 }
 
 function repartition() {
@@ -440,8 +459,116 @@ function repartition() {
         el("tr", { class: "fort" }, el("td", {}, "Total"), el("td", { class: "nombre" }, formatMontant(c.estime_ht)), el("td", { class: "nombre" }, reel == null ? "—" : formatMontant(reel))),
       ),
     ),
-    el("p", { class: "texte-doux texte-petit" }, reel == null ? "Le montant réel, saisi depuis le suivi de l'établissement, sera réparti au prorata de l'estimé." : "Réel saisi par l'établissement, réparti au prorata de l'estimé. Frais à parts égales entre les projets présents."),
+    el("p", { class: "texte-doux texte-petit" }, explicationReel(c)),
   );
+}
+
+// Réception depuis la commune : chaque ligne part dans la base de son projet. La quantité
+// déjà reçue lue ici accompagne la saisie : une réception faite entre-temps dans un projet
+// est refusée plutôt que comptée deux fois.
+function sectionReception() {
+  const c = etat.commune;
+  const champs = [];
+  const corps = c.projets.flatMap((p) => {
+    const lignes = p.lignes.filter((l) => l.statut_ligne !== "Annulee");
+    if (!lignes.length) return [];
+    return [
+      el("tr", { class: "ligne-groupe" }, el("td", { colspan: 5 }, p.nom)),
+      ...lignes.map((l) => {
+        const reste = Math.max(0, l.qte_commandee - l.qte_recue);
+        const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": `Reçu pour ${l.composant_id}` });
+        champs.push({ projet: p.projet, ligne: l, champ });
+        return el("tr", {}, el("td", { class: "code" }, l.composant_id), el("td", {}, l.designation ?? "—"), el("td", { class: "nombre" }, String(l.qte_commandee)), el("td", { class: "nombre" }, String(l.qte_recue)), el("td", { class: "nombre" }, champ));
+      }),
+    ];
+  });
+  const date = champDate("date", new Date().toISOString().slice(0, 10));
+  const emplacement = champTexte("emplacement", "", { placeholder: "ex. Armoire A - bac 3" });
+  const valider = () =>
+    agir(async () => {
+      const lignes = [];
+      for (const { projet, ligne, champ } of champs) {
+        const n = lireNombre(champ.value);
+        if (n === null || n === 0) continue;
+        if (Number.isNaN(n) || !Number.isInteger(n) || n < 0) throw new Error(`Quantité reçue invalide : « ${champ.value} ».`);
+        lignes.push({ projet, id: ligne.id, qte: n, qte_recue_lue: ligne.qte_recue });
+      }
+      if (!lignes.length) throw new Error("Aucune quantité reçue n'a été saisie.");
+      const resultat = await api.receptionnerCommune(etat.code, etat.numero, { date: date.value || null, emplacement: emplacement.value.trim() || null, lignes });
+      etat.reception = false;
+      etat.commune = resultat;
+      rendre();
+      if (resultat.avertissements?.length) afficherErreur(new Error(resultat.avertissements.join(" ")));
+    });
+  return el(
+    "section",
+    { class: "panneau panneau--reception" },
+    el("h2", {}, "Réception de la livraison"),
+    el("p", { class: "texte-doux" }, "La quantité reçue s'ajoute aux réceptions précédentes ; chaque ligne entre dans le stock de son projet."),
+    el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date), el("label", { class: "ligne-compacte" }, "Emplacement ", emplacement)),
+    el("div", { class: "table-defilante" }, el("table", { class: "table table--dense" },
+      el("thead", {}, el("tr", {}, ["Composant", "Désignation", "Commandé", "Déjà reçu", "Reçu cette fois"].map((t, i) => el("th", { class: i >= 2 ? "nombre" : "" }, t)))),
+      el("tbody", {}, corps),
+    )),
+    el("div", { class: "actions-formulaire" },
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: () => { etat.reception = false; rendre(); } }, "Annuler"),
+      el("button", { type: "button", class: "bouton", onclick: valider }, "Valider la réception"),
+    ),
+  );
+}
+
+// Documents : joints à la copie de chaque projet, montrés ici une fois chacun.
+function panneauDocuments() {
+  const c = etat.commune;
+  const premiere = (d) => d.copies[0];
+  return el(
+    "section",
+    { class: "panneau" },
+    sectionDocuments({
+      documents: c.documents,
+      typeParDefaut: c.type === "Devis" ? "Devis" : "Bon de commande",
+      aide: c.projets.length ? "Joints à la commande de chaque projet ; ils apparaissent aussi dans la fiche de chaque composant." : "Ajouter d'abord des lignes : un document se joint aux projets de la commande.",
+      depot: c.acheteur && !c.archive && c.projets.length > 0,
+      deposer: (donnees, progression) => api.deposerDocumentsCommune(etat.code, etat.numero, donnees, progression),
+      surChangement: recharger,
+      lien: (d) => lienFichierCommune(etat.code, etat.numero, premiere(d).projet, premiere(d).id),
+      retirer: (d) => api.retirerDocumentCommune(etat.code, etat.numero, d.empreinte),
+    }),
+  );
+}
+
+// Demande de devis au fournisseur : les articles de tous les projets, regroupés.
+function demandeDevis() {
+  const c = etat.commune;
+  if (!c.acheteur || !c.projets.length) return null;
+  const avant = el("input", { class: "champ champ--date", type: "date", "aria-label": "Réponse souhaitée avant le" });
+  const telecharger = (format) => () =>
+    agir(async () => enregistrerFichier(await api.telechargerDemandeDevisCommune(etat.code, etat.numero, format, avant.value || null)));
+  return el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Demande au fournisseur"),
+    el("p", { class: "texte-doux texte-petit" }, "Les articles de tous les projets, un même article regroupé ; aucun prix."),
+    el("div", { class: "formulaire-ligne formulaire-ligne--repli" },
+      el("label", { class: "ligne-compacte" }, "Réponse avant le ", avant),
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: telecharger("pdf") }, "PDF"),
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: telecharger("xlsx") }, "Excel"),
+    ),
+  );
+}
+
+// Transmission au suivi de l'établissement : la commune y entrera au prochain passage du
+// fichier (bouton « Suivi de l'établissement » de la page du dossier).
+function blocSuivi() {
+  const c = etat.commune;
+  if (c.date_transmission_suivi) return el("p", { class: "texte-doux texte-petit" }, `Transmise au suivi de l'établissement le ${formatDate(c.date_transmission_suivi)}.`);
+  if (!c.acheteur || c.archive || !c.projets.length) return null;
+  const transmettre = () =>
+    agir(async () => {
+      await api.patchCommune(etat.code, etat.numero, { date_transmission_suivi: new Date().toISOString().slice(0, 10) });
+      await recharger();
+    });
+  return el("p", { class: "texte-doux texte-petit" }, "Pas encore transmise au suivi de l'établissement. ", el("button", { type: "button", class: "bouton bouton--petit", onclick: transmettre }, "Transmettre au suivi"));
 }
 
 function rendre() {
@@ -461,6 +588,7 @@ function rendre() {
       el("span", { class: "texte-doux" }, `commande commune · ${c.fournisseur_nom}`),
       c.acheteur && !c.archive
         ? el("div", { class: "actions" },
+            receptionnable(c) && !etat.reception ? el("button", { type: "button", class: "bouton", onclick: () => { etat.reception = true; rendre(); } }, "Réceptionner") : null,
             el("button", { type: "button", class: "bouton bouton--discret", onclick: modifier }, "Modifier"),
             el("button", { type: "button", class: "bouton bouton--danger", onclick: archiver }, "Archiver"),
           )
@@ -472,15 +600,15 @@ function rendre() {
     el(
       "div",
       { class: "commun__colonnes commun__colonnes--commune" },
-      el("div", { class: "commun__principal" }, sectionLignes(), sectionFrais()),
-      el("aside", { class: "commun__cote" }, infos(), repartition()),
+      el("div", { class: "commun__principal" }, etat.reception ? sectionReception() : sectionLignes(), sectionFrais(), panneauDocuments()),
+      el("aside", { class: "commun__cote" }, infos(), repartition(), demandeDevis()),
     ),
   ];
   etat.contenu.replaceChildren(...blocs.filter(Boolean));
 }
 
 export async function afficherCommune(code, numero, { contenu, fil }) {
-  etat = { code, numero, contenu, fil, commune: null };
+  etat = { code, numero, contenu, fil, commune: null, reception: false };
   etat.commune = await api.getCommune(code, numero);
   afficherCompte(etat.commune.compte);
   rendre();

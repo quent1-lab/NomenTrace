@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
-import { aPermission, codeDossier, nomAuteur } from "../session.js";
+import { aPermission, codeDossier, nomAuteur, voitDossier } from "../session.js";
 import { afficherAvertissements, afficherErreur, el, enregistrerFichier, lienExterne, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE, valeursListe } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
@@ -23,8 +23,8 @@ function bandeauCommune(c) {
   return el(
     "div",
     { class: "bandeau-avertissement bandeau-avertissement--info" },
-    el("span", {}, "Commande commune du dossier, gérée par ses responsables achats. Ses lignes, sa part des frais et sa part du montant réel se consultent ici."),
-    dossier ? el("a", { href: `/d/${dossier}/#/communes/${c.commune}` }, ` Ouvrir ${c.commune}`) : null,
+    el("span", {}, "Commande commune du dossier, gérée par ses responsables achats. Ici, seule la réception de vos lignes est possible."),
+    dossier && voitDossier() ? el("a", { href: `/d/${dossier}/#/communes/${c.commune}` }, ` Ouvrir ${c.commune}`) : null,
   );
 }
 
@@ -261,7 +261,8 @@ function modeReception() {
       const n = lireNombre(champ.value);
       if (n === null) continue;
       if (Number.isNaN(n) || !Number.isInteger(n) || n < 0) return afficherErreur(`Quantité reçue invalide : « ${champ.value} ».`);
-      detail.push({ id, qte: n });
+      // La quantité déjà reçue lue ici : une réception passée entre-temps est refusée.
+      detail.push({ id, qte: n, qte_recue_lue: etat.lignes.find((l) => l.id === id).qte_recue });
     }
     try {
       const resultat = await api.receptionner(etat.numero, { date: date.value || null, emplacement: emplacement.value.trim() || null, par_qui: parQui.value.trim() || null, lignes: detail });
@@ -371,7 +372,7 @@ function infos() {
 
 function rendre() {
   const c = etat.commande;
-  const receptionnable = !c.commune && c.type === "Commande" && ["Commande", "Livre partiel"].includes(c.statut) && etat.lignes.length > 0;
+  const receptionnable = c.type === "Commande" && ["Commande", "Livre partiel"].includes(c.statut) && etat.lignes.length > 0;
   etat.conteneur.replaceChildren(
     el("p", { class: "fil" }, el("a", { href: "#/achats" }, "← Achats")),
     el(

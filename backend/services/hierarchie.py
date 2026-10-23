@@ -134,12 +134,16 @@ def exiger_vue_organisme(conn: sqlite3.Connection, compte: Utilisateur, organism
         raise AccesRefuse("Cet organisme ne vous est pas ouvert.")
 
 
-def exiger_vue_dossier(conn: sqlite3.Connection, compte: Utilisateur, dossier: dict) -> None:
-    if not (
+def voit_dossier(conn: sqlite3.Connection, compte: Utilisateur, dossier: dict) -> bool:
+    return bool(
         compte.admin_serveur
         or get_profil(conn, compte, dossier["organisme"])
         or est_responsable(conn, compte, dossier["code"])
-    ):
+    )
+
+
+def exiger_vue_dossier(conn: sqlite3.Connection, compte: Utilisateur, dossier: dict) -> None:
+    if not voit_dossier(conn, compte, dossier):
         raise AccesRefuse("Ce dossier ne vous est pas ouvert.")
 
 

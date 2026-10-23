@@ -22,7 +22,7 @@ function formatTaille(octets) {
   return `${(octets / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
 }
 
-function ligneDocument(document, { avecSource, surChangement, depot }) {
+function ligneDocument(document, { avecSource, surChangement, depot, lien, retirer: retirerDocument }) {
   const retirer = el("button", {
     type: "button",
     class: "bouton-icone",
@@ -30,7 +30,7 @@ function ligneDocument(document, { avecSource, surChangement, depot }) {
     onclick: async () => {
       if (!confirm(`Retirer « ${document.nom_origine} » ?`)) return;
       try {
-        await api.retirerDocument(document.id);
+        await retirerDocument(document);
         masquerErreur();
         await surChangement();
       } catch (erreur) {
@@ -45,7 +45,7 @@ function ligneDocument(document, { avecSource, surChangement, depot }) {
     "tr",
     {},
     el("td", {}, el("span", { class: "etiquette" }, document.type_document)),
-    el("td", { class: "tronque tronque--large", title: document.nom_origine }, el("a", { href: lienFichierDocument(document.id), target: "_blank", rel: "noopener" }, document.nom_origine)),
+    el("td", { class: "tronque tronque--large", title: document.nom_origine }, el("a", { href: lien(document), target: "_blank", rel: "noopener" }, document.nom_origine)),
     avecSource ? el("td", {}, source) : null,
     el("td", { class: "nombre texte-doux" }, formatTaille(document.taille)),
     el("td", { class: "texte-doux" }, formatDate(document.ajoute_le)),
@@ -94,7 +94,19 @@ function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
  * avecSource : affiche d'où vient chaque document (fiche composant) ;
  * depot : faux en lecture seule (ni dépôt ni retrait).
  */
-export function sectionDocuments({ titre = "Documents", documents, deposer, surChangement, typeParDefaut, avecSource = false, aide, depot = true }) {
+export function sectionDocuments({
+  titre = "Documents",
+  documents,
+  deposer,
+  surChangement,
+  typeParDefaut,
+  avecSource = false,
+  aide,
+  depot = true,
+  // Ailleurs que dans un projet (commande commune), l'adresse du fichier et le retrait diffèrent.
+  lien = (d) => lienFichierDocument(d.id),
+  retirer = (d) => api.retirerDocument(d.id),
+}) {
   const entetes = ["Type", "Fichier", avecSource ? "Source" : null, "Taille", "Ajouté le", "Commentaire", ""].filter((t) => t !== null);
   return el(
     "section",
@@ -106,7 +118,7 @@ export function sectionDocuments({ titre = "Documents", documents, deposer, surC
           "table",
           { class: "table table--dense" },
           el("thead", {}, el("tr", {}, entetes.map((t) => el("th", { class: t === "Taille" ? "nombre" : "" }, t)))),
-          el("tbody", {}, documents.map((d) => ligneDocument(d, { avecSource, surChangement, depot }))),
+          el("tbody", {}, documents.map((d) => ligneDocument(d, { avecSource, surChangement, depot, lien, retirer }))),
         )
       : el("p", { class: "texte-doux" }, "Aucun document joint."),
     depot ? formulaireDepot({ typeParDefaut, deposer, surChangement }) : null,

@@ -142,6 +142,16 @@ export function lienModele(type, code) {
 }
 
 // Adresse d'ouverture d'un document joint (lien, pas un appel fetch).
+// Fichier d'un document de commande commune, lu dans la copie d'un de ses projets.
+export function lienFichierCommune(dossier, numero, projet, id) {
+  return `/api/dossiers/${dossier}/communes/${numero}/documents/${projet}/${id}/fichier`;
+}
+
+function lienDemandeDevisCommune(dossier, numero, format, avant) {
+  const requete = avant ? `?avant=${encodeURIComponent(avant)}` : "";
+  return `/api/dossiers/${dossier}/communes/${numero}/demande-devis.${format}${requete}`;
+}
+
 export function lienFichierDocument(id) {
   return adresse(`/api/documents/${id}/fichier`);
 }
@@ -204,6 +214,12 @@ export const api = {
   deleteLigneCommune: (dossier, numero, projet, id) => requete("DELETE", `/api/dossiers/${dossier}/communes/${numero}/lignes/${projet}/${id}`),
   createFraisCommune: (dossier, numero, valeurs) => requete("POST", `/api/dossiers/${dossier}/communes/${numero}/frais`, valeurs),
   deleteFraisCommune: (dossier, numero, id) => requete("DELETE", `/api/dossiers/${dossier}/communes/${numero}/frais/${id}`),
+  receptionnerCommune: (dossier, numero, corps) => requete("POST", `/api/dossiers/${dossier}/communes/${numero}/reception`, corps),
+  analyserSuiviCommunes: (dossier, donnees, progression) => requeteFormulaire(`/api/dossiers/${dossier}/communes/suivi/analyse`, donnees, progression),
+  appliquerSuiviCommunes: (dossier, donnees) => requeteFormulaireFichier(`/api/dossiers/${dossier}/communes/suivi/appliquer`, donnees),
+  deposerDocumentsCommune: (dossier, numero, donnees, progression) => requeteFormulaire(`/api/dossiers/${dossier}/communes/${numero}/documents`, donnees, progression),
+  retirerDocumentCommune: (dossier, numero, empreinte) => requete("DELETE", `/api/dossiers/${dossier}/communes/${numero}/documents/${empreinte}`),
+  telechargerDemandeDevisCommune: (dossier, numero, format, avant) => requeteFichier(lienDemandeDevisCommune(dossier, numero, format, avant)),
   rechercher: (q) => requete("GET", avecParametres("/api/recherche", { q })),
   getHistorique: (filtres) => requete("GET", avecParametres("/api/historique", filtres)),
   getTablesHistorique: () => requete("GET", "/api/historique/tables"),

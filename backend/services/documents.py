@@ -11,6 +11,8 @@ import mimetypes
 import re
 import sqlite3
 import unicodedata
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 
@@ -129,15 +131,19 @@ def add_document(
     dossier: Path,
     fichier: tuple[str, bytes],
     meta: dict[str, Any],
+    transaction: Callable[[sqlite3.Connection], AbstractContextManager] = db.transaction,
 ) -> dict:
-    """Enregistre un fichier et sa fiche. `meta` porte la cible, le type et le commentaire."""
+    """Enregistre un fichier et sa fiche. `meta` porte la cible, le type et le commentaire.
+
+    `transaction` : la copie d'une commande commune s'écrit sous son verrou levé
+    (communes_sync.ouverte), depuis la page du dossier seulement."""
     nom, contenu = fichier
     _check_fichier(nom, contenu)
     if meta["type_document"] not in TYPES_DOCUMENT:
         raise ErreurMetier(f"Type de document inconnu : « {meta['type_document']} ».")
     empreinte = hashlib.sha256(contenu).hexdigest()
     commande, composant = meta.get("commande_numero"), meta.get("composant_id")
-    with db.transaction(conn):
+    with transaction(conn):
         sous_dossier = ensure_cible(conn, commande, composant)
         doublon = db.fetch_one(
             conn,
@@ -237,9 +243,13 @@ def patch_document(conn: sqlite3.Connection, identifiant: int, modifs: dict[str,
     return get_document(conn, identifiant)
 
 
-def archive_document(conn: sqlite3.Connection, identifiant: int) -> None:
+def archive_document(
+    conn: sqlite3.Connection,
+    identifiant: int,
+    transaction: Callable[[sqlite3.Connection], AbstractContextManager] = db.transaction,
+) -> None:
     """Retire un document des listes ; le fichier reste dans le dossier des documents."""
-    with db.transaction(conn):
+    with transaction(conn):
         get_document(conn, identifiant)
         journal.update_with_journal(
             conn, "document", identifiant, {"archive": 1}, frozenset({"archive"})

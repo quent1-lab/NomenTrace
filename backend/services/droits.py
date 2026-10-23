@@ -305,6 +305,16 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("POST", "/api/dossiers/{code}/communes/{numero}/frais"): COMMUN,
     ("PATCH", "/api/dossiers/{code}/communes/{numero}/frais/{identifiant}"): COMMUN,
     ("DELETE", "/api/dossiers/{code}/communes/{numero}/frais/{identifiant}"): COMMUN,
+    ("POST", "/api/dossiers/{code}/communes/{numero}/reception"): COMMUN,
+    ("POST", "/api/dossiers/{code}/communes/suivi/analyse"): COMMUN,
+    ("POST", "/api/dossiers/{code}/communes/suivi/appliquer"): COMMUN,
+    ("GET", "/api/dossiers/{code}/communes/{numero}/demande-devis.{format_document}"): COMMUN,
+    ("POST", "/api/dossiers/{code}/communes/{numero}/documents"): COMMUN,
+    ("DELETE", "/api/dossiers/{code}/communes/{numero}/documents/{empreinte}"): COMMUN,
+    (
+        "GET",
+        "/api/dossiers/{code}/communes/{numero}/documents/{projet}/{identifiant}/fichier",
+    ): COMMUN,
     ("PATCH", "/api/projets/{code}"): COMMUN,
     # Utilisateurs
     ("GET", "/api/utilisateurs"): ADMIN,

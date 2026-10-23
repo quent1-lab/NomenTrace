@@ -9,6 +9,10 @@ Nomentrace le lit et l'écrit sans en changer la forme :
   réception, montant de la commande, commentaire) et la couleur de chaque ligne (commandé,
   livré) deviennent des propositions, appliquées seulement si l'utilisateur les retient.
 
+Les copies des commandes communes n'y figurent pas : la commune y a ses propres lignes
+(« CC-003 · projet · composant »), lues et écrites depuis la page du dossier
+(services/suivi_communes.py). Ici, ces lignes sont ignorées.
+
 Chaque ligne écrite porte sa référence Nomentrace dans une colonne masquée à droite du
 modèle (« CMD-012 · ESSAI-ALI-003 », « CMD-012 · frais 4 ») : c'est elle qui retrouve la
 ligne au retour. Les colonnes sont reconnues par leur titre, pas par leur position.
@@ -35,6 +39,8 @@ from backend.erreurs import ErreurMetier
 from backend.services import commandes
 
 journal_log = logging.getLogger(__name__)
+
+PREFIXE_COMMUNE = "CC-"
 
 TITRE_REFERENCE = "Réf. Nomentrace"
 # Titres de colonnes du modèle, reconnus sans accents ni casse, par leur début.
@@ -154,7 +160,7 @@ def cle_couleur(cellule: Cell) -> tuple:
     return (couleur.type, couleur.value)
 
 
-def _ouvrir(contenu: bytes) -> tuple[Any, Modele]:
+def ouvrir(contenu: bytes) -> tuple[Any, Modele]:
     try:
         classeur = load_workbook(io.BytesIO(contenu))
     except (OSError, ValueError, KeyError) as erreur:
@@ -203,7 +209,7 @@ def _etat_ligne(modele: Modele, rang: int) -> str:
     return "devis"
 
 
-def _releve_commandes(modele: Modele) -> tuple[dict[str, dict], list[int]]:
+def releve_commandes(modele: Modele, communes: bool = False) -> tuple[dict[str, dict], list[int]]:
     """Ce que dit le classeur de chaque commande, et les lignes sans référence Nomentrace."""
     releves: dict[str, dict] = {}
     inconnues = []
@@ -214,6 +220,11 @@ def _releve_commandes(modele: Modele) -> tuple[dict[str, dict], list[int]]:
                 inconnues.append(rang)
             continue
         numero = reference.split("·")[0].strip()
+        if communes and not numero.startswith(PREFIXE_COMMUNE):
+            continue
+        if not communes and numero.startswith(PREFIXE_COMMUNE):
+            # Ligne d'une commande commune : elle se lit depuis la page du dossier.
+            continue
         r = releves.setdefault(numero, {"etats": [], "montants": [], "commentaires": []})
         r["etats"].append(_etat_ligne(modele, rang))
         for cle, champ, confirme in (
@@ -236,7 +247,7 @@ def _releve_commandes(modele: Modele) -> tuple[dict[str, dict], list[int]]:
     return releves, inconnues
 
 
-def _propositions_commande(commande: dict, releve: dict) -> dict[str, Any]:
+def propositions_commande(commande: dict, releve: dict) -> dict[str, Any]:
     """Champs de la commande que le classeur ferait changer."""
     cibles: dict[str, Any] = {}
     etats = set(releve["etats"])
@@ -269,11 +280,11 @@ def _propositions_commande(commande: dict, releve: dict) -> dict[str, Any]:
     return {
         champ: valeur
         for champ, valeur in cibles.items()
-        if not _identique(commande.get(champ), valeur)
+        if not identique(commande.get(champ), valeur)
     }
 
 
-def _identique(avant: Any, apres: Any) -> bool:
+def identique(avant: Any, apres: Any) -> bool:
     if isinstance(avant, (int, float)) and isinstance(apres, (int, float)):
         return abs(avant - apres) < 0.01
     return avant == apres
@@ -281,15 +292,15 @@ def _identique(avant: Any, apres: Any) -> bool:
 
 def analyse(conn: sqlite3.Connection, contenu: bytes) -> dict:
     """Propositions tirées du classeur, et nombre de lignes qu'il recevra en plus."""
-    _, modele = _ouvrir(contenu)
-    releves, inconnues = _releve_commandes(modele)
+    _, modele = ouvrir(contenu)
+    releves, inconnues = releve_commandes(modele)
     propositions = []
     for numero, releve in sorted(releves.items()):
         commande = db.fetch_one(conn, "SELECT * FROM commande WHERE numero = ?", (numero,))
         if commande is None:
             inconnues.append(numero)
             continue
-        changements = _propositions_commande(commande, releve)
+        changements = propositions_commande(commande, releve)
         if changements:
             propositions.append(
                 {
@@ -313,17 +324,17 @@ def analyse(conn: sqlite3.Connection, contenu: bytes) -> dict:
 
 def appliquer(conn: sqlite3.Connection, contenu: bytes, retenues: dict[str, list[str]]) -> bytes:
     """Applique les changements retenus ({numéro: [champs]}), puis complète le classeur."""
-    classeur, modele = _ouvrir(contenu)
-    releves, _ = _releve_commandes(modele)
+    classeur, modele = ouvrir(contenu)
+    releves, _ = releve_commandes(modele)
     for numero, champs in retenues.items():
         commande = db.fetch_one(conn, "SELECT * FROM commande WHERE numero = ?", (numero,))
         if commande is None or numero not in releves:
             continue
-        changements = _propositions_commande(commande, releves[numero])
+        changements = propositions_commande(commande, releves[numero])
         retenu = {c: v for c, v in changements.items() if c in champs}
         if retenu:
             commandes.patch_commande(conn, numero, retenu)
-    _ajouter_lignes(modele, lignes_a_transmettre(conn))
+    ajouter_lignes(modele, lignes_a_transmettre(conn))
     flux = io.BytesIO()
     classeur.save(flux)
     return flux.getvalue()
@@ -341,7 +352,7 @@ def lignes_a_transmettre(conn: sqlite3.Connection) -> list[dict]:
         " l.qte_commandee * l.pu_ht_devis AS montant"
         " FROM commande c JOIN ligne_commande l ON l.commande_numero = c.numero"
         " JOIN composant p ON p.id = l.composant_id"
-        " WHERE c.archive = 0 AND c.date_transmission_suivi IS NOT NULL"
+        " WHERE c.archive = 0 AND c.commune IS NULL AND c.date_transmission_suivi IS NOT NULL"
         " AND l.statut_ligne <> 'Annulee' ORDER BY c.numero, l.id",
     )
     frais = db.fetch_all(
@@ -350,7 +361,8 @@ def lignes_a_transmettre(conn: sqlite3.Connection) -> list[dict]:
         " COALESCE(v.libelle, f.type_frais) AS libelle, f.commentaire"
         " FROM commande c JOIN frais_commande f ON f.commande_numero = c.numero"
         " LEFT JOIN valeur_liste v ON v.liste = 'type_frais' AND v.code = f.type_frais"
-        " WHERE c.archive = 0 AND c.date_transmission_suivi IS NOT NULL ORDER BY c.numero, f.id",
+        " WHERE c.archive = 0 AND c.commune IS NULL AND c.date_transmission_suivi IS NOT NULL"
+        " ORDER BY c.numero, f.id",
     )
     lignes = [
         {
@@ -429,7 +441,7 @@ def _inserer_avant_total(modele: Modele, nombre: int) -> None:
     modele.total = nouveau_total
 
 
-def _ajouter_lignes(modele: Modele, lignes: list[dict]) -> None:
+def ajouter_lignes(modele: Modele, lignes: list[dict]) -> None:
     presentes = {modele.reference(rang) for rang in modele.lignes()}
     nouvelles = [ligne for ligne in lignes if ligne["ref"] not in presentes]
     if not nouvelles:

@@ -16,7 +16,18 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
-from backend.services import communes_sync, hierarchie, journal, listes, parametres, reference
+from backend.services import (
+    commandes,
+    communes_documents,
+    communes_sync,
+    demande_document,
+    hierarchie,
+    journal,
+    listes,
+    parametres,
+    receptions,
+    reference,
+)
 from backend.services.communes_sync import Emplacements
 from backend.services.droits import ACHATS_STOCK, GESTION, AccesRefuse, Utilisateur
 from backend.services.projets import Registre
@@ -42,6 +53,7 @@ CHAMPS_EN_TETE: frozenset[str] = frozenset(
         "date_reception_annoncee",
         "commentaire_suivi",
         "archive",
+        "mode_reel",
     }
 )
 CHAMPS_LIGNE: frozenset[str] = frozenset(
@@ -77,6 +89,38 @@ def dossier_acheteur(conn: sqlite3.Connection, compte: Utilisateur, code: str) -
     return _dossier(conn, compte, code, ecriture=True)
 
 
+def dossier_lecteur(conn: sqlite3.Connection, compte: Utilisateur, code: str) -> dict:
+    return _dossier(conn, compte, code, ecriture=False)
+
+
+def contexte_documents(
+    conn: sqlite3.Connection,
+    registre: Registre,
+    compte: Utilisateur,
+    cible: tuple[str, str, bool],
+) -> tuple[Emplacements, dict[str, str]]:
+    """Emplacements et participants pour les documents ; en écriture, la commune doit être
+    active, avoir des projets, et tous doivent être en ligne."""
+    code, numero, ecriture = cible
+    emp = emplacements(conn, registre, _dossier(conn, compte, code, ecriture=ecriture))
+    ref = db.connect(emp.reference, creer=False)
+    try:
+        _get(ref, numero, active=ecriture)
+        participants = communes_sync.lire_participants(ref, numero)
+    finally:
+        ref.close()
+    if not ecriture:
+        return emp, participants
+    manquants = sorted(p for p in participants if p not in emp.projets)
+    if manquants:
+        raise ErreurMetier(
+            f"Projets hors ligne : {', '.join(manquants)}. Réessayer à leur retour.", 503
+        )
+    if not participants:
+        raise ErreurMetier("Ajouter d'abord des lignes : un document se joint aux projets.")
+    return emp, participants
+
+
 def emplacements(conn: sqlite3.Connection, registre: Registre, dossier: dict) -> Emplacements:
     ref = registre.projets.get(reference.code_reference(dossier["code"]))
     if ref is None:
@@ -89,6 +133,7 @@ def emplacements(conn: sqlite3.Connection, registre: Registre, dossier: dict) ->
         organisme=org.base if org else None,
         projets={c: registre.projets[c].base for c in codes if c in registre.projets},
         hors_ligne={c for c in codes if c not in registre.projets},
+        documents={c: registre.projets[c].documents for c in codes if c in registre.projets},
     )
 
 
@@ -159,6 +204,7 @@ def _lecture(conn: sqlite3.Connection, emp: Emplacements, numero: str, acheteur:
         commune = _get(ref, numero, active=False)
         participants = communes_sync.lire_participants(ref, numero)
         frais = communes_sync.lire_frais(ref, numero)
+        reel_lignes = communes_sync.lire_reel_lignes(ref, commune)
         types_frais = db.fetch_all(
             ref,
             "SELECT code, libelle, actif FROM valeur_liste WHERE liste = 'type_frais'"
@@ -172,7 +218,7 @@ def _lecture(conn: sqlite3.Connection, emp: Emplacements, numero: str, acheteur:
         for p, n in participants.items()
         if p in emp.projets
     }
-    parts = communes_sync.repartir(lignes, frais, commune["montant_commande_ht"])
+    parts = communes_sync.repartir(lignes, frais, commune["montant_commande_ht"], reel_lignes)
     noms = _noms(conn, list(participants))
     projets = [
         {
@@ -188,7 +234,10 @@ def _lecture(conn: sqlite3.Connection, emp: Emplacements, numero: str, acheteur:
     return {
         **commune,
         "dossier": emp.dossier,
-        "statut_affiche": commune["statut_deduit"] or commune["statut"],
+        # Lu des lignes elles-mêmes : juste même si une synchronisation est en retard.
+        "statut_affiche": communes_sync.statut_deduit(
+            commune["type"], commune["statut"], [ligne for lp in lignes.values() for ligne in lp]
+        ),
         "acheteur": acheteur,
         "projets": projets,
         "frais": frais,
@@ -196,6 +245,7 @@ def _lecture(conn: sqlite3.Connection, emp: Emplacements, numero: str, acheteur:
         "estime_ht": sum(p["estime_ht"] for p in parts.values()),
         "manquants": manquants,
         "types_frais": types_frais,
+        "documents": communes_documents.lister(emp, participants),
         "nom_dossier": _nom_dossier(conn, emp.dossier),
     }
 
@@ -322,6 +372,9 @@ def patch_commune(
         engagee = communes_sync.est_engagee(apres["type"], apres["statut"])
         if engagee and not apres.get("date_commande"):
             modifs = {**modifs, "date_commande": date.today().isoformat()}
+        # Un montant réel saisi à la main est un total, réparti au prorata.
+        if "montant_commande_ht" in modifs and "mode_reel" not in modifs:
+            modifs = {**modifs, "mode_reel": "total"}
         communes_sync.augmenter_version(ref, numero)
         with db.transaction(ref):
             journal.update_with_journal(ref, "commune", numero, modifs, CHAMPS_EN_TETE)
@@ -412,11 +465,15 @@ def add_lignes(
         _get(ref, numero)
         communes_sync.augmenter_version(ref, numero)
         commune = _get(ref, numero)
+        deja = set(communes_sync.lire_participants(ref, numero))
         locaux = {p: _numero_local(ref, emp, commune, p, compte.nom) for p in par_projet}
+        participants = communes_sync.lire_participants(ref, numero)
     finally:
         ref.close()
     for projet, lignes_projet in par_projet.items():
         _inserer_lignes(emp.projets[projet], compte.nom, commune, locaux[projet], lignes_projet)
+        if projet not in deja:
+            communes_documents.recopier(emp, participants, projet, compte.nom)
     rapport = communes_sync.synchroniser(emp, numero, compte.nom)
     return {**_lecture(conn, emp, numero, True), "synchronisation": rapport}
 
@@ -502,6 +559,142 @@ def delete_ligne(
     _ecrire_ligne(emp, compte, numero, projet, supprimer)
     rapport = communes_sync.synchroniser(emp, numero, compte.nom)
     return {**_lecture(conn, emp, numero, True), "synchronisation": rapport}
+
+
+# --- Demande de devis ------------------------------------------------------------------------
+
+
+def get_demande_devis(
+    conn: sqlite3.Connection,
+    registre: Registre,
+    compte: Utilisateur,
+    cible: tuple[str, str],
+    reponse_avant: str | None,
+) -> dict:
+    """Données du document de demande de devis : l'établissement, le logo et le nom du projet
+    du dossier, la fiche du fournisseur dans la liste de l'organisme, et les articles de tous
+    les projets, regroupés."""
+    code, numero = cible
+    emp = emplacements(conn, registre, _dossier(conn, compte, code, ecriture=True))
+    ref = db.connect(emp.reference, creer=False)
+    org = db.connect(emp.organisme, creer=False) if emp.organisme else None
+    try:
+        commune = _get(ref, numero)
+        lignes = []
+        for projet, numero_local in communes_sync.lire_participants(ref, numero).items():
+            if projet in emp.projets:
+                lignes += _articles_demande(emp.projets[projet], numero_local)
+        demandeur = demande_document.demandeur(ref, compte)
+        return demande_document.assembler(
+            ref, org, commune, demande_document.regrouper(lignes), demandeur, reponse_avant
+        )
+    finally:
+        ref.close()
+        if org is not None:
+            org.close()
+
+
+def _articles_demande(base: Any, numero_local: str) -> list[dict]:
+    lecture = db.connect(base, creer=False)
+    try:
+        return db.fetch_all(
+            lecture,
+            "SELECT c.ref_fabricant, c.designation, c.fabricant, l.qte_commandee AS qte,"
+            " c.lien_produit FROM ligne_commande l JOIN composant c ON c.id = l.composant_id"
+            " WHERE l.commande_numero = ? AND l.statut_ligne <> 'Annulee' ORDER BY l.id",
+            (numero_local,),
+        )
+    finally:
+        lecture.close()
+
+
+# --- Réception, des deux côtés ------------------------------------------------------------------
+
+
+def receive_dans_le_projet(
+    conn: sqlite3.Connection,
+    conn_comptes: sqlite3.Connection,
+    registre: Registre,
+    projet: str,
+    numero: str,
+    reception: dict[str, Any],
+) -> dict:
+    """Réception depuis un projet. Pour la copie d'une commune : version de la commune
+    augmentée d'abord, réception dans le projet, puis synchronisation (statut déduit)."""
+    commune = commandes.get_commande(conn, numero).get("commune")
+    if commune is None:
+        return receptions.receive_commande(conn, numero, reception)
+    ligne = conn_comptes.execute("SELECT dossier FROM projet WHERE code = ?", (projet,)).fetchone()
+    if ligne is None or ligne[0] is None:
+        raise ErreurMetier("Ce projet n'est plus dans le dossier de la commande commune.")
+    emp = emplacements(conn_comptes, registre, hierarchie.get_dossier(conn_comptes, ligne[0]))
+    ref = db.connect(emp.reference, db.auteur(conn), creer=False)
+    try:
+        _get(ref, commune)
+        communes_sync.augmenter_version(ref, commune)
+    finally:
+        ref.close()
+    resultat = receptions.receive_commande(conn, numero, reception)
+    rapport = communes_sync.synchroniser(emp, commune, db.auteur(conn))
+    return {**resultat, "synchronisation": rapport}
+
+
+def receive_commune(
+    conn: sqlite3.Connection,
+    registre: Registre,
+    compte: Utilisateur,
+    cible: tuple[str, str],
+    reception: dict[str, Any],
+) -> dict:
+    """Réception depuis la commune : chaque projet reçoit ses lignes dans sa base. Les
+    quantités lues sont toutes vérifiées avant la première écriture."""
+    code, numero = cible
+    dossier = _dossier(conn, compte, code, ecriture=True)
+    emp = emplacements(conn, registre, dossier)
+    reception = {**reception, "date": reception.get("date") or date.today().isoformat()}
+    par_projet: dict[str, list[dict]] = {}
+    for ligne in reception["lignes"]:
+        _check_projet(emp, ligne["projet"])
+        par_projet.setdefault(ligne["projet"], []).append(ligne)
+    ref = _ouvrir_ref(emp, compte)
+    try:
+        _get(ref, numero)
+        locaux = communes_sync.lire_participants(ref, numero)
+        if set(par_projet) - set(locaux):
+            raise ErreurMetier("Une ligne saisie n'appartient à aucun projet de la commande.")
+        _verifier_lues(emp, locaux, par_projet)
+        communes_sync.augmenter_version(ref, numero)
+    finally:
+        ref.close()
+    avertissements: list[str] = []
+    for projet, lignes in par_projet.items():
+        base = db.connect(emp.projets[projet], compte.nom, creer=False)
+        try:
+            with communes_sync.ouverte(base):
+                recue = {**reception, "lignes": lignes}
+                avertissements += receptions.receive_lignes(base, locaux[projet], recue)
+        finally:
+            base.close()
+    rapport = communes_sync.synchroniser(emp, numero, compte.nom)
+    lecture = _lecture(conn, emp, numero, True)
+    return {**lecture, "avertissements": avertissements, "synchronisation": rapport}
+
+
+def _verifier_lues(
+    emp: Emplacements, locaux: dict[str, str], par_projet: dict[str, list[dict]]
+) -> None:
+    for projet, saisies in par_projet.items():
+        lignes = {
+            ligne["id"]: ligne
+            for ligne in communes_sync.lignes_du_projet(emp.projets[projet], locaux[projet])
+        }
+        for saisie in saisies:
+            if saisie["qte"] <= 0:
+                continue
+            ligne = lignes.get(saisie["id"])
+            if ligne is None:
+                raise Introuvable(f"Ligne {saisie['id']} introuvable.")
+            receptions.check_lue(ligne, saisie["qte_recue_lue"])
 
 
 # --- Frais --------------------------------------------------------------------------------------

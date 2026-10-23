@@ -467,6 +467,20 @@ class ApplicationImport(Modele):
 class ReceptionLigne(Modele):
     id: int
     qte: int = Field(ge=0)
+    # Quantité déjà reçue lue à l'ouverture de la saisie : un écart refuse la réception (409).
+    qte_recue_lue: int | None = Field(default=None, ge=0)
+
+
+class ReceptionLigneCommune(ReceptionLigne):
+    projet: str = Field(min_length=1)
+    qte_recue_lue: int = Field(ge=0)
+
+
+class ReceptionCommune(Modele):
+    date: str | None = Field(default=None, pattern=MOTIF_DATE)
+    emplacement: str | None = None
+    par_qui: str | None = None
+    lignes: list[ReceptionLigneCommune] = Field(min_length=1)
 
 
 class Reception(Modele):

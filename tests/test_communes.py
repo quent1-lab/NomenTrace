@@ -9,6 +9,8 @@ Exemple de référence (réponse de l'utilisateur, 2026-10-21) : A 300 € de li
 livraison 20 €, réel 410 € → A 410 × 310/420 = 302,62 €, B 107,38 €.
 """
 
+import io
+import json
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
@@ -19,7 +21,7 @@ from fastapi.testclient import TestClient
 
 from backend import db
 from backend.main import create_app
-from backend.services import authentification, communes, communes_sync
+from backend.services import authentification, communes, communes_sync, suivi_achats
 from tests.test_comptes import PROJET, connecter, creer_compte, navigateur
 from tests.test_fournisseurs_communs import composant
 from tests.test_hierarchie import (
@@ -32,6 +34,7 @@ from tests.test_hierarchie import (
     serveur,
 )
 from tests.test_reference import base, lire
+from tests.test_suivi_achats import _modele
 
 URL = "/api/dossiers/epreuve/communes"
 ORG = "org-meca"
@@ -498,3 +501,284 @@ def test_copie_orpheline_reprise(app: FastAPI, client: TestClient) -> None:
     copies = lire(app, "beta", "SELECT numero FROM commande WHERE commune = ?", (numero,))
     assert copies == [(orpheline,)]
     assert client.get(f"{URL}/{numero}").json()["projets"][0]["numero_local"] == orpheline
+
+
+# --- 9. Réception, des deux côtés (16b, points 2 et 3) ------------------------------------------
+
+
+def _lignes_copie(app: FastAPI, projet: str, numero: str) -> list[tuple]:
+    numero_local = copie(app, projet, numero)["numero"]
+    return lire(
+        app,
+        projet,
+        "SELECT id, qte_commandee, qte_recue FROM ligne_commande WHERE commande_numero = ?"
+        " ORDER BY id",
+        (numero_local,),
+    )
+
+
+def _mouvements(app: FastAPI, projet: str, numero: str) -> list[tuple]:
+    numero_local = copie(app, projet, numero)["numero"]
+    return lire(
+        app,
+        projet,
+        "SELECT composant_id, qte, par_qui FROM mouvement_stock WHERE commande_numero = ?",
+        (numero_local,),
+    )
+
+
+@pytest.fixture
+def passee(client: TestClient, exemple: str) -> str:
+    reponse = client.patch(f"{URL}/{exemple}", json={"statut": "Commande"})
+    assert reponse.status_code == 200, reponse.text
+    return exemple
+
+
+def test_pas_de_double_reception(app: FastAPI, client: TestClient, passee: str) -> None:
+    """B reçoit 4/4 depuis son projet ; la commune, ouverte avant, tente 4 avec l'état ancien."""
+    ((ident, qte, lue),) = _lignes_copie(app, "beta", passee)
+    numero_local = copie(app, "beta", passee)["numero"]
+    corps = {"lignes": [{"id": ident, "qte": qte, "qte_recue_lue": lue}]}
+    projet = client.post(f"/p/beta/api/commandes/{numero_local}/reception", json=corps)
+    assert projet.status_code == 200, projet.text
+    depuis_commune = client.post(
+        f"{URL}/{passee}/reception",
+        json={"lignes": [{"projet": "beta", "id": ident, "qte": qte, "qte_recue_lue": lue}]},
+    )
+    assert depuis_commune.status_code == 409
+    assert "entre-temps" in depuis_commune.json()["erreur"]
+    assert _lignes_copie(app, "beta", passee) == [(ident, 4, 4)]
+    assert len(_mouvements(app, "beta", passee)) == 1
+
+
+def test_reception_du_projet_exige_la_quantite_lue(
+    app: FastAPI, client: TestClient, passee: str
+) -> None:
+    ((ident, qte, _),) = _lignes_copie(app, "beta", passee)
+    numero_local = copie(app, "beta", passee)["numero"]
+    corps = {"lignes": [{"id": ident, "qte": qte}]}
+    reponse = client.post(f"/p/beta/api/commandes/{numero_local}/reception", json=corps)
+    assert reponse.status_code == 400
+    assert _mouvements(app, "beta", passee) == []
+
+
+def test_statuts_apres_receptions(app: FastAPI, client: TestClient, passee: str) -> None:
+    """Réception complète de B depuis la commune : B Livré, la commune Livré partiel ; puis A
+    reçu depuis son projet : la commune Livré, avec sa date de réception."""
+    lignes_b = _lignes_copie(app, "beta", passee)
+    corps = {
+        "date": "2026-10-20",
+        "lignes": [
+            {"projet": "beta", "id": i, "qte": q, "qte_recue_lue": r} for i, q, r in lignes_b
+        ],
+    }
+    reponse = client.post(f"{URL}/{passee}/reception", json=corps)
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()["statut_affiche"] == "Livre partiel"
+    assert copie(app, "beta", passee)["statut"] == "Livre"
+    assert copie(app, PROJET, passee)["statut"] == "Commande"
+    ((composant_b,),) = lire(
+        app, "beta", "SELECT composant_id FROM ligne_commande WHERE id = ?", (lignes_b[0][0],)
+    )
+    assert _mouvements(app, "beta", passee) == [(composant_b, 4, "serveur")]
+    # Une resynchronisation ne défait pas le statut déduit de la copie (point 3).
+    communes_sync.synchroniser(emplacements(app), passee)
+    assert copie(app, "beta", passee)["statut"] == "Livre"
+
+    numero_a = copie(app, PROJET, passee)["numero"]
+    lignes_a = _lignes_copie(app, PROJET, passee)
+    corps_a = {
+        "date": "2026-10-22",
+        "lignes": [{"id": i, "qte": q, "qte_recue_lue": r} for i, q, r in lignes_a],
+    }
+    projet = client.post(f"/p/{PROJET}/api/commandes/{numero_a}/reception", json=corps_a)
+    assert projet.status_code == 200, projet.text
+    lecture = client.get(f"{URL}/{passee}").json()
+    assert lecture["statut_affiche"] == "Livre"
+    assert lecture["date_reception_reelle"] == "2026-10-22"
+    assert client.get(URL).json()["communes"][0]["statut_affiche"] == "Livre"
+
+
+def test_reception_avant_la_commande_refusee(
+    app: FastAPI, client: TestClient, exemple: str
+) -> None:
+    ((ident, qte, lue),) = _lignes_copie(app, "beta", exemple)
+    corps = {"lignes": [{"projet": "beta", "id": ident, "qte": qte, "qte_recue_lue": lue}]}
+    assert client.post(f"{URL}/{exemple}/reception", json=corps).status_code == 400
+    assert _mouvements(app, "beta", exemple) == []
+
+
+def test_reception_reservee_aux_acheteurs(app: FastAPI, client: TestClient, passee: str) -> None:
+    membre_organisme(app, "lecture@ecole.test", "meca", "lecture")
+    lecture = connecter(app, "lecture@ecole.test")
+    ((ident, qte, lue),) = _lignes_copie(app, "beta", passee)
+    corps = {"lignes": [{"projet": "beta", "id": ident, "qte": qte, "qte_recue_lue": lue}]}
+    assert lecture.post(f"{URL}/{passee}/reception", json=corps).status_code == 403
+
+
+# --- 10. Suivi de l'établissement (16b, point 6 et montant réel) --------------------------------
+
+
+def _suivi(client: TestClient, url: str, contenu: bytes, retenues: dict | None = None):
+    fichier = {"fichier": ("suivi.xlsx", contenu)}
+    if retenues is None:
+        return client.post(f"{url}/analyse", files=fichier)
+    return client.post(f"{url}/appliquer", files=fichier, data={"retenues": json.dumps(retenues)})
+
+
+def _montants(contenu: bytes, montants: dict[str, float]) -> bytes:
+    """Remplit la colonne « montant commande » des lignes dont la référence commence ainsi."""
+    classeur, modele = suivi_achats.ouvrir(contenu)
+    for rang in modele.lignes():
+        reference = modele.reference(rang) or ""
+        for debut, montant in montants.items():
+            if reference.startswith(debut):
+                modele.cellule(rang, "montant_commande").value = montant
+    flux = io.BytesIO()
+    classeur.save(flux)
+    return flux.getvalue()
+
+
+@pytest.fixture
+def transmise(client: TestClient, exemple: str) -> bytes:
+    """L'exemple transmis au suivi, et le classeur complété de ses lignes."""
+    corps = {"date_transmission_suivi": "2026-10-06", "date_reception_devis": "2026-10-05"}
+    assert client.patch(f"{URL}/{exemple}", json=corps).status_code == 200
+    analyse = _suivi(client, f"{URL}/suivi", _modele()).json()
+    assert analyse["nb_lignes_a_ajouter"] == 4  # trois articles, un frais
+    reponse = _suivi(client, f"{URL}/suivi", _modele(), {})
+    assert reponse.status_code == 200, reponse.text
+    return reponse.content
+
+
+def test_suivi_lignes_de_la_commune(app: FastAPI, client: TestClient, transmise: bytes) -> None:
+    _, modele = suivi_achats.ouvrir(transmise)
+    refs = sorted(r for r in (modele.reference(i) for i in modele.lignes()) if r)
+    assert refs[0].startswith("CC-001 · beta · BET-")
+    assert sum(1 for r in refs if r.startswith(f"CC-001 · {PROJET} · ")) == 2
+    assert refs[-1] == "CC-001 · frais 1"
+    # Le suivi d'un projet ignore ces lignes et n'ajoute pas sa copie.
+    projet = _suivi(client, f"/p/{PROJET}/api/suivi-achats", transmise).json()
+    numero_local = copie(app, PROJET, "CC-001")["numero"]
+    assert numero_local not in projet["commandes_a_ajouter"]
+    assert not any("CC-001" in str(i) for i in projet["lignes_inconnues"])
+
+
+def test_suivi_montant_pour_toute_la_commande(
+    app: FastAPI, client: TestClient, transmise: bytes
+) -> None:
+    rempli = _montants(transmise, {"CC-001 · beta": 410.0})
+    analyse = _suivi(client, f"{URL}/suivi", rempli).json()
+    ((proposition,),) = [analyse["propositions"]]
+    champs = {c["champ"]: c["apres"] for c in proposition["changements"]}
+    assert champs["montant_commande_ht"] == 410.0
+    assert "mode_reel" not in champs  # déjà au total
+    _suivi(client, f"{URL}/suivi", rempli, {"CC-001": ["montant_commande_ht"]})
+    assert round(copie(app, PROJET, "CC-001")["montant_commande_ht"], 2) == 302.62
+    assert round(copie(app, "beta", "CC-001")["montant_commande_ht"], 2) == 107.38
+
+
+def test_suivi_montant_par_ligne(app: FastAPI, client: TestClient, transmise: bytes) -> None:
+    """A : 2 lignes lues 185 et 108 ; B : 95. Frais saisis 20, en plus, à parts égales.
+    Parts : A 293 + 10 = 303, B 95 + 10 = 105 ; réel de la commune 408."""
+    _, modele = suivi_achats.ouvrir(transmise)
+    refs_a = sorted(r for r in (modele.reference(i) for i in modele.lignes()) if r and PROJET in r)
+    rempli = _montants(transmise, {refs_a[0]: 185.0, refs_a[1]: 108.0, "CC-001 · beta": 95.0})
+    analyse = _suivi(client, f"{URL}/suivi", rempli).json()
+    champs = {c["champ"]: c["apres"] for c in analyse["propositions"][0]["changements"]}
+    assert champs["montant_commande_ht"] == pytest.approx(408.0)
+    assert champs["mode_reel"] == "lignes"
+    _suivi(client, f"{URL}/suivi", rempli, {"CC-001": ["montant_commande_ht"]})
+    assert copie(app, PROJET, "CC-001")["montant_commande_ht"] == pytest.approx(303.0)
+    assert copie(app, "beta", "CC-001")["montant_commande_ht"] == pytest.approx(105.0)
+    lecture = client.get(f"{URL}/CC-001").json()
+    assert lecture["mode_reel"] == "lignes"
+    # Un montant saisi à la main redevient un total, réparti au prorata.
+    client.patch(f"{URL}/CC-001", json={"montant_commande_ht": 410})
+    assert round(copie(app, PROJET, "CC-001")["montant_commande_ht"], 2) == 302.62
+
+
+# --- 11. Documents et demande de devis (16b) ----------------------------------------------------
+
+PDF = b"%PDF-1.4\n% devis commun de test\n"
+
+
+def _deposer(client: TestClient, numero: str, nom: str = "devis.pdf", contenu: bytes = PDF):
+    return client.post(
+        f"{URL}/{numero}/documents",
+        files=[("fichiers", (nom, contenu))],
+        data={"type_document": "Devis"},
+    )
+
+
+def test_document_joint_a_chaque_copie(app: FastAPI, client: TestClient, exemple: str) -> None:
+    reponse = _deposer(client, exemple)
+    assert reponse.status_code == 201, reponse.text
+    ((document,),) = [reponse.json()["documents"]]
+    assert sorted(c["projet"] for c in document["copies"]) == ["beta", PROJET]
+    # Visible dans le projet, depuis la copie et depuis la fiche du composant.
+    numero_b = copie(app, "beta", exemple)["numero"]
+    assert len(client.get(f"/p/beta/api/commandes/{numero_b}/documents").json()) == 1
+    ((composant_b,),) = lire(
+        app,
+        "beta",
+        "SELECT composant_id FROM ligne_commande WHERE commande_numero = ?",
+        (numero_b,),
+    )
+    assert len(client.get(f"/p/beta/api/composants/{composant_b}/documents").json()) == 1
+    # Le fichier se lit depuis la commune ; le projet ne peut pas le retirer.
+    copie_b = next(c for c in document["copies"] if c["projet"] == "beta")
+    lu = client.get(f"{URL}/{exemple}/documents/beta/{copie_b['id']}/fichier")
+    assert lu.status_code == 200 and lu.content == PDF
+    assert client.delete(f"/p/beta/api/documents/{copie_b['id']}").status_code == 409
+    # Un second dépôt du même fichier ne le double pas.
+    assert len(_deposer(client, exemple).json()["documents"]) == 1
+    # Retiré depuis la commune : archivé dans les deux copies.
+    retrait = client.delete(f"{URL}/{exemple}/documents/{document['empreinte']}")
+    assert retrait.status_code == 200 and retrait.json()["documents"] == []
+    assert client.get(f"/p/beta/api/commandes/{numero_b}/documents").json() == []
+
+
+def test_projet_qui_rejoint_recoit_les_documents(
+    app: FastAPI, client: TestClient, exemple: str
+) -> None:
+    _deposer(client, exemple)
+    creer_projet(client, "gamma")
+    g1 = composant(client, "gamma", "Farnell")
+    ajouter(client, exemple, [ligne("gamma", g1, 1, 5.0)])
+    numero_g = copie(app, "gamma", exemple)["numero"]
+    documents_g = client.get(f"/p/gamma/api/commandes/{numero_g}/documents").json()
+    assert [d["nom_origine"] for d in documents_g] == ["devis.pdf"]
+
+
+def test_demande_de_devis_de_la_commune(client: TestClient, exemple: str) -> None:
+    pdf = client.get(f"{URL}/{exemple}/demande-devis.pdf")
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    assert "CC-001" in pdf.headers["content-disposition"]
+    excel = client.get(f"{URL}/{exemple}/demande-devis.xlsx")
+    assert excel.status_code == 200
+
+
+def test_articles_regroupes_pour_le_fournisseur() -> None:
+    from backend.services import demande_document
+
+    article = {
+        "ref_fabricant": "6203",
+        "designation": "Roulement",
+        "fabricant": "X",
+        "lien_produit": None,
+    }
+    lignes = [
+        {**article, "qte": 10},
+        {**article, "qte": 8},
+        {**article, "designation": "Axe", "qte": 1},
+    ]
+    regroupees = demande_document.regrouper(lignes)
+    assert [(r["designation"], r["qte"]) for r in regroupees] == [("Roulement", 18), ("Axe", 1)]
+
+
+def test_session_dit_si_le_dossier_est_visible(app: FastAPI, client: TestClient) -> None:
+    creer_compte(app, "membre@ecole.test", "contributeur", permissions=("achats",))
+    membre = connecter(app, "membre@ecole.test")
+    assert membre.get(f"/p/{PROJET}/api/session").json()["voit_dossier"] is False
+    assert client.get(f"/p/{PROJET}/api/session").json()["voit_dossier"] is True

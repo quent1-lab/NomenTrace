@@ -583,7 +583,30 @@ dans « Modifier » une fois connu, se répartit au prorata de l'estimé de chaq
 lignes plus sa part des frais : avec 300 € de lignes pour un projet, 100 € pour l'autre et
 20 € de port, un réel de 410 € donne 302,62 € et 107,38 €. Une ligne sans prix compte pour
 zéro dans l'estimé et la page la signale. Le statut « Livré » se déduit des réceptions et ne
-se choisit pas ; la réception d'une commande commune n'est pas encore ouverte.
+se choisit pas.
+
+Une commande commune passée se reçoit des deux côtés. Sur sa page, « Réceptionner » montre
+les lignes de tous les projets ; chacune entre dans le stock de son projet. Dans un projet,
+« Réceptionner » sur sa propre commande reçoit ses seules lignes. Une ligne reçue d'un côté
+ne peut pas l'être une seconde fois de l'autre : si une réception est passée entre
+l'ouverture de la saisie et sa validation, Nomentrace la refuse et demande de recharger la
+page. La commande d'un projet passe à « Livré » quand ses lignes sont reçues ; la commande
+commune, quand toutes le sont.
+
+Les documents (devis, bon de commande, facture) se joignent sur la page de la commune. Chacun
+est joint à la commande de chaque projet présent, où il se consulte avec elle et depuis la
+fiche de ses composants ; un projet qui rejoint la commande plus tard le reçoit aussi. La
+demande de devis, en PDF ou en Excel, reprend les articles de tous les projets, un même
+article regroupé avec la somme des quantités.
+
+Une commande commune se transmet au suivi de l'établissement depuis sa page, puis passe par
+le bouton « Suivi de l'établissement » du panneau des commandes communes, sur la page du
+dossier : on y envoie le classeur, comme pour un projet. La commune y figure par ses lignes de
+composants, une par ligne de chaque projet, et par ses frais ; les commandes des projets n'y
+figurent pas, pour que l'établissement ne voie pas deux fois la même ligne. Au retour, si
+l'établissement a mis un montant sur chaque ligne de la commune, la part de chaque projet est
+la somme de ses lignes, plus sa part des frais ; sinon, le montant lu est un total, réparti au
+prorata de l'estimé. La page de la commune dit quelle règle s'applique.
 
 Un projet qui a des lignes dans une commande commune active ne peut pas quitter son
 dossier : annuler ses lignes ou archiver la commande d'abord. Si un projet présent est hors

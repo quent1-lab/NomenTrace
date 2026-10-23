@@ -16,6 +16,7 @@ const CHAMPS = {
   livraison_confirmee: "Livraison confirmée",
   date_reception_annoncee: "Réception annoncée",
   montant_commande_ht: "Montant de la commande HT",
+  mode_reel: "Répartition du réel",
   commentaire_suivi: "Commentaire",
 };
 
@@ -23,6 +24,7 @@ function valeur(champ, v) {
   if (v === null || v === undefined || v === "") return "—";
   if (champ.endsWith("_confirmee")) return v ? "oui" : "non";
   if (champ === "montant_commande_ht") return formatMontant(v);
+  if (champ === "mode_reel") return v === "lignes" ? "par ligne" : "au prorata de l'estimé";
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return formatDate(v);
   return champ === "statut" ? libelle(v) : String(v);
 }
@@ -39,7 +41,7 @@ function blocCommande(proposition) {
   };
 }
 
-function resultat(analyse, fichier, surApplique) {
+function resultat(analyse, fichier, surApplique, appliquerSuivi) {
   const blocs = analyse.propositions.map(blocCommande);
   const appliquer = async () => {
     const retenues = Object.fromEntries(
@@ -49,7 +51,7 @@ function resultat(analyse, fichier, surApplique) {
     donnees.append("fichier", fichier);
     donnees.append("retenues", JSON.stringify(retenues));
     try {
-      enregistrerFichier(await api.appliquerSuivi(donnees));
+      enregistrerFichier(await appliquerSuivi(donnees));
       masquerErreur();
       fermerPanneau({ silencieux: true });
       afficherInformation("Fichier de suivi complété : le reposer sur l'espace partagé à la place de l'ancien.");
@@ -76,7 +78,8 @@ function resultat(analyse, fichier, surApplique) {
   ];
 }
 
-export function ouvrirSuivi(surApplique) {
+// Par défaut, le suivi du projet ; la page d'un dossier passe ses propres appels (communes).
+export function ouvrirSuivi(surApplique, { analyser = api.analyserSuivi, appliquer = api.appliquerSuivi } = {}) {
   const fichier = el("input", { type: "file", accept: ".xlsx", class: "champ-fichier", "aria-label": "Fichier de suivi" });
   const zone = el("div");
   const formulaire = el("form", { class: "formulaire-ligne formulaire-depot" }, fichier, el("button", { type: "submit", class: "bouton" }, "Analyser"));
@@ -89,9 +92,9 @@ export function ouvrirSuivi(surApplique) {
     const suivi = suiviEnvoi(1, "Lecture");
     zone.replaceChildren(suivi.element);
     try {
-      const analyse = await api.analyserSuivi(donnees, suivi.maj);
+      const analyse = await analyser(donnees, suivi.maj);
       masquerErreur();
-      zone.replaceChildren(...resultat(analyse, choisi, surApplique).flat().filter(Boolean));
+      zone.replaceChildren(...resultat(analyse, choisi, surApplique, appliquer).flat().filter(Boolean));
     } catch (erreur) {
       zone.replaceChildren();
       afficherErreur(erreur);

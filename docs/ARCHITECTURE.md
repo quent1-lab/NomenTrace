@@ -223,7 +223,7 @@ les services.
 | `blocs`, `parametres`, `listes` | Blocs, paramètres du projet, listes de valeurs |
 | `ensembles`, `ensembles_arbre`, `ensembles_copie` | Ensembles et affectations, arborescence et budgets, duplication |
 | `commandes`, `receptions`, `mouvements`, `demandes_devis` | Achats, réceptions, stock, préparation des demandes de devis |
-| `communes`, `communes_sync` | Commandes communes d'un dossier : droits, en-tête, lignes, frais ; parts de chaque projet et synchronisation des copies |
+| `communes`, `communes_sync`, `communes_documents`, `suivi_communes` | Commandes communes d'un dossier : droits, en-tête, lignes, frais, réception ; parts de chaque projet et synchronisation des copies ; documents joints à chaque copie ; suivi de l'établissement |
 | `fournisseurs`, `fournisseurs_liste` | Fournisseurs, comparaison avec une liste Excel |
 | `documents`, `corbeille` | Fichiers joints, corbeille et accord des fichiers après restauration |
 | `import_lecture`, `import_colonnes`, `import_analyse`, `import_doublons`, `import_application`, `import_depots`, `modeles` | Travail en équipe par Excel |

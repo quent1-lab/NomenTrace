@@ -56,6 +56,11 @@ export function codeDossier() {
   return courante?.dossier ?? null;
 }
 
+// Le compte voit-il la page du dossier (commandes communes) ?
+export function voitDossier() {
+  return Boolean(courante?.voit_dossier);
+}
+
 export function modeLocal() {
   return Boolean(courante?.mode_local);
 }

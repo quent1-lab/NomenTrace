@@ -5,12 +5,12 @@ from datetime import date
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from backend.arrondi import round_output
-from backend.deps import Auteur, UtilisateurRequete, get_conn
+from backend.deps import Auteur, Projet, UtilisateurRequete, get_conn, get_conn_comptes
 from backend.erreurs import ErreurMetier
 from backend.models import (
     CommandeCreation,
@@ -26,16 +26,17 @@ from backend.models import (
 )
 from backend.services import (
     commandes,
+    communes,
     demande_document,
     demandes_devis,
     frais,
     mouvements,
-    receptions,
     suivi_achats,
 )
 
 router = APIRouter(prefix="/api", tags=["achats et stock"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
+ConnComptes = Annotated[sqlite3.Connection, Depends(get_conn_comptes)]
 
 
 @router.get("/commandes")
@@ -184,10 +185,21 @@ def delete_ligne(numero: str, identifiant: int, conn: Conn) -> dict:
 
 
 @router.post("/commandes/{numero}/reception")
-def create_reception(numero: str, corps: Reception, conn: Conn, auteur: Auteur) -> dict:
+def create_reception(
+    numero: str,
+    corps: Reception,
+    request: Request,
+    conn: Conn,
+    conn_comptes: ConnComptes,
+    projet: Projet,
+    auteur: Auteur,
+) -> dict:
     valeurs = corps.model_dump()
     valeurs["par_qui"] = valeurs["par_qui"] or auteur
-    return round_output(receptions.receive_commande(conn, numero, valeurs))
+    registre = request.app.state.registre
+    return round_output(
+        communes.receive_dans_le_projet(conn, conn_comptes, registre, projet, numero, valeurs)
+    )
 
 
 @router.get("/stock")

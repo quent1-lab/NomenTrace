@@ -137,9 +137,20 @@ la synchronisation (`synchronisation` : projets écrits, projets hors ligne, `pe
 | PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/lignes/{projet}/{id}` | Quantité, prix, commentaire, statut (À commander, Commandée, Annulée) ; suppression d'une ligne sans réception |
 | POST | `/api/dossiers/{code}/communes/{numero}/frais` | Nouveau frais |
 | PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/frais/{id}` | Modification, retrait d'un frais |
+| POST | `/api/dossiers/{code}/communes/{numero}/reception` | Réception (`date`, `emplacement`, `par_qui`, `lignes` : `projet`, `id`, `qte`, `qte_recue_lue`) ; écart avec la quantité lue : 409, rien n'est écrit |
+| POST | `/api/dossiers/{code}/communes/{numero}/documents` | Dépôt (multipart, comme pour une commande) : joint à la copie de chaque projet |
+| DELETE | `/api/dossiers/{code}/communes/{numero}/documents/{empreinte}` | Retrait du document de toutes les copies (archivé) |
+| GET | `/api/dossiers/{code}/communes/{numero}/documents/{projet}/{id}/fichier` | Fichier d'un document, lu dans la copie d'un projet |
+| GET | `/api/dossiers/{code}/communes/{numero}/demande-devis.{pdf,xlsx}` | Demande de devis, articles de tous les projets regroupés ; `avant` |
+| POST | `/api/dossiers/{code}/communes/suivi/analyse` | Classeur de suivi de l'établissement : propositions pour les communes, lignes à ajouter |
+| POST | `/api/dossiers/{code}/communes/suivi/appliquer` | Applique les changements retenus et renvoie le classeur complété |
 
 Dans un projet, la copie se lit par les routes des commandes (`commune` donne son numéro) ;
-toute écriture sur elle répond 409.
+seule sa réception y est permise, avec `qte_recue_lue` sur chaque ligne (400 sans, 409 sur
+écart). Toute autre écriture sur elle répond 409. Pour toute commande, `qte_recue_lue` est
+accepté et vérifié de la même façon. `GET /api/session` dit si le compte voit le dossier du
+projet (`voit_dossier`). Le suivi de l'établissement d'un projet ignore les copies et les
+lignes des communes.
 
 ## Projet, pilotage et historique
 
