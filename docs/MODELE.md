@@ -296,7 +296,7 @@ restauration de la base d'un projet ne touche pas aux comptes.
 | `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |
 | `projet` | Registre des projets servis : `code` (minuscules, chiffres et tirets, 40 au plus), `dossier` (vide : hors dossier), `nom_equipe`, `cree_le`, `archive`. Chaque projet inscrit a sa base `data/projets/<code>/nomentrace.db` et son dossier `echange/projets/<code>/`. | `code` |
 | `organisme` | Organisme : `code` d'adresse (`/o/<code>/`), `nom`, `archive`. | `code` |
-| `dossier` | Dossier d'un organisme : `code` d'adresse (`/d/<code>/`), `organisme`, `nom`, `nom_projet` (donné aux projets créés dans le dossier), `archive`. | `code` |
+| `dossier` | Dossier d'un organisme : `code` d'adresse (`/d/<code>/`), `organisme`, `nom`, `nom_projet` (donné aux projets créés dans le dossier), `partage_composants` (0 ou 1, 0 par défaut : références proposées d'un projet à l'autre à la création d'un composant), `archive`. | `code` |
 | `acces_organisme` | Profil d'un compte dans un organisme : `gestion`, `lecture` ou `achats_stock`. | `utilisateur_id`, `organisme` |
 | `acces_dossier` | Rôle d'un compte dans un dossier : `responsable_achats`. | `utilisateur_id`, `dossier` |
 

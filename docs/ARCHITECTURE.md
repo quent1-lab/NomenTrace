@@ -147,6 +147,12 @@ ensuite, puis synchronisation, qui recalcule toutes les parts depuis l'état et 
 si la version n'a pas bougé. Une écriture interrompue laisse une copie en retard, rattrapée
 au passage suivant. Un projet hors ligne arrête la synchronisation avant toute écriture.
 
+Le catalogue du dossier (`services/catalogue.py`) lit, à chaque recherche, les bases des
+autres projets du dossier, sans index ni copie. Composants et empreintes de chaque base
+restent en mémoire tant que la base et son journal WAL gardent la même date et la même
+taille. Une reprise relit la source et écrit le composant et ses fiches techniques dans une
+seule transaction de la base du projet ; les fichiers écrits avant un échec sont retirés.
+
 Les réglages imposés par un dossier vivent dans sa référence, un projet `ref-<dossier>`
 réglé par les écrans ordinaires. `services/propagation.py` en recopie les tables imposées
 dans un projet par une synchronisation complète : la référence est attachée à la base du
@@ -224,6 +230,7 @@ les services.
 | `ensembles`, `ensembles_arbre`, `ensembles_copie` | Ensembles et affectations, arborescence et budgets, duplication |
 | `commandes`, `receptions`, `mouvements`, `demandes_devis` | Achats, réceptions, stock, préparation des demandes de devis |
 | `communes`, `communes_sync`, `communes_documents`, `suivi_communes` | Commandes communes d'un dossier : droits, en-tête, lignes, frais, réception ; parts de chaque projet et synchronisation des copies ; documents joints à chaque copie ; suivi de l'établissement |
+| `catalogue` | Catalogue du dossier : références des autres projets proposées à la création d'un composant (lues dans leurs bases, gardées en mémoire tant que leurs fichiers n'ont pas changé), reprise avec copie des fiches techniques |
 | `fournisseurs`, `fournisseurs_liste` | Fournisseurs, comparaison avec une liste Excel |
 | `documents`, `corbeille` | Fichiers joints, corbeille et accord des fichiers après restauration |
 | `import_lecture`, `import_colonnes`, `import_analyse`, `import_doublons`, `import_application`, `import_depots`, `modeles` | Travail en équipe par Excel |

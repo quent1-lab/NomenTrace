@@ -69,7 +69,8 @@ def get_organisme(conn: sqlite3.Connection, code: str) -> dict:
 def get_dossier(conn: sqlite3.Connection, code: str) -> dict:
     ligne = db.fetch_one(
         conn,
-        "SELECT code, organisme, nom, nom_projet FROM dossier WHERE code = ? AND archive = 0",
+        "SELECT code, organisme, nom, nom_projet, partage_composants FROM dossier"
+        " WHERE code = ? AND archive = 0",
         (code,),
     )
     if ligne is None:
@@ -242,6 +243,17 @@ def patch_dossier(
         if "nom_projet" in modifs:
             nom_projet = (modifs["nom_projet"] or "").strip() or None
             conn.execute("UPDATE dossier SET nom_projet = ? WHERE code = ?", (nom_projet, code))
+        if modifs.get("partage_composants") is not None:
+            conn.execute(
+                "UPDATE dossier SET partage_composants = ? WHERE code = ?",
+                (int(bool(modifs["partage_composants"])), code),
+            )
+            journal_log.info(
+                "Mise en commun des composants du dossier %s %s par %s.",
+                code,
+                "activée" if modifs["partage_composants"] else "désactivée",
+                compte.nom,
+            )
     return get_dossier(conn, code)
 
 

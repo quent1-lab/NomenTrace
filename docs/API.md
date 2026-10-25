@@ -98,7 +98,7 @@ périmètre.
 | POST | `/api/organismes/{code}/dossiers` | Nouveau dossier (`code`, `nom`, `nom_projet`) ; gestion de l'organisme |
 | POST | `/api/organismes/{code}/membres` | Profil d'organisme (`identifiant`, `nom`, `profil`) ; compte créé au besoin, avec son jeton d'invitation |
 | PATCH, DELETE | `/api/organismes/{code}/membres/{id}` | Changement de profil ; retrait |
-| GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé, responsables achats, candidats ; nom et nom du projet |
+| GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé, responsables achats, candidats ; nom, nom du projet et `partage_composants` |
 | POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `admin_identifiant`, `modele`) : base créée et en ligne sans redémarrage ; `modele`, un projet du même dossier dont il reprend les listes locales et les ensembles |
 | POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
 | DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
@@ -191,7 +191,9 @@ lignes des communes. L'analyse d'un classeur de suivi donne aussi
 |---|---|---|
 | GET | `/api/composants` | Liste filtrée et triée (voir ci-dessous) |
 | GET | `/api/composants/export` | Classeur Excel de la liste filtrée, colonnes choisies par `cols` |
-| POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque |
+| GET | `/api/composants/catalogue` | Catalogue du dossier pour la saisie en cours (`designation`, `ref_fabricant`, `fonction`, 3 caractères au moins) : `actif` (le dossier met ses composants en commun), `propositions` des autres projets (trois au plus : `projet`, `id`, `equipe`, désignation, référence, fabricant, fournisseur, `recu`, `nb_fiches`, `motif`), `dans_le_projet` (doublons sûrs du projet) |
+| GET | `/api/composants/catalogue/reprise` | Ce qu'une reprise recopie du composant `id` du projet `source` : `composant` (champs repris), `attributs`, `date_prix`, `fiches` ; 403 si le dossier ne partage pas |
+| POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque. `reprise` (`projet`, `id`) copie en plus les fiches techniques du composant repris, dans la même transaction |
 | GET | `/api/composants/{id}` | Fiche complète : composant, attributs, visa, actions à faire (`code`, `texte`, `onglet`), affectations, lignes de commande, mouvements, historique |
 | PATCH | `/api/composants/{id}` | Modification ; `attributs` ({code: valeur}) enregistre les caractéristiques dans la même transaction, `modifie_le` refuse en 409 si le composant a changé |
 | DELETE | `/api/composants/{id}` | Archivage |

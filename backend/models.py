@@ -242,6 +242,13 @@ class ApplicationListeFournisseurs(Modele):
     completions: list[CompletionFournisseur] = []
 
 
+class RepriseCatalogue(Modele):
+    """Composant d'un autre projet du dossier repris à la création (phase 17)."""
+
+    projet: str = Field(min_length=1, max_length=40)
+    id: str = Field(min_length=1, max_length=60)
+
+
 class ComposantCreation(Modele):
     bloc_code: str = Field(min_length=1)
     fonction: str = Field(min_length=1)
@@ -264,6 +271,7 @@ class ComposantCreation(Modele):
     note_technique: str | None = None
     # Caractéristiques saisies dès la création : {code: valeur}, comme ValeursAttributs.
     attributs: dict[str, str | float | bool | None] = {}
+    reprise: RepriseCatalogue | None = None
 
 
 class ComposantModif(Modele):
@@ -579,6 +587,7 @@ class DossierCreation(Modele):
 class DossierModif(Modele):
     nom: str | None = Field(default=None, min_length=1, max_length=80)
     nom_projet: str | None = Field(default=None, max_length=80)
+    partage_composants: bool | None = None
 
 
 class ProjetCreation(Modele):

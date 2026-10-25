@@ -89,12 +89,22 @@ def empreinte(cle: Any, valeurs: dict[str, Any]) -> Empreinte:
 
 
 def _similarite(a: Empreinte, b: Empreinte) -> float:
-    ratios = [
-        SequenceMatcher(None, x, y).ratio()
-        for x, y in ((a.libelle, b.libelle), (a.designation, b.designation))
-        if x and y
-    ]
-    return max(ratios, default=0.0)
+    """Meilleur ratio des deux libellés ; 0 dès que les bornes rapides le placent sous le seuil.
+
+    real_quick_ratio ≥ quick_ratio ≥ ratio : écarter une paire sur une borne ne change
+    aucun résultat, et évite le calcul complet pour presque toutes les paires.
+    """
+    ratios = [0.0]
+    for x, y in ((a.libelle, b.libelle), (a.designation, b.designation)):
+        if not (x and y):
+            continue
+        comparateur = SequenceMatcher(None, x, y)
+        if (
+            comparateur.real_quick_ratio() >= SEUIL_SIGNALEMENT
+            and comparateur.quick_ratio() >= SEUIL_SIGNALEMENT
+        ):
+            ratios.append(comparateur.ratio())
+    return max(ratios)
 
 
 def compare(ligne: Empreinte, existant: Empreinte) -> dict | None:

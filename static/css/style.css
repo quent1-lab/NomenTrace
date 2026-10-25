@@ -1378,6 +1378,18 @@ td.editable:hover {
   margin-bottom: var(--espace-2);
 }
 
+.ligne-champ > input[type="checkbox"] {
+  justify-self: start;
+}
+
+.etat-partage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+  margin: 0;
+}
+
 .ligne-champ__aide {
   grid-column: 2;
   color: var(--couleur-texte-doux);
@@ -1656,6 +1668,94 @@ td.editable:hover {
   padding: var(--espace-2) var(--espace-3);
   border-left: 3px solid var(--couleur-ardoise);
   background: var(--couleur-ardoise-clair);
+}
+
+/* Catalogue du dossier : pastille dépliée sous l'identification, reprise d'une référence. */
+.note-reprise {
+  display: grid;
+  gap: var(--espace-1);
+  justify-items: start;
+}
+
+.champ.champ--repris {
+  background: var(--couleur-ardoise-clair);
+}
+
+.catalogue {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0 0 var(--espace-2);
+}
+
+.catalogue__pastille {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 2px var(--espace-3);
+  border: 1px solid var(--couleur-ardoise);
+  border-radius: 999px;
+  background: var(--couleur-ardoise-clair);
+  color: var(--couleur-ardoise-fonce);
+  font: inherit;
+  font-size: var(--taille-petit);
+  cursor: pointer;
+}
+
+.catalogue__point {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--couleur-ardoise);
+}
+
+.catalogue__liste {
+  display: grid;
+  padding-left: var(--espace-3);
+  border-left: 2px solid var(--couleur-ardoise);
+}
+
+.catalogue__proposition {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px var(--espace-3);
+  padding: var(--espace-2) 0;
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.catalogue__proposition:first-child {
+  border-top: 0;
+}
+
+.catalogue__titre {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.catalogue__detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-2);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+}
+
+.catalogue__proposition .bouton {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.catalogue__doublon,
+.catalogue__fiche {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-2);
+  margin: 0;
+  padding: var(--espace-2) 0;
+  font-size: var(--taille-petit);
 }
 
 /* --- Achats et stock ---------------------------------------------------------------------- */

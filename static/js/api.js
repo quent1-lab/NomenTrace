@@ -285,6 +285,9 @@ export const api = {
     requeteFichier(avecParametres("/api/composants/export", { ...filtres, colonnes: colonnes.join(",") })),
   getComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}`),
   createComposant: (valeurs) => requete("POST", "/api/composants", valeurs),
+  // Catalogue du dossier : références qui ressemblent à la saisie, et leur reprise.
+  getCatalogue: (saisie) => requete("GET", avecParametres("/api/composants/catalogue", saisie)),
+  getReprise: (projet, id) => requete("GET", avecParametres("/api/composants/catalogue/reprise", { source: projet, id })),
   patchComposant: (id, modifs) => requete("PATCH", `/api/composants/${encodeURIComponent(id)}`, modifs),
   archiveComposant: (id) => requete("DELETE", `/api/composants/${encodeURIComponent(id)}`),
   getCompteVisas: () => requete("GET", "/api/visas/compte"),

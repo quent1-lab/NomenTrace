@@ -121,6 +121,7 @@ export function texteEvenement(e, composant = null) {
   if (e.champ === "creation") return e.nouvelle_valeur && !["créé", "créée"].includes(e.nouvelle_valeur) ? `Créé (${e.nouvelle_valeur})` : "Créé";
   if (e.champ === "suppression") return "Supprimé";
   if (e.champ === "visa") return "Visé";
+  if (e.champ === "reprise") return `Référence ${e.nouvelle_valeur ?? "reprise du dossier"}`;
   if (e.table_cible === "affectation") return texteAffectation(e);
   if (e.table_cible === "commande") return texteCommande(e, composant);
   if (e.table_cible === "ligne_commande") return `Ligne : ${changement(CHAMPS[e.champ] ?? e.champ, e)}`;

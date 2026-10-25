@@ -150,18 +150,44 @@ function panneauResponsables(dossier, rafraichir) {
   );
 }
 
+const AIDE_PARTAGE =
+  "À la création d'un composant, chaque équipe se voit proposer les références qui ressemblent chez les autres équipes du dossier, avec leurs fiches techniques. Aucune liste n'est montrée en entier ; quantités, commandes et identifiants restent propres à chaque équipe.";
+
+// Membres des projets : l'état de la mise en commun, réglée par l'organisme.
+function etatPartage(dossier) {
+  return el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Composants"),
+    el(
+      "p",
+      { class: "etat-partage" },
+      dossier.partage_composants
+        ? el("span", { class: "puce-fiche puce-fiche--conforme" }, "Composants mis en commun")
+        : el("span", { class: "puce-fiche puce-fiche--neutre" }, "Composants non partagés"),
+      el("span", { class: "texte-doux texte-petit" }, "Réglé par l'organisme"),
+    ),
+  );
+}
+
 function panneauDossier(dossier, rafraichir) {
-  if (!dossier.gestion) return null;
+  if (!dossier.gestion) return etatPartage(dossier);
   const nom = champTexte("nom", dossier.nom, { maxlength: "80" });
   const nomProjetImpose = champTexte("nom_projet", dossier.nom_projet ?? "", { maxlength: "80" });
+  const partage = el("input", { type: "checkbox", name: "partage_composants", checked: Boolean(dossier.partage_composants) });
   const formulaire = formulairePanneau(
     [
       ["Nom du dossier", nom, { requis: true }],
       ["Nom du projet", nomProjetImpose, { aide: "Donné aux projets créés dans ce dossier." }],
+      ["Mettre en commun les composants", partage, { aide: AIDE_PARTAGE }],
     ],
     "Enregistrer",
     async (champs) => {
-      await api.patchDossier(dossier.code, { nom: champs.nom.value.trim(), nom_projet: champs.nom_projet.value.trim() || null });
+      await api.patchDossier(dossier.code, {
+        nom: champs.nom.value.trim(),
+        nom_projet: champs.nom_projet.value.trim() || null,
+        partage_composants: champs.partage_composants.checked,
+      });
       await rafraichir();
     },
   );

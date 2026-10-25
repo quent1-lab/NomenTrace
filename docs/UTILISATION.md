@@ -161,6 +161,20 @@ facultative, propose toutes les caractéristiques, l'affectation aux ensembles e
 de documents, pour que rien ne soit oublié ; « Passer » la saute, et fermer le panneau garde
 le composant créé.
 
+Dans un dossier qui met ses composants en commun, la création cherche, pendant qu'on tape
+la désignation ou la référence fabricant, les références qui ressemblent chez les autres
+équipes du dossier. Une pastille « 2 références dans le dossier » s'affiche sous la
+référence, dépliée ; elle se replie d'un clic. Chaque proposition montre la désignation, la
+référence, le fabricant, le fournisseur, l'équipe qui l'a saisie, si elle l'a déjà reçue et
+combien de fiches techniques elle porte. « Reprendre » préremplit le formulaire avec la
+fonction, la désignation, la référence, le fabricant, le fournisseur, le lien, le prix (« relevé
+par l'Équipe Bêta », à vérifier), la base du prix, la TVA, les caractéristiques et le bloc
+s'il fait partie des vôtres. Les quantités, les statuts, la criticité et les notes restent à
+saisir. Le composant reçoit son propre identifiant et son propre prix, sans lien avec
+l'original, et ses fiches techniques sont copiées avec lui ; l'historique note la reprise.
+La même pastille signale un composant du projet qui porte déjà la même référence, sans
+empêcher la création. Une copie par « Dupliquer » ne cherche pas.
+
 La forme des champs texte est contrôlée. Une adresse web collée dans la fonction, la
 désignation, la référence fabricant ou le fabricant est refusée (elle va dans Lien produit),
 de même qu'un retour à la ligne dans une référence ; le refus vaut aussi pour l'import, ligne
@@ -558,6 +572,13 @@ un attribut de même code mais d'un autre type que celui du dossier ne peut pas 
 tant que la différence n'est pas réglée. Sorti d'un dossier, un projet garde ses réglages,
 redevenus les siens. La colonne « Réglages communs » de la page du dossier dit si chaque
 projet est à jour.
+
+La case « Mettre en commun les composants », dans le panneau Dossier, autorise chaque équipe
+du dossier à se voir proposer, à la création d'un composant, les références des autres
+équipes (voir « Saisir les composants »). Seuls les administrateurs de l'organisme au profil
+« Gestion complète » la règlent ; elle est décochée à la création d'un dossier. Aucune liste
+n'est montrée en entier, et quantités, commandes et identifiants restent propres à chaque
+équipe. Les membres des projets voient sur la page du dossier si elle est active.
 
 Les fournisseurs sont communs à tout l'organisme. Leur liste se tient depuis la page de
 l'organisme, bouton « Fournisseurs », par ses administrateurs aux profils « Gestion

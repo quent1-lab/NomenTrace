@@ -10,7 +10,7 @@
 import { api } from "../api.js";
 import { champAttribut, chargerAttributs } from "../attributs.js";
 import { sectionDocuments } from "../documents.js";
-import { formatNombre, lireNombre } from "../format.js";
+import { formatDate, formatNombre, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire } from "../formulaire.js";
 import { champFournisseur } from "./fournisseurs_commun.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
@@ -186,9 +186,106 @@ async function ouvrirComplements(cree, valeursSaisies, { ensembles, surCree, sur
   await Promise.all([rendreEnsembles(), rendreDocuments()]);
 }
 
+function formatTaille(octets) {
+  return octets < 1024 * 1024 ? `${formatNombre(Math.max(1, Math.round(octets / 1024)))} ko` : `${formatNombre(octets / (1024 * 1024), 1)} Mo`;
+}
+
+// Catalogue du dossier : pastille « N références dans le dossier » sous l'identification,
+// dépliée d'office dès qu'une proposition apparaît, repliable. La recherche part 300 ms
+// après la dernière frappe ; une réponse dépassée par une frappe plus récente est ignorée.
+function zoneCatalogue(formulaire, surReprendre) {
+  const zone = el("div", { class: "catalogue", hidden: true });
+  let minuterie = null;
+  let numero = 0;
+  let replie = false;
+  const lire = (nom) => formulaire.elements.namedItem(nom)?.value.trim() ?? "";
+
+  const ligneProposition = (p) =>
+    el(
+      "div",
+      { class: "catalogue__proposition" },
+      el("span", { class: "catalogue__titre" }, p.designation),
+      el(
+        "span",
+        { class: "catalogue__detail" },
+        p.ref_fabricant ? el("span", { class: "code" }, p.ref_fabricant) : null,
+        p.fabricant ? el("span", {}, p.fabricant) : null,
+        p.fournisseur_nom ? el("span", {}, p.fournisseur_nom) : null,
+        el("span", { class: "puce-fiche puce-fiche--info" }, `Équipe ${p.equipe}`),
+        p.recu ? el("span", { class: "puce-fiche puce-fiche--conforme" }, "Déjà reçu") : null,
+        p.nb_fiches ? el("span", { class: "puce-fiche puce-fiche--neutre" }, p.nb_fiches > 1 ? `${p.nb_fiches} fiches techniques` : "1 fiche technique") : null,
+      ),
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: () => surReprendre(p) }, "Reprendre"),
+    );
+
+  const rendre = (resultat) => {
+    const { propositions, dans_le_projet: doublons } = resultat;
+    if (!propositions.length && !doublons.length) {
+      zone.hidden = true;
+      replie = false;
+      return;
+    }
+    const morceaux = [];
+    if (propositions.length) morceaux.push(propositions.length > 1 ? `${propositions.length} références dans le dossier` : "1 référence dans le dossier");
+    if (doublons.length) morceaux.push(`${doublons.length} dans ce projet`);
+    const liste = el(
+      "div",
+      { class: "catalogue__liste", hidden: replie },
+      propositions.map(ligneProposition),
+      doublons.map((d) =>
+        el("div", { class: "catalogue__doublon" }, el("span", { class: "puce-fiche puce-fiche--actions" }, "Existe déjà dans ce projet"), el("span", { class: "code" }, d.id), ` ${d.designation}`),
+      ),
+    );
+    const pastille = el("button", {
+      type: "button",
+      class: "catalogue__pastille",
+      "aria-expanded": String(!replie),
+      onclick: () => {
+        replie = !replie;
+        liste.hidden = replie;
+        pastille.setAttribute("aria-expanded", String(!replie));
+      },
+    }, el("span", { class: "catalogue__point" }), morceaux.join(" · "));
+    zone.replaceChildren(pastille, liste);
+    zone.hidden = false;
+  };
+
+  const chercher = async () => {
+    const courant = ++numero;
+    try {
+      const resultat = await api.getCatalogue({ designation: lire("designation"), ref_fabricant: lire("ref_fabricant"), fonction: lire("fonction") });
+      if (courant === numero) rendre(resultat);
+    } catch (erreur) {
+      if (courant === numero) afficherErreur(erreur);
+    }
+  };
+  for (const nom of ["designation", "ref_fabricant", "fonction"]) {
+    formulaire.elements.namedItem(nom)?.addEventListener("input", () => {
+      clearTimeout(minuterie);
+      minuterie = setTimeout(chercher, 300);
+    });
+  }
+  return zone;
+}
+
+// Reprise d'une référence du dossier : les champs repris sont teintés jusqu'à leur
+// première modification.
+function teinterRepris(formulaire, composant) {
+  for (const [nom, valeur] of Object.entries(composant)) {
+    const champ = formulaire.elements.namedItem(nom);
+    if (!champ || valeur === null || valeur === undefined || nom === "bloc_code") continue;
+    champ.classList.add("champ--repris");
+    champ.addEventListener("input", () => champ.classList.remove("champ--repris"), { once: true });
+  }
+}
+
 // completer : passe à l'étape 2 après la création (écran Composants) ; sinon le panneau se
 // ferme dès le composant créé (création depuis un ensemble, par exemple).
-export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree, note = "", modele = null, completer = null }) {
+// reprise : référence d'un autre projet du dossier (api.getReprise), qui préremplit comme
+// une duplication ; ses fiches techniques sont copiées par le serveur à la création.
+export async function ouvrirCreation(options) {
+  const { blocs, fournisseurs, blocInitial, surCree, note = "", completer = null, reprise = null } = options;
+  const modele = reprise ? { composant: reprise.composant, attributs: reprise.attributs } : options.modele ?? null;
   const [parametres, definitions] = await Promise.all([api.getParametres(), chargerAttributs()]);
   // Champs rendus obligatoires dans les paramètres : marqués ici, contrôlés par le serveur.
   const requis = new Set((parametres.champs_obligatoires ?? "").split(",").filter(Boolean));
@@ -200,10 +297,13 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
     .map((a) => ({ a, ...champAttribut(a, valeursModele[a.code] ?? null) }));
   const tauxDefaut = m.taux_tva !== undefined ? m.taux_tva * 100 : Number(parametres.taux_tva_defaut ?? 0.2) * 100;
   const apercu = el("strong", { class: "code" }, "choisir un bloc");
+  const emplacementCatalogue = el("div", { hidden: true });
+  const aidePrix = reprise ? `Relevé par l'Équipe ${reprise.equipe} le ${formatDate(reprise.date_prix)}. À vérifier.` : "";
 
   // Un contributeur ne crée que dans ses blocs ; l'administrateur, dans tous.
   const permis = blocs.filter((b) => ecritBloc(b.code));
-  const initial = permis.some((b) => b.code === blocInitial) ? blocInitial : null;
+  const estPermis = (code) => permis.some((b) => b.code === code);
+  const initial = reprise && estPermis(m.bloc_code) ? m.bloc_code : estPermis(blocInitial) ? blocInitial : null;
   const bloc = champChoix("bloc_code", permis.map((b) => [b.code, `${b.code} · ${b.nom}`]), initial, { vide: "Choisir…", requis: true });
   const choixFournisseur = champFournisseur(fournisseurs, m.fournisseur_nom ?? null);
   const fournisseur = choixFournisseur.select;
@@ -233,13 +333,24 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
     { class: "formulaire", novalidate: true },
     completer ? etapes(1) : null,
     note ? el("p", { class: "note-formulaire" }, note) : null,
-    modele ? el("p", { class: "note-formulaire" }, `Copie de ${m.id} : modifier ce qui diffère, puis créer.`) : null,
+    reprise
+      ? el(
+          "div",
+          { class: "note-formulaire note-reprise" },
+          el("strong", {}, `Référence reprise de l'Équipe ${reprise.equipe}`),
+          el("span", {}, "Modifier ce qui diffère, puis créer. Le composant reçoit son propre identifiant et son propre prix. "),
+          el("button", { type: "button", class: "bouton-lien", onclick: () => ouvrirCreation({ ...options, reprise: null, modele: null }) }, "Ne plus reprendre"),
+        )
+      : modele
+        ? el("p", { class: "note-formulaire" }, `Copie de ${m.id} : modifier ce qui diffère, puis créer.`)
+        : null,
     el("p", { class: "apercu-id" }, "Identifiant attribué : ", apercu, el("span", { class: "texte-doux" }, " (aperçu, confirmé à l'enregistrement)")),
     el("fieldset", {}, el("legend", {}, "Identification"),
       ligneChamp("Bloc", bloc, { requis: true }),
       ligneChamp("Fonction", champTexte("fonction", m.fonction), { requis: true }),
       ligneChamp("Désignation", champTexte("designation", m.designation), { requis: true }),
       ligneChamp("Réf fabricant", champTexte("ref_fabricant", m.ref_fabricant), { requis: requis.has("ref_fabricant") }),
+      emplacementCatalogue,
       ligneChamp("Fabricant", champTexte("fabricant", m.fabricant), { requis: requis.has("fabricant") }),
     ),
     el("fieldset", {}, el("legend", {}, "Approvisionnement"),
@@ -249,12 +360,16 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       ligneChamp("Qté déjà disponible", champNombre("qte_disponible", 0), { aide: "Déjà en stock ou prêtée : réduit la quantité à acheter." }),
       ligneChamp("Fournisseur", choixFournisseur.element, { requis: requis.has("fournisseur_nom") }),
       ligneChamp("Lien produit", champTexte("lien_produit", m.lien_produit ?? "", { type: "url" }), { requis: requis.has("lien_produit") }),
-      ligneChamp("PU relevé", champNombre("pu_releve", m.pu_releve ?? null, 2), { requis: requis.has("pu_releve") }),
+      ligneChamp("PU relevé", champNombre("pu_releve", m.pu_releve ?? null, 2), { requis: requis.has("pu_releve"), aide: aidePrix }),
       ligneChamp("Base du prix", base),
       ligneChamp("Taux de TVA (%)", champNombre("taux_tva", tauxDefaut, 1)),
     ),
     caracteristiques.length
       ? el("fieldset", {}, el("legend", {}, "Caractéristiques"), caracteristiques.map(({ a, element }) => ligneChamp(a.unite ? `${a.libelle} (${a.unite})` : a.libelle, element, { requis: Boolean(a.obligatoire) })))
+      : null,
+    reprise?.fiches.length
+      ? el("fieldset", {}, el("legend", {}, "Copié avec la référence"),
+          reprise.fiches.map((f) => el("p", { class: "catalogue__fiche" }, el("span", {}, f.nom_origine), el("span", { class: "puce-fiche puce-fiche--neutre" }, "Fiche technique"), el("span", { class: "texte-doux texte-petit" }, formatTaille(f.taille)))))
       : null,
     el("fieldset", {}, el("legend", {}, "Suivi"),
       ligneChamp("Statut choix", champChoix("statut_choix", valeursListe("statut_choix"), m.statut_choix ?? null, { vide: "—" })),
@@ -283,6 +398,7 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
       if (valeur.valeur !== null) attributs[a.code] = valeur.valeur;
     }
     if (Object.keys(attributs).length) valeurs.attributs = attributs;
+    if (reprise) valeurs.reprise = { projet: reprise.projet, id: reprise.id };
     const bouton = formulaire.querySelector("button[type=submit]");
     bouton.disabled = true;
     try {
@@ -299,7 +415,21 @@ export async function ouvrirCreation({ blocs, fournisseurs, blocInitial, surCree
     }
   });
 
-  ouvrirPanneau(modele ? `Dupliquer ${m.id}` : "Nouveau composant", formulaire);
+  if (reprise) teinterRepris(formulaire, m);
+  // Le catalogue n'est proposé qu'à une création partie de zéro, pas à une copie.
+  if (!modele) {
+    emplacementCatalogue.replaceWith(
+      zoneCatalogue(formulaire, async (p) => {
+        try {
+          const choisie = await api.getReprise(p.projet, p.id);
+          await ouvrirCreation({ ...options, reprise: choisie, blocInitial: bloc.value || blocInitial });
+        } catch (erreur) {
+          afficherErreur(erreur);
+        }
+      }),
+    );
+  }
+  ouvrirPanneau(modele && !reprise ? `Dupliquer ${m.id}` : "Nouveau composant", formulaire);
   if (bloc.value) majApercu();
   formulaire.elements.namedItem(bloc.value ? "fonction" : "bloc_code").focus();
 }

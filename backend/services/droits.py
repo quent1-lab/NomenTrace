@@ -383,6 +383,8 @@ REGLES: dict[tuple[str, str], Regle] = {
     # Composants
     ("GET", "/api/composants"): LECTURE,
     ("GET", "/api/composants/export"): LECTURE,
+    ("GET", "/api/composants/catalogue"): ECRITURE,
+    ("GET", "/api/composants/catalogue/reprise"): ECRITURE,
     ("GET", "/api/composants/{identifiant}"): LECTURE,
     ("POST", "/api/composants"): ECRITURE,
     ("PATCH", "/api/composants/{identifiant}"): COMPOSANT,

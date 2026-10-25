@@ -1,6 +1,7 @@
 """Composants : liste filtrée, fiche, création avec identifiant généré, modification, archivage."""
 
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -291,10 +292,16 @@ def insert_composant(
     return identifiant
 
 
-def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
+def create_composant(
+    conn: sqlite3.Connection,
+    valeurs: dict[str, Any],
+    apres: Callable[[str], None] | None = None,
+) -> dict:
     """Crée un composant et ses caractéristiques, dans une seule transaction.
 
     L'identifiant est généré à l'insertion ; un champ obligatoire vide annule tout.
+    `apres` reçoit l'identifiant dans la même transaction (reprise du catalogue : copie
+    des fiches techniques).
     """
     valeurs = dict(valeurs)
     caracteristiques = valeurs.pop("attributs", None) or {}
@@ -303,6 +310,8 @@ def create_composant(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
         if caracteristiques:
             attributs.set_valeurs(conn, identifiant, caracteristiques)
         obligatoires.verifier(conn, identifiant, None)
+        if apres is not None:
+            apres(identifiant)
     return get_composant(conn, identifiant)
 
 

@@ -57,6 +57,11 @@ chez un même fournisseur. Chaque projet a sa commande, avec ses lignes, sa part
 sa part du montant réel, et la reçoit lui-même ; documents, demande de devis et suivi de
 l'établissement se font une fois pour toute la commune.
 
+Un dossier peut mettre en commun les composants de ses projets : à la création d'un
+composant, chaque équipe se voit proposer les références qui ressemblent chez les autres,
+et en reprend une avec ses fiches techniques, sous son propre identifiant et à son propre
+prix.
+
 ## Plus tard
 
 Ces évolutions sont retenues, sans ordre ni date arrêtés.
@@ -82,8 +87,8 @@ Une fois l'outil hébergé : des étiquettes QR sur les bacs de stock qui ouvren
 composant au téléphone, des commentaires sur un composant visibles par l'équipe, une page
 « Mes composants » pour chaque responsable.
 
-Pour le travail à plusieurs projets : le catalogue des références déjà achetées dans le
-dossier.
+La proposition des références du dossier à l'import Excel, ligne par ligne, comme à la
+création d'un composant.
 
 Restent enfin quelques idées plus modestes : une alerte par courriel sur les livraisons en
 retard, la ventilation du port d'une commande entre les blocs, et des sous-ensembles
