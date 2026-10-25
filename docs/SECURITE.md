@@ -133,6 +133,16 @@ ni détruire les sauvegardes déjà envoyées.
 Une mise à jour ratée revient d'elle-même à la version précédente, bases comprises. Une
 version antérieure refuse de démarrer sur une base migrée par une version plus récente.
 
+Ubuntu installe seul ses correctifs de sécurité, mais un nouveau noyau n'est actif qu'après
+un redémarrage, et deux paquets viennent d'autres dépôts que le système ne met pas à jour
+seul : Python 3.14 (dépôt deadsnakes) et Caddy (dépôt de Caddy). Ils se mettent à jour à la
+main, comme le décrit le guide de déploiement. Les bibliothèques Python sont figées dans
+`requirements.txt` et se vérifient contre la base de failles OSV avant chaque version.
+
+Le logo de l'établissement, seule image que l'outil décode, ne passe que par les décodeurs
+PNG et JPEG de Pillow : les autres formats, d'où viennent la plupart de ses failles, ne
+sont pas atteignables par un envoi.
+
 ## Signaler une faille
 
 Le dépôt est public : une faille se signale par un message privé à son propriétaire plutôt

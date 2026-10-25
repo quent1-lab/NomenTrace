@@ -31,7 +31,9 @@ def lire_image(contenu: bytes) -> tuple[str, int, int]:
     if len(contenu) > TAILLE_MAX:
         raise ErreurMetier("Logo trop lourd : 2 Mo au plus.")
     try:
-        with Image.open(io.BytesIO(contenu)) as image:
+        # Seuls les décodeurs PNG et JPEG sont essayés : un envoi n'atteint pas les autres
+        # formats de Pillow, d'où viennent la plupart de ses failles.
+        with Image.open(io.BytesIO(contenu), formats=list(FORMATS)) as image:
             image.verify()
             format_image, (largeur, hauteur) = image.format, image.size
     except (UnidentifiedImageError, OSError, SyntaxError) as erreur:

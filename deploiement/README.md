@@ -477,6 +477,18 @@ Ubuntu installe seul ses mises à jour de sécurité (unattended-upgrades). Quan
 `/var/run/reboot-required` existe, redémarrer la VM à une heure creuse avec
 `sudo reboot` : tout repart seul. Caddy renouvelle seul le certificat.
 
+Python 3.14 et Caddy viennent de dépôts que les mises à jour automatiques n'incluent pas.
+Une fois par mois, ou à l'annonce d'une faille, `apt list --upgradable` les montre ; on les
+met à jour ainsi, puis on vérifie que l'outil répond :
+
+```
+sudo apt-get update
+sudo apt-get install --only-upgrade python3.14 python3.14-venv libpython3.14-stdlib caddy
+sudo runuser -u caddy -- caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo systemctl restart caddy nomentrace
+sudo /opt/nomentrace/.venv/bin/pip install --upgrade pip certifi
+```
+
 Un réglage de `/etc/nomentrace/nomentrace.env`, comme la limite de connexions simultanées
 `NOMENTRACE_CONCURRENCE`, se prend en compte par `sudo systemctl restart nomentrace`. Les
 autres variables sont décrites dans [EXPLOITATION.md](../docs/EXPLOITATION.md).

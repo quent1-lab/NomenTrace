@@ -3,8 +3,9 @@
 import io
 import zipfile
 
+import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
+from PIL import GifImagePlugin, Image, TiffImagePlugin
 
 from tests.test_demande_document import _demande
 
@@ -45,6 +46,25 @@ def test_fichier_refuse(client_essai: TestClient) -> None:
         assert reponse.status_code == 400, contenu[:10]
         assert "erreur" in reponse.json()
     assert _envoyer(client_essai, _image(taille=(4001, 10))).status_code == 400
+
+
+def test_seuls_png_et_jpeg_sont_decodes(
+    client_essai: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un logo ne passe que par les décodeurs PNG et JPEG : les failles des autres formats
+    de Pillow (TIFF, GIF, FPX, EPS…) ne sont pas atteignables par un envoi."""
+    ouverts = []
+    for classe in (TiffImagePlugin.TiffImageFile, GifImagePlugin.GifImageFile):
+        origine = classe._open
+
+        def espion(self: object, origine: object = origine) -> None:
+            ouverts.append(type(self).__name__)
+            origine(self)
+
+        monkeypatch.setattr(classe, "_open", espion)
+    for format_image in ("TIFF", "GIF"):
+        assert _envoyer(client_essai, _image(format_image)).status_code == 400
+    assert ouverts == []
 
 
 def test_logo_dans_les_demandes_de_devis(client_essai: TestClient) -> None:
