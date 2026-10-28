@@ -18,7 +18,8 @@ function modifiable() {
 }
 
 function bandeauCommune(c) {
-  if (!c.commune) return null;
+  // Une chaîne vide et non null : replaceChildren afficherait « null » en toutes lettres.
+  if (!c.commune) return "";
   const dossier = codeDossier();
   return el(
     "div",
