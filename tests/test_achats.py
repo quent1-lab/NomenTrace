@@ -155,3 +155,62 @@ def test_lignes_indiquent_les_ensembles_en_attente(client_essai: TestClient) -> 
     lignes = client_essai.get(f"/api/commandes/{numero}/lignes").json()
     assert lignes[0]["ensembles"] == [{"code": "NACELLE", "qte": 3}]
     assert lignes[1]["ensembles"] == []
+
+
+# --- Ajout à une commande des composants arrivés après la demande (ACH-06) -----------------------
+
+
+def _devis_mouser(client: TestClient, composants: list[str], statut: str = "Devis demande") -> str:
+    numero = client.post(
+        "/api/commandes", json={"fournisseur_nom": "Mouser", "type": "Devis", "statut": statut}
+    ).json()["numero"]
+    for composant in composants:
+        ligne = {"composant_id": composant, "qte_commandee": 1}
+        assert client.post(f"/api/commandes/{numero}/lignes", json=ligne).status_code == 201
+    return numero
+
+
+def test_candidats_du_fournisseur_absents_de_la_commande(client_essai: TestClient) -> None:
+    numero = _devis_mouser(client_essai, ["ESSAI-AGI-003"])
+    autre = _devis_mouser(client_essai, ["ESSAI-TR-001"])
+    reponse = client_essai.get(f"/api/commandes/{numero}/candidats")
+    assert reponse.status_code == 200, reponse.text
+    candidats = {c["id"]: c for c in reponse.json()}
+    # Mouser seulement, sans le composant déjà dans la commande.
+    assert set(candidats) == {"ESSAI-ALI-006", "ESSAI-TR-001"}
+    assert candidats["ESSAI-ALI-006"]["reste_a_commander"] == 1
+    assert candidats["ESSAI-ALI-006"]["demandes_ouvertes"] == []
+    # Déjà demandé dans un autre devis en cours : signalé (l'écran le décoche).
+    assert candidats["ESSAI-TR-001"]["demandes_ouvertes"] == [autre]
+
+
+def test_ajout_de_plusieurs_lignes_tout_ou_rien(client_essai: TestClient) -> None:
+    numero = _devis_mouser(client_essai, ["ESSAI-AGI-003"])
+    lignes = [
+        {"composant_id": "ESSAI-ALI-006", "qte_commandee": 1, "pu_ht_devis": 80.0},
+        {"composant_id": "ESSAI-INCONNU", "qte_commandee": 2},
+    ]
+    reponse = client_essai.post(f"/api/commandes/{numero}/lignes/lot", json={"lignes": lignes})
+    assert reponse.status_code == 404
+    assert len(client_essai.get(f"/api/commandes/{numero}/lignes").json()) == 1
+    lignes[1]["composant_id"] = "ESSAI-TR-001"
+    reponse = client_essai.post(f"/api/commandes/{numero}/lignes/lot", json={"lignes": lignes})
+    assert reponse.status_code == 201, reponse.text
+    ajoutees = client_essai.get(f"/api/commandes/{numero}/lignes").json()
+    assert [(x["composant_id"], x["qte_commandee"]) for x in ajoutees] == [
+        ("ESSAI-AGI-003", 1),
+        ("ESSAI-ALI-006", 1),
+        ("ESSAI-TR-001", 2),
+    ]
+    assert client_essai.get(f"/api/commandes/{numero}/candidats").json() == []
+
+
+def test_ajout_a_une_commande_passee_ligne_commandee(client_essai: TestClient) -> None:
+    numero = _devis_mouser(client_essai, ["ESSAI-AGI-003"])
+    client_essai.patch(f"/api/commandes/{numero}", json={"type": "Commande", "statut": "Commande"})
+    lignes = [{"composant_id": "ESSAI-ALI-006", "qte_commandee": 1}]
+    assert (
+        client_essai.post(f"/api/commandes/{numero}/lignes/lot", json={"lignes": lignes})
+    ).status_code == 201
+    ajoutee = client_essai.get(f"/api/commandes/{numero}/lignes").json()[-1]
+    assert ajoutee["statut_ligne"] == "Commandee"

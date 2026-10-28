@@ -21,6 +21,7 @@ from backend.models import (
     FraisModif,
     LigneCreation,
     LigneModif,
+    LignesCreation,
     MouvementCreation,
     Reception,
     RetenuesSuivi,
@@ -176,6 +177,17 @@ def read_lignes(numero: str, conn: Conn) -> list[dict]:
 @router.post("/commandes/{numero}/lignes", status_code=201)
 def create_ligne(numero: str, corps: LigneCreation, conn: Conn) -> dict:
     return round_output(commandes.create_ligne(conn, numero, corps.model_dump()))
+
+
+@router.post("/commandes/{numero}/lignes/lot", status_code=201)
+def create_lignes(numero: str, corps: LignesCreation, conn: Conn) -> list[dict]:
+    lignes = [ligne.model_dump() for ligne in corps.lignes]
+    return round_output(commandes.create_lignes(conn, numero, lignes))
+
+
+@router.get("/commandes/{numero}/candidats")
+def read_candidats_commande(numero: str, conn: Conn) -> list[dict]:
+    return round_output(demandes_devis.list_candidats_commande(conn, numero))
 
 
 @router.patch("/commandes/{numero}/lignes/{identifiant}")

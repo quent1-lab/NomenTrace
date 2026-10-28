@@ -365,6 +365,12 @@ class LigneCreation(Modele):
     commentaire: str | None = None
 
 
+class LignesCreation(Modele):
+    """Plusieurs lignes ajoutées d'un coup à une commande, toutes ou aucune."""
+
+    lignes: list[LigneCreation] = Field(min_length=1, max_length=200)
+
+
 class LigneModif(Modele):
     qte_commandee: int | None = Field(default=None, ge=0)
     pu_ht_devis: float | None = Field(default=None, ge=0)

@@ -132,6 +132,94 @@ function formulaireAjout() {
   return formulaire;
 }
 
+// Composants du fournisseur arrivés après la demande de devis : une pastille dans le cadre
+// des lignes les signale et déplie une liste à cocher, quantité et PU préremplis. Un composant
+// déjà dans un autre devis en cours est montré décoché. Rien une fois la commande livrée.
+function ajoutCandidats() {
+  const c = etat.commande;
+  if (!modifiable() || !etat.candidats.length || ["Livre", "Refuse"].includes(c.statut)) return null;
+  const lignes = etat.candidats.map((k) => {
+    const coche = el("input", { type: "checkbox", checked: !k.demandes_ouvertes.length, "aria-label": `Ajouter ${k.id}` });
+    const qte = el("input", { class: "champ champ--nombre champ--court", type: "text", inputmode: "numeric", value: String(k.reste_a_commander), "aria-label": `Quantité de ${k.id}` });
+    const pu = el("input", { class: "champ champ--nombre champ--court", type: "text", inputmode: "decimal", value: k.pu_ht === null ? "" : formatNombre(k.pu_ht, 2), "aria-label": `PU HT de ${k.id}` });
+    return {
+      k,
+      coche,
+      qte,
+      pu,
+      element: el(
+        "tr",
+        {},
+        el("td", {}, coche),
+        el("td", { class: "code" }, k.id),
+        el("td", {}, k.designation),
+        el("td", { class: "nombre" }, formatNombre(k.reste_a_commander)),
+        el("td", { class: "nombre" }, qte),
+        el("td", { class: "nombre" }, pu),
+        el("td", {}, k.demandes_ouvertes.length ? el("span", { class: "puce-fiche puce-fiche--info" }, `déjà dans ${k.demandes_ouvertes.join(", ")}`) : null),
+      ),
+    };
+  });
+  const bouton = el("button", { type: "button", class: "bouton" });
+  const compter = () => {
+    const n = lignes.filter((l) => l.coche.checked).length;
+    bouton.textContent = n > 1 ? `Ajouter les ${n} composants` : n === 1 ? "Ajouter le composant" : "Ajouter";
+    bouton.disabled = n === 0;
+  };
+  lignes.forEach((l) => l.coche.addEventListener("change", compter));
+  compter();
+  bouton.addEventListener("click", async () => {
+    const choisies = [];
+    for (const l of lignes.filter((x) => x.coche.checked)) {
+      const quantite = lireNombre(l.qte.value);
+      if (quantite === null || Number.isNaN(quantite) || !Number.isInteger(quantite) || quantite <= 0) {
+        return afficherErreur(`${l.k.id} : la quantité doit être un entier supérieur à zéro.`);
+      }
+      const prix = lireNombre(l.pu.value);
+      if (Number.isNaN(prix) || (prix !== null && prix < 0)) return afficherErreur(`${l.k.id} : PU HT illisible, « ${l.pu.value} ».`);
+      choisies.push({ composant_id: l.k.id, qte_commandee: quantite, pu_ht_devis: prix });
+    }
+    bouton.disabled = true;
+    try {
+      await api.createLignes(etat.numero, choisies);
+      masquerErreur();
+      etat.candidatsOuverts = false;
+      await recharger();
+    } catch (erreur) {
+      bouton.disabled = false;
+      afficherErreur(erreur);
+    }
+  });
+  const engagee = c.type === "Commande" && STATUTS_ENGAGES.includes(c.statut);
+  const deroule = el(
+    "div",
+    { class: "ajout-commande__liste", hidden: !etat.candidatsOuverts },
+    el("div", { class: "table-defilante" }, el("table", { class: "table table--dense" },
+      el("thead", {}, el("tr", {}, ["", "Composant", "Désignation", "Reste à commander", "Qté", "PU HT", ""].map((t, i) => el("th", { class: [3, 4, 5].includes(i) ? "nombre" : "" }, t)))),
+      el("tbody", {}, lignes.map((l) => l.element)),
+    )),
+    engagee || c.date_transmission_suivi
+      ? el("p", { class: "texte-surveiller texte-petit" }, [
+          engagee ? "Commande déjà passée : les lignes ajoutées sont à signaler au fournisseur ou à l'établissement." : "",
+          c.date_transmission_suivi ? " Elles iront au fichier de suivi au prochain passage." : "",
+        ].join("").trim())
+      : null,
+    el("div", { class: "actions-formulaire" }, el("span", { class: "texte-doux texte-petit" }, "Cochés d'office, sauf un composant déjà demandé dans un autre devis en cours."), bouton),
+  );
+  const n = etat.candidats.length;
+  const pastille = el("button", {
+    type: "button",
+    class: "ajout-commande__pastille",
+    "aria-expanded": String(etat.candidatsOuverts),
+    onclick: () => {
+      etat.candidatsOuverts = !etat.candidatsOuverts;
+      deroule.hidden = !etat.candidatsOuverts;
+      pastille.setAttribute("aria-expanded", String(etat.candidatsOuverts));
+    },
+  }, el("span", { class: "ajout-commande__point" }), n > 1 ? `${n} composants ${c.fournisseur_nom} restent à commander hors de cette commande` : `1 composant ${c.fournisseur_nom} reste à commander hors de cette commande`);
+  return el("div", { class: "ajout-commande" }, pastille, deroule);
+}
+
 function tableLignes() {
   const entetes = ["Composant", "Désignation", "", "Attendu par", "Qté", "PU HT devis", "PU estimé", "Écart", "Montant HT", "Reçu", "Statut ligne", ""];
   const numeriques = new Set([4, 5, 6, 7, 8, 9, 11]);
@@ -397,6 +485,7 @@ function rendre() {
           "section",
           { class: "panneau" },
           el("h2", {}, "Lignes"),
+          ajoutCandidats(),
           etat.lignes.length || etat.frais.length ? tableLignes() : el("p", { class: "texte-doux" }, "Aucune ligne pour l'instant."),
           el("p", { class: "texte-doux texte-petit" }, `L'écart entre le PU du devis et le PU estimé est coloré au-delà de ${SEUIL_ECART_PCT} %.`),
           modifiable() ? el("h3", { class: "sous-titre" }, "Ajouter une ligne") : null,
@@ -431,19 +520,20 @@ async function archiver() {
 }
 
 async function recharger() {
-  const [commande, lignes, frais, composants, documents] = await Promise.all([
+  const [commande, lignes, frais, composants, documents, candidats] = await Promise.all([
     api.getCommande(etat.numero),
     api.getLignes(etat.numero),
     api.getFrais(etat.numero),
     api.getComposants({ tri: "id" }),
     api.getDocumentsCommande(etat.numero),
+    api.getCandidatsCommande(etat.numero),
   ]);
-  Object.assign(etat, { commande, lignes, frais, composants, documents });
+  Object.assign(etat, { commande, lignes, frais, composants, documents, candidats });
   rendre();
 }
 
 export async function afficherDetailCommande(conteneur, _parametres, numero) {
-  etat = { conteneur, numero, reception: false, fournisseurs: await api.getFournisseurs() };
+  etat = { conteneur, numero, reception: false, candidatsOuverts: true, fournisseurs: await api.getFournisseurs() };
   try {
     await recharger();
   } catch (erreur) {

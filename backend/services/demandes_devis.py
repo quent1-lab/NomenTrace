@@ -33,6 +33,39 @@ ORDER BY v.fournisseur_nom IS NULL, v.fournisseur_nom, v.id
 """
 
 
+SQL_CANDIDATS_COMMANDE = """
+SELECT v.id, v.designation, v.reste_a_commander, v.pu_ht,
+       (SELECT group_concat(DISTINCT c.numero)
+          FROM ligne_commande l JOIN commande c ON c.numero = l.commande_numero
+         WHERE l.composant_id = v.id AND l.statut_ligne <> 'Annulee' AND c.archive = 0
+           AND c.numero <> :numero
+           AND c.statut IN (:s1, :s2, :s3, :s4)) AS demandes_ouvertes
+FROM v_composant v
+WHERE v.mode_appro = 'Achat' AND v.reste_a_commander > 0 AND v.fournisseur_nom = :fournisseur
+  AND NOT EXISTS (SELECT 1 FROM ligne_commande l
+                   WHERE l.commande_numero = :numero AND l.composant_id = v.id
+                     AND l.statut_ligne <> 'Annulee')
+ORDER BY v.id
+"""
+
+
+def list_candidats_commande(conn: sqlite3.Connection, numero: str) -> list[dict]:
+    """Composants du fournisseur de la commande qui restent à commander et n'y sont pas,
+    par exemple ajoutés au projet après la demande de devis. `demandes_ouvertes` cite les
+    autres devis en cours qui les portent déjà : l'écran ne les coche pas d'office."""
+    commande = commandes.get_commande(conn, numero)
+    parametres_sql = {
+        "numero": numero,
+        "fournisseur": commande["fournisseur_nom"],
+        **{f"s{i}": statut for i, statut in enumerate(STATUTS_DEMANDE_OUVERTE, start=1)},
+    }
+    candidats = db.fetch_all(conn, SQL_CANDIDATS_COMMANDE, parametres_sql)
+    for candidat in candidats:
+        ouvertes = candidat["demandes_ouvertes"]
+        candidat["demandes_ouvertes"] = ouvertes.split(",") if ouvertes else []
+    return candidats
+
+
 def list_candidats(conn: sqlite3.Connection) -> dict:
     """Composants à commander regroupés par fournisseur, et ceux qui n'en ont pas.
 

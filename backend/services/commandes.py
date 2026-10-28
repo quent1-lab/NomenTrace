@@ -167,18 +167,35 @@ def _get_ligne(conn: sqlite3.Connection, numero: str, identifiant: int) -> dict:
     return ligne
 
 
+def _inserer_ligne(conn: sqlite3.Connection, commande: dict, valeurs: dict[str, Any]) -> int:
+    """Insère une ligne, « Commandée » si la commande est déjà passée. Dans une transaction."""
+    composants.get_composant(conn, valeurs["composant_id"])
+    if _est_engagee(commande) and valeurs.get("statut_ligne") == "A commander":
+        valeurs = {**valeurs, "statut_ligne": "Commandee"}
+    numero = commande["numero"]
+    identifiant = db.insert_row(conn, "ligne_commande", {"commande_numero": numero, **valeurs})
+    journal.write_journal(
+        conn, "commande", numero, f"ligne {identifiant}", None, valeurs["composant_id"]
+    )
+    return identifiant
+
+
 def create_ligne(conn: sqlite3.Connection, numero: str, valeurs: dict[str, Any]) -> dict:
     """Ajoute une ligne à une commande."""
     with db.transaction(conn):
-        commande = get_commande(conn, numero)
-        composants.get_composant(conn, valeurs["composant_id"])
-        if _est_engagee(commande) and valeurs.get("statut_ligne") == "A commander":
-            valeurs = {**valeurs, "statut_ligne": "Commandee"}
-        identifiant = db.insert_row(conn, "ligne_commande", {"commande_numero": numero, **valeurs})
-        journal.write_journal(
-            conn, "commande", numero, f"ligne {identifiant}", None, valeurs["composant_id"]
-        )
+        identifiant = _inserer_ligne(conn, get_commande(conn, numero), valeurs)
     return _get_ligne(conn, numero, identifiant)
+
+
+def create_lignes(
+    conn: sqlite3.Connection, numero: str, lignes: list[dict[str, Any]]
+) -> list[dict]:
+    """Ajoute plusieurs lignes d'un coup, toutes ou aucune (composants arrivés après la
+    demande de devis, cochés sur la page de la commande)."""
+    with db.transaction(conn):
+        commande = get_commande(conn, numero)
+        identifiants = [_inserer_ligne(conn, commande, valeurs) for valeurs in lignes]
+    return [_get_ligne(conn, numero, identifiant) for identifiant in identifiants]
 
 
 def patch_ligne(

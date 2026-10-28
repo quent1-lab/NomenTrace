@@ -354,6 +354,15 @@ Les frais entrent dans le total de la commande et, une fois celle-ci passée, da
 montant engagé ; ils ne sont pas répartis entre les blocs. Un fournisseur peut recevoir
 autant de commandes que nécessaire, chacune avec son numéro.
 
+Des composants peuvent arriver chez ce fournisseur après la demande de devis. Tant que la
+commande n'est ni livrée ni refusée, une pastille orange le signale dans le cadre des lignes,
+par exemple « 2 composants Mouser restent à commander hors de cette commande ». Elle déplie
+la liste de ces composants en mode Achat, avec le reste à commander et le prix connu,
+modifiables, et un bouton qui les ajoute tous en une fois. Un composant déjà présent dans un
+autre devis en cours est signalé et décoché d'office. Sur une commande déjà passée, les lignes
+ajoutées sont « commandées » et un rappel invite à prévenir le fournisseur ou
+l'établissement ; transmise au suivi, la commande y reçoit ces lignes au passage suivant.
+
 Dès qu'une commande a des lignes, sa page propose le document à envoyer au fournisseur, en
 PDF ou en Excel : la liste des articles à chiffrer (référence, désignation, fabricant,
 quantité, lien produit), sans prix, avec une date de réponse souhaitée facultative. L'en-tête

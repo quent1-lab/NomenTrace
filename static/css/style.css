@@ -1670,6 +1670,42 @@ td.editable:hover {
   background: var(--couleur-ardoise-clair);
 }
 
+/* Page d'une commande : composants du fournisseur arrivés après la demande de devis. */
+.ajout-commande {
+  display: grid;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-3);
+}
+
+.ajout-commande__pastille {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 2px var(--espace-3);
+  border: 1px solid var(--couleur-surveiller);
+  border-radius: 999px;
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+  font: inherit;
+  font-size: var(--taille-petit);
+  cursor: pointer;
+}
+
+.ajout-commande__point {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--couleur-surveiller);
+}
+
+.ajout-commande__liste {
+  display: grid;
+  gap: var(--espace-2);
+  padding-left: var(--espace-3);
+  border-left: 2px solid var(--couleur-surveiller);
+}
+
 /* Catalogue du dossier : pastille dépliée sous l'identification, reprise d'une référence. */
 .note-reprise {
   display: grid;

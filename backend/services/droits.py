@@ -411,6 +411,8 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("DELETE", "/api/frais/{identifiant}"): ACHAT,
     ("GET", "/api/commandes/{numero}/lignes"): LECTURE,
     ("POST", "/api/commandes/{numero}/lignes"): ACHAT,
+    ("POST", "/api/commandes/{numero}/lignes/lot"): ACHAT,
+    ("GET", "/api/commandes/{numero}/candidats"): LECTURE,
     ("PATCH", "/api/commandes/{numero}/lignes/{identifiant}"): ACHAT,
     ("DELETE", "/api/commandes/{numero}/lignes/{identifiant}"): ACHAT,
     ("POST", "/api/commandes/{numero}/reception"): ACHAT,
