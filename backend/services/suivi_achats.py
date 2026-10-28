@@ -16,6 +16,15 @@ Les copies des commandes communes n'y figurent pas : la commune y a ses propres 
 Chaque ligne écrite porte sa référence Nomentrace dans une colonne masquée à droite du
 modèle (« CMD-012 · ESSAI-ALI-003 », « CMD-012 · frais 4 ») : c'est elle qui retrouve la
 ligne au retour. Les colonnes sont reconnues par leur titre, pas par leur position.
+
+Une ligne saisie à la main, sans référence, peut être associée à une commande transmise :
+même fournisseur, puis même référence fabricant, désignation très proche ou, pour un frais,
+même montant (`associer`). Retenue, l'association écrit la référence dans la colonne
+masquée, et la commande n'est pas ajoutée une seconde fois.
+
+L'établissement fusionne volontiers les cases d'une commande (fournisseur, dates, montant
+de la commande) sur toutes ses lignes : une cellule fusionnée n'est jamais écrite, et sa
+valeur se lit dans la première case du bloc.
 """
 
 import io
@@ -26,10 +35,11 @@ import unicodedata
 from collections import Counter
 from copy import copy
 from datetime import date, datetime
+from difflib import SequenceMatcher
 from typing import Any
 
 from openpyxl import load_workbook
-from openpyxl.cell.cell import Cell
+from openpyxl.cell.cell import Cell, MergedCell
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
@@ -37,6 +47,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from backend import db
 from backend.erreurs import ErreurMetier
 from backend.services import commandes
+from backend.services import import_doublons as doublons
 
 journal_log = logging.getLogger(__name__)
 
@@ -74,6 +85,14 @@ class Modele:
 
     def __init__(self, feuille: Worksheet) -> None:
         self.feuille = feuille
+        # Cellule secondaire d'un bloc fusionné → première case du bloc, qui porte la valeur.
+        self.fusions: dict[tuple[int, int], tuple[int, int]] = {
+            (rang, colonne): (bloc.min_row, bloc.min_col)
+            for bloc in feuille.merged_cells.ranges
+            for rang in range(bloc.min_row, bloc.max_row + 1)
+            for colonne in range(bloc.min_col, bloc.max_col + 1)
+            if (rang, colonne) != (bloc.min_row, bloc.min_col)
+        }
         self.ligne_entete, self.colonnes = self._entete()
         self.premiere = self.ligne_entete + 1
         self.total = self._ligne_total()
@@ -145,6 +164,19 @@ class Modele:
     def cellule(self, rang: int, cle: str) -> Cell | None:
         colonne = self.colonnes.get(cle)
         return self.feuille.cell(rang, colonne) if colonne else None
+
+    def fusionnee(self, rang: int, cle: str) -> bool:
+        """Case secondaire d'un bloc fusionné : sa valeur est celle du bloc, déjà comptée."""
+        colonne = self.colonnes.get(cle)
+        return colonne is not None and (rang, colonne) in self.fusions
+
+    def valeur_affichee(self, rang: int, cle: str) -> Any:
+        """Ce qu'on lit dans la case, fusion comprise (première case du bloc)."""
+        colonne = self.colonnes.get(cle)
+        if not colonne:
+            return None
+        rang, colonne = self.fusions.get((rang, colonne), (rang, colonne))
+        return self.feuille.cell(rang, colonne).value
 
 
 def cle_couleur(cellule: Cell) -> tuple:
@@ -290,9 +322,34 @@ def identique(avant: Any, apres: Any) -> bool:
     return avant == apres
 
 
+def decrire_inconnues(modele: Modele, inconnues: list) -> list[str]:
+    """« ligne 18 : Stepper Online · Nema 34 » pour une ligne ; un numéro reste tel quel."""
+    textes = []
+    for inconnue in inconnues:
+        if not isinstance(inconnue, int):
+            textes.append(inconnue)
+            continue
+        lu = [modele.valeur_affichee(inconnue, cle) for cle in ("fournisseur", "designation")]
+        contenu = " · ".join(str(v).strip() for v in lu if v and str(v).strip())
+        textes.append(f"ligne {inconnue} : {contenu}" if contenu else f"ligne {inconnue}")
+    return textes
+
+
+def _absentes(modele: Modele, transmises: list[dict]) -> list[dict]:
+    presentes = {modele.reference(rang) for rang in modele.lignes()}
+    return [ligne for ligne in transmises if ligne["ref"] not in presentes]
+
+
 def analyse(conn: sqlite3.Connection, contenu: bytes) -> dict:
-    """Propositions tirées du classeur, et nombre de lignes qu'il recevra en plus."""
+    """Propositions tirées du classeur, et nombre de lignes qu'il recevra en plus.
+
+    Les associations proposées sont supposées retenues pour lire le classeur : une commande
+    associée reçoit les propositions de ses lignes saisies à la main.
+    """
     _, modele = ouvrir(contenu)
+    transmises = lignes_a_transmettre(conn)
+    associations = associer(modele, _absentes(modele, transmises))
+    marquer(modele, associations)
     releves, inconnues = releve_commandes(modele)
     propositions = []
     for numero, releve in sorted(releves.items()):
@@ -312,21 +369,30 @@ def analyse(conn: sqlite3.Connection, contenu: bytes) -> dict:
                     ],
                 }
             )
-    presentes = {modele.reference(rang) for rang in modele.lignes()}
-    transmises = lignes_a_transmettre(conn)
-    a_ajouter = [ligne for ligne in transmises if ligne["ref"] not in presentes]
+    a_ajouter = _absentes(modele, transmises)
     return {
         "nb_lignes_a_completer": nb_lignes_a_completer(modele, transmises),
         "propositions": propositions,
-        "lignes_inconnues": [f"ligne {i}" if isinstance(i, int) else i for i in inconnues],
+        "associations": associations,
+        "lignes_inconnues": decrire_inconnues(modele, inconnues),
         "nb_lignes_a_ajouter": len(a_ajouter),
         "commandes_a_ajouter": sorted({ligne["numero"] for ligne in a_ajouter}),
     }
 
 
-def appliquer(conn: sqlite3.Connection, contenu: bytes, retenues: dict[str, list[str]]) -> bytes:
-    """Applique les changements retenus ({numéro: [champs]}), puis complète le classeur."""
+def appliquer(
+    conn: sqlite3.Connection,
+    contenu: bytes,
+    retenues: dict[str, list[str]],
+    associations: list[str] | None = None,
+) -> bytes:
+    """Associe les lignes saisies à la main des commandes retenues (`associations`), applique
+    les changements retenus ({numéro: [champs]}), puis complète le classeur."""
     classeur, modele = ouvrir(contenu)
+    transmises = lignes_a_transmettre(conn)
+    voulues = set(associations or [])
+    proposees = associer(modele, _absentes(modele, transmises))
+    marquer(modele, [a for a in proposees if a["numero"] in voulues])
     releves, _ = releve_commandes(modele)
     for numero, champs in retenues.items():
         commande = db.fetch_one(conn, "SELECT * FROM commande WHERE numero = ?", (numero,))
@@ -336,10 +402,170 @@ def appliquer(conn: sqlite3.Connection, contenu: bytes, retenues: dict[str, list
         retenu = {c: v for c, v in changements.items() if c in champs}
         if retenu:
             commandes.patch_commande(conn, numero, retenu)
-    ajouter_lignes(modele, lignes_a_transmettre(conn))
+    ajouter_lignes(modele, transmises)
     flux = io.BytesIO()
     classeur.save(flux)
     return flux.getvalue()
+
+
+# --- Lignes saisies à la main : association à une commande transmise ---------------------------
+
+
+def _cle_fournisseur(nom: Any) -> str:
+    """« Stepper Online », « StepperOnline » et « STEPPER-ONLINE » se valent."""
+    return re.sub(r"[^a-z0-9]", "", _norme(nom))
+
+
+def _lignes_sans_reference(modele: Modele) -> list[dict]:
+    """Lignes remplies sans référence Nomentrace. Un fournisseur absent est celui du bloc
+    fusionné, sinon celui de la ligne au-dessus (lignes saisies d'un seul tenant)."""
+    lignes: list[dict] = []
+    fournisseur = None
+    for rang in modele.lignes():
+        if modele.reference(rang) or _ligne_libre(modele, rang):
+            fournisseur = None
+            continue
+        fournisseur = modele.valeur_affichee(rang, "fournisseur") or fournisseur
+        lu = {
+            cle: modele.valeur_affichee(rang, cle)
+            for cle in ("reference", "designation", "qte", "montant")
+        }
+        lignes.append({"rang": rang, "fournisseur": fournisseur, **lu})
+    return lignes
+
+
+def _reference_utile(texte: Any) -> str:
+    norme = doublons.normaliser(texte)
+    return "" if norme in doublons.REMPLISSAGES else norme
+
+
+def _ressemblance(ligne: dict, saisie: dict) -> float:
+    a, b = doublons.normaliser(ligne["designation"]), doublons.normaliser(saisie["designation"])
+    return SequenceMatcher(None, a, b).ratio() if a and b else 0.0
+
+
+def _montant_egal(a: Any, b: Any) -> bool:
+    return isinstance(a, (int, float)) and isinstance(b, (int, float)) and abs(a - b) < 0.01
+
+
+def _par_designation(lignes: list[dict], saisies: list[dict]) -> list[tuple[dict, dict]]:
+    """Meilleures paires d'articles par désignation, au-delà du seuil de fusion de l'import."""
+    scores = sorted(
+        (
+            (_ressemblance(ligne, saisie), i, j)
+            for i, ligne in enumerate(lignes)
+            if ligne["qte"] is not None
+            for j, saisie in enumerate(saisies)
+        ),
+        reverse=True,
+    )
+    paires, vus_n, vus_s = [], set(), set()
+    for score, i, j in scores:
+        if score < doublons.SEUIL_FUSION:
+            break
+        if i not in vus_n and j not in vus_s:
+            vus_n.add(i)
+            vus_s.add(j)
+            paires.append((lignes[i], saisies[j]))
+    return paires
+
+
+def _apparier(lignes: list[dict], saisies: list[dict]) -> list[tuple[dict, dict]]:
+    """Paires (ligne Nomentrace, ligne saisie), chaque ligne prise une fois : même référence
+    fabricant, puis désignation très proche, puis, pour un frais, même montant."""
+    paires: list[tuple[dict, dict]] = []
+    libres_n, libres_s = list(lignes), list(saisies)
+
+    def prendre(ligne: dict, saisie: dict) -> None:
+        paires.append((ligne, saisie))
+        libres_n.remove(ligne)
+        libres_s.remove(saisie)
+
+    for ligne in [x for x in libres_n if x["qte"] is not None]:
+        cle = _reference_utile(ligne["reference"])
+        saisie = next(
+            (s for s in libres_s if cle and _reference_utile(s["reference"]) == cle), None
+        )
+        if saisie:
+            prendre(ligne, saisie)
+    for ligne, saisie in _par_designation(libres_n, libres_s):
+        prendre(ligne, saisie)
+    for ligne in [x for x in libres_n if x["qte"] is None]:
+        saisie = next(
+            (
+                s
+                for s in libres_s
+                if s["qte"] in (None, "") and _montant_egal(s["montant"], ligne["montant"])
+            ),
+            None,
+        )
+        if saisie:
+            prendre(ligne, saisie)
+    return paires
+
+
+def _nombre(valeur: float) -> str:
+    return str(int(valeur)) if valeur == int(valeur) else f"{valeur:.2f}".replace(".", ",")
+
+
+def _ecarts(ligne: dict, saisie: dict) -> list[str]:
+    ecarts = []
+    qte = saisie["qte"]
+    if ligne["qte"] is not None and isinstance(qte, (int, float)) and qte != ligne["qte"]:
+        ecarts.append(f"quantité {_nombre(qte)} dans le fichier, {ligne['qte']} dans Nomentrace")
+    montant = round(ligne["montant"], 2) if ligne["montant"] is not None else None
+    lu = saisie["montant"]
+    if montant is not None and isinstance(lu, (int, float)) and not _montant_egal(lu, montant):
+        ecarts.append(
+            f"montant {_nombre(lu)} € dans le fichier, {_nombre(montant)} € dans Nomentrace"
+        )
+    return ecarts
+
+
+def associer(modele: Modele, absentes: list[dict]) -> list[dict]:
+    """Pour chaque commande transmise absente du classeur, ses lignes saisies à la main.
+
+    `complete` : toutes les lignes de la commande ont trouvé la leur ; l'écran coche alors
+    l'association d'office. Les écarts (quantité, montant) sont signalés, jamais corrigés."""
+    saisies = _lignes_sans_reference(modele)
+    par_commande: dict[str, list[dict]] = {}
+    for ligne in absentes:
+        par_commande.setdefault(ligne["numero"], []).append(ligne)
+    resultats = []
+    for numero, lignes in par_commande.items():
+        cle = _cle_fournisseur(lignes[0]["fournisseur"])
+        candidates = [s for s in saisies if cle and _cle_fournisseur(s["fournisseur"]) == cle]
+        paires = sorted(_apparier(lignes, candidates), key=lambda p: p[1]["rang"])
+        if not paires:
+            continue
+        for _, saisie in paires:
+            saisies.remove(saisie)
+        appariees = [ligne for ligne, _ in paires]
+        resultats.append(
+            {
+                "numero": numero,
+                "fournisseur": lignes[0]["fournisseur"],
+                "complete": len(paires) == len(lignes),
+                "lignes": [
+                    {
+                        "ligne": saisie["rang"],
+                        "ref": ligne["ref"],
+                        "designation": saisie["designation"] or ligne["designation"],
+                        "ecarts": _ecarts(ligne, saisie),
+                    }
+                    for ligne, saisie in paires
+                ],
+                "manquantes": [x["designation"] for x in lignes if x not in appariees],
+            }
+        )
+    return resultats
+
+
+def marquer(modele: Modele, associations: list[dict]) -> None:
+    """Écrit la référence Nomentrace des lignes associées dans la colonne masquée."""
+    for association in associations:
+        for ligne in association["lignes"]:
+            _ecrire(modele.feuille.cell(ligne["ligne"], modele.col_reference), ligne["ref"])
 
 
 # --- Aller : les devis transmis au suivi --------------------------------------------------------
@@ -398,8 +624,9 @@ def lignes_a_transmettre(conn: sqlite3.Connection) -> list[dict]:
 
 
 def _ecrire(cellule: Cell | None, valeur: Any) -> None:
-    """Écrit une valeur saisie : jamais une formule, même si le texte commence par « = »."""
-    if cellule is None or valeur is None:
+    """Écrit une valeur saisie : jamais une formule, même si le texte commence par « = ».
+    Une case secondaire d'un bloc fusionné n'est pas écrite : le bloc a déjà sa valeur."""
+    if cellule is None or valeur is None or isinstance(cellule, MergedCell):
         return
     cellule.value = valeur
     if isinstance(valeur, str) and valeur.startswith("="):
@@ -408,7 +635,8 @@ def _ecrire(cellule: Cell | None, valeur: Any) -> None:
 
 def _ligne_libre(modele: Modele, rang: int) -> bool:
     return not modele.reference(rang) and not any(
-        modele.valeur(rang, cle) for cle in ("fournisseur", "reference", "designation", "qte")
+        modele.valeur_affichee(rang, cle)
+        for cle in ("fournisseur", "reference", "designation", "qte")
     )
 
 
@@ -416,7 +644,15 @@ def _inserer_avant_total(modele: Modele, nombre: int) -> None:
     """Ajoute des lignes avant le TOTAL, mises en forme comme la première ligne de données,
     et étend les formules de somme du modèle à ces nouvelles lignes."""
     feuille, total = modele.feuille, modele.total
+    # openpyxl ne déplace pas les fusions en insérant des lignes : celles du TOTAL et de la
+    # légende, dessous, descendent à la main d'autant de lignes.
+    dessous = [bloc for bloc in feuille.merged_cells.ranges if bloc.min_row >= total]
+    for bloc in dessous:
+        feuille.unmerge_cells(bloc.coord)
     feuille.insert_rows(total, nombre)
+    for bloc in dessous:
+        bloc.shift(row_shift=nombre)
+        feuille.merge_cells(bloc.coord)
     modele_ligne = modele.premiere
     for rang in range(total, total + nombre):
         for colonne in range(1, modele.col_reference + 1):
@@ -472,7 +708,9 @@ def _cases_a_completer(modele: Modele, lignes: list[dict]) -> dict[int, dict[str
         manquantes = {
             cle: valeur
             for cle, valeur in _valeurs(ligne).items()
-            if valeur is not None and _vide(modele.cellule(rang, cle))
+            if valeur is not None
+            and not modele.fusionnee(rang, cle)
+            and _vide(modele.cellule(rang, cle))
         }
         if manquantes:
             cases[rang] = manquantes
@@ -503,7 +741,7 @@ def ajouter_lignes(modele: Modele, lignes: list[dict]) -> None:
     for rang, ligne in zip(libres, nouvelles, strict=False):
         for cle, valeur in _valeurs(ligne).items():
             _ecrire(modele.cellule(rang, cle), valeur)
-        modele.feuille.cell(rang, modele.col_reference, ligne["ref"])
+        _ecrire(modele.feuille.cell(rang, modele.col_reference), ligne["ref"])
     journal_log.info("Suivi des achats : %d ligne(s) ajoutée(s)", len(nouvelles))
 
 

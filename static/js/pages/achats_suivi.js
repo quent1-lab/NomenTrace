@@ -41,8 +41,30 @@ function blocCommande(proposition) {
   };
 }
 
+// Lignes saisies à la main reconnues comme celles d'une commande : cochée d'office quand
+// toutes ses lignes ont trouvé la leur. Retenue, la commande n'est pas ajoutée une seconde fois.
+function blocAssociation(association) {
+  const coche = el("input", { type: "checkbox", checked: association.complete, value: association.numero });
+  const lignes = association.lignes.map((l) =>
+    el("li", {}, `ligne ${l.ligne} : ${l.designation ?? ""}`, l.ecarts.length ? el("span", { class: "texte-surveiller" }, ` (${l.ecarts.join(" ; ")})`) : null),
+  );
+  return {
+    coche,
+    element: el(
+      "div",
+      { class: "suivi-commande-bloc" },
+      el("label", { class: "filtre-case" }, coche, el("strong", {}, `Associer ${association.lignes.length} ligne(s) à ${association.numero} · ${association.fournisseur ?? ""}`)),
+      el("ul", { class: "liste-simple texte-petit" }, lignes),
+      association.manquantes.length
+        ? el("p", { class: "texte-surveiller texte-petit" }, `Sans ligne dans le fichier, ajoutées en bas : ${association.manquantes.join(", ")}.`)
+        : null,
+    ),
+  };
+}
+
 function resultat(analyse, fichier, surApplique, appliquerSuivi) {
   const blocs = analyse.propositions.map(blocCommande);
+  const associations = (analyse.associations ?? []).map(blocAssociation);
   const appliquer = async () => {
     const retenues = Object.fromEntries(
       blocs.map((b) => [b.numero, b.cases.map((c) => c.querySelector("input")).filter((c) => c.checked).map((c) => c.value)]),
@@ -50,6 +72,7 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
     const donnees = new FormData();
     donnees.append("fichier", fichier);
     donnees.append("retenues", JSON.stringify(retenues));
+    donnees.append("associations", JSON.stringify(associations.filter((a) => a.coche.checked).map((a) => a.coche.value)));
     try {
       enregistrerFichier(await appliquerSuivi(donnees));
       masquerErreur();
@@ -64,10 +87,17 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
     ? `${analyse.nb_lignes_a_ajouter} ligne(s) à ajouter au fichier (${analyse.commandes_a_ajouter.join(", ")}).`
     : "Aucune nouvelle ligne à ajouter : tous les devis transmis y sont déjà.";
   return [
+    associations.length
+      ? [
+          el("h3", {}, "Lignes saisies à la main"),
+          el("p", { class: "texte-doux texte-petit" }, "Reconnues par le fournisseur, puis la référence, la désignation ou le montant d'un frais. Les écarts sont signalés, jamais corrigés dans le fichier."),
+          associations.map((a) => a.element),
+        ]
+      : null,
     el("h3", {}, "Retour de l'établissement"),
     blocs.length ? blocs.map((b) => b.element) : el("p", { class: "texte-doux" }, "Rien de nouveau dans les colonnes de l'établissement."),
     analyse.lignes_inconnues.length
-      ? el("p", { class: "texte-surveiller texte-petit" }, `Lignes sans référence Nomentrace, ignorées : ${analyse.lignes_inconnues.join(", ")}.`)
+      ? el("div", { class: "texte-surveiller texte-petit" }, el("p", {}, "Lignes sans référence Nomentrace, ignorées :"), el("ul", { class: "liste-simple" }, analyse.lignes_inconnues.map((l) => el("li", {}, l))))
       : null,
     el("h3", {}, "Ajouts au fichier"),
     el("p", {}, ajout),
@@ -97,7 +127,7 @@ export function ouvrirSuivi(surApplique, { analyser = api.analyserSuivi, appliqu
     try {
       const analyse = await analyser(donnees, suivi.maj);
       masquerErreur();
-      zone.replaceChildren(...resultat(analyse, choisi, surApplique, appliquer).flat().filter(Boolean));
+      zone.replaceChildren(...resultat(analyse, choisi, surApplique, appliquer).flat(2).filter(Boolean));
     } catch (erreur) {
       zone.replaceChildren();
       afficherErreur(erreur);

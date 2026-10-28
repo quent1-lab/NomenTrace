@@ -192,7 +192,7 @@ def analyse(
     return {
         "nb_lignes_a_completer": suivi_achats.nb_lignes_a_completer(modele, transmises),
         "propositions": propositions,
-        "lignes_inconnues": [f"ligne {i}" if isinstance(i, int) else i for i in inconnues],
+        "lignes_inconnues": suivi_achats.decrire_inconnues(modele, inconnues),
         "nb_lignes_a_ajouter": len(a_ajouter),
         "commandes_a_ajouter": sorted({ligne["numero"] for ligne in a_ajouter}),
     }

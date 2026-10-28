@@ -78,11 +78,17 @@ def _commande(client: TestClient, composants: list[str], transmise: bool = True)
     return numero
 
 
-def _appliquer(client: TestClient, contenu: bytes, retenues: dict | None = None) -> bytes:
+def _appliquer(
+    client: TestClient,
+    contenu: bytes,
+    retenues: dict | None = None,
+    associations: list[str] | None = None,
+) -> bytes:
+    donnees = {"retenues": json.dumps(retenues or {})}
+    if associations is not None:
+        donnees["associations"] = json.dumps(associations)
     reponse = client.post(
-        "/api/suivi-achats/appliquer",
-        files={"fichier": ("SUIVI.xlsx", contenu)},
-        data={"retenues": json.dumps(retenues or {})},
+        "/api/suivi-achats/appliquer", files={"fichier": ("SUIVI.xlsx", contenu)}, data=donnees
     )
     assert reponse.status_code == 200, reponse.text
     assert "SUIVI.xlsx" in reponse.headers["content-disposition"]
@@ -143,7 +149,7 @@ def test_retour_propose_puis_applique_ce_qui_est_retenu(client_essai: TestClient
     flux = io.BytesIO()
     classeur.save(flux)
     analyse = _analyse(client_essai, flux.getvalue())
-    assert analyse["lignes_inconnues"] == ["ligne 13"]
+    assert analyse["lignes_inconnues"] == ["ligne 13 : Autre · Ligne saisie à la main"]
     changements = {c["champ"]: c["apres"] for c in analyse["propositions"][0]["changements"]}
     assert changements == {
         "type": "Commande",
@@ -252,3 +258,135 @@ def test_date_du_devis_au_depot_d_un_devis(client_essai: TestClient) -> None:
     assert client_essai.get(f"/api/commandes/{numero}").json()["date_reception_devis"] == (
         date.today().isoformat()
     )
+
+
+# --- Cellules fusionnées et lignes saisies à la main (ACH-05) ------------------------------------
+
+
+def _enregistrer(classeur: Workbook) -> bytes:
+    flux = io.BytesIO()
+    classeur.save(flux)
+    return flux.getvalue()
+
+
+def _fusionner_commande(feuille, premier: int, dernier: int) -> None:
+    """Ce que fait l'établissement : une case par commande pour le fournisseur, les dates et
+    le montant de la commande, fusionnée sur toutes ses lignes."""
+    for colonne in ("A", "F", "G", "H", "J"):
+        feuille.merge_cells(f"{colonne}{premier}:{colonne}{dernier}")
+
+
+def test_cellules_fusionnees_par_l_etablissement(client_essai: TestClient) -> None:
+    """Le 28/10 : erreur 500 en complétant une case vide qui était une cellule fusionnée."""
+    numero = _commande(client_essai, ["ESSAI-ALI-001", "ESSAI-ALI-003"])
+    classeur = load_workbook(io.BytesIO(_appliquer(client_essai, _modele())))
+    feuille = classeur.active
+    feuille["F10"].value = None  # date du devis effacée : une case à compléter…
+    _fusionner_commande(feuille, 10, 12)  # … qui n'existe plus que dans le bloc fusionné
+    feuille["F10"].value = datetime(2026, 10, 5)
+    feuille["J10"].value = 99.0
+    contenu = _enregistrer(classeur)
+    changements = _analyse(client_essai, contenu)["propositions"][0]["changements"]
+    # Le montant fusionné compte une fois, pas une fois par ligne du bloc.
+    assert {c["champ"]: c["apres"] for c in changements}["montant_commande_ht"] == 99.0
+    _commande(client_essai, ["ESSAI-AGI-003"])  # une commande de plus : des lignes à ajouter
+    rendu = load_workbook(io.BytesIO(_appliquer(client_essai, contenu, {numero: []}))).active
+    assert {str(r) for r in rendu.merged_cells.ranges} >= {"A10:A12", "F10:F12", "J10:J12"}
+    assert rendu["J10"].value == 99.0
+    assert [rendu.cell(r, 12).value for r in (13, 14)] == [
+        "CMD-002 · ESSAI-AGI-003",
+        "CMD-002 · frais 2",
+    ]
+
+
+def test_lignes_ajoutees_decalent_les_fusions_sous_le_total(client_essai: TestClient) -> None:
+    classeur = load_workbook(io.BytesIO(_modele()))
+    feuille = classeur.active
+    feuille.merge_cells("G16:H16")  # une note fusionnée sous le TOTAL, comme la légende
+    feuille["G16"].value = "En bleu, date confirmée"
+    _commande(client_essai, ["ESSAI-ALI-001", "ESSAI-ALI-002", "ESSAI-ALI-003", "ESSAI-AGI-003"])
+    rendu = load_workbook(io.BytesIO(_appliquer(client_essai, _enregistrer(classeur)))).active
+    # 5 lignes pour 4 places : une ligne insérée, la note descend d'autant avec sa fusion.
+    assert rendu["G17"].value == "En bleu, date confirmée"
+    assert "G17:H17" in {str(r) for r in rendu.merged_cells.ranges}
+
+
+def _saisie_a_la_main(feuille, lignes: list[tuple]) -> None:
+    """Lignes tapées par l'établissement, sans référence Nomentrace, à partir de la ligne 10."""
+    for decalage, (fournisseur, reference, designation, qte, montant) in enumerate(lignes):
+        rang = 10 + decalage
+        for colonne, valeur in enumerate((fournisseur, reference, designation, qte, montant), 1):
+            if valeur is not None:
+                feuille.cell(rang, colonne, valeur)
+
+
+def _commande_ecrite_a_la_main(client: TestClient, qte_lue: int = 2) -> tuple[str, bytes]:
+    numero = _commande(client, ["ESSAI-ALI-003", "ESSAI-AGI-003", "ESSAI-ALI-002"])
+    classeur = load_workbook(io.BytesIO(_modele()))
+    feuille = classeur.active
+    _saisie_a_la_main(
+        feuille,
+        [
+            (" MOUSER", "ddr 60l-5", "Convertisseur 5 V", 2, 2.5),  # même référence
+            (None, "-", "Codeur magnetique AS5047D ATSM", 2, 2.5),  # désignation proche
+            (None, None, "Carte de puissance custom", qte_lue, 2.5),
+            (None, None, "Frais de port", None, 9.9),  # le frais, par son montant
+        ],
+    )
+    _fusionner_commande(feuille, 10, 13)
+    feuille["G10"].value = datetime(2026, 11, 2)
+    return numero, _enregistrer(classeur)
+
+
+def test_lignes_saisies_a_la_main_associees(client_essai: TestClient) -> None:
+    numero, contenu = _commande_ecrite_a_la_main(client_essai)
+    analyse = _analyse(client_essai, contenu)
+    assert analyse["lignes_inconnues"] == []
+    assert analyse["nb_lignes_a_ajouter"] == 0
+    association = analyse["associations"][0]
+    assert (association["numero"], association["complete"]) == (numero, True)
+    assert [ligne["ligne"] for ligne in association["lignes"]] == [10, 11, 12, 13]
+    assert all(not ligne["ecarts"] for ligne in association["lignes"])
+    # La commande associée reçoit les propositions de ses lignes, date de commande comprise.
+    changements = {c["champ"] for c in analyse["propositions"][0]["changements"]}
+    assert "date_commande" in changements
+    rendu = load_workbook(
+        io.BytesIO(_appliquer(client_essai, contenu, associations=[numero]))
+    ).active
+    assert [rendu.cell(r, 12).value for r in range(10, 14)] == [
+        f"{numero} · ESSAI-ALI-003",
+        f"{numero} · ESSAI-AGI-003",
+        f"{numero} · ESSAI-ALI-002",
+        f"{numero} · frais 1",
+    ]
+    assert rendu.cell(14, 12).value is None  # rien d'ajouté une seconde fois
+    assert (
+        _analyse(
+            client_essai,
+            _enregistrer(
+                load_workbook(io.BytesIO(_appliquer(client_essai, contenu, associations=[numero])))
+            ),
+        )["associations"]
+        == []
+    )
+
+
+def test_association_non_retenue_ajoute_les_lignes(client_essai: TestClient) -> None:
+    numero, contenu = _commande_ecrite_a_la_main(client_essai)
+    rendu = load_workbook(io.BytesIO(_appliquer(client_essai, contenu))).active
+    assert rendu.cell(10, 12).value is None
+    assert rendu.cell(14, 12).value == f"{numero} · ESSAI-ALI-003"
+
+
+def test_association_signale_l_ecart_de_quantite(client_essai: TestClient) -> None:
+    _, contenu = _commande_ecrite_a_la_main(client_essai, qte_lue=5)
+    association = _analyse(client_essai, contenu)["associations"][0]
+    ecarts = {ligne["ligne"]: ligne["ecarts"] for ligne in association["lignes"]}
+    assert ecarts[12] == ["quantité 5 dans le fichier, 2 dans Nomentrace"]
+
+
+def test_ligne_inconnue_decrite(client_essai: TestClient) -> None:
+    classeur = load_workbook(io.BytesIO(_modele()))
+    _saisie_a_la_main(classeur.active, [("Autre", None, "Ligne saisie à la main", 1, 3.0)])
+    analyse = _analyse(client_essai, _enregistrer(classeur))
+    assert analyse["lignes_inconnues"] == ["ligne 10 : Autre · Ligne saisie à la main"]

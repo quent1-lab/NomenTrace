@@ -391,8 +391,18 @@ Chaque devis transmis y ajoute une ligne par composant (quantité, montant de la
 date du devis) et une par frais. Une colonne masquée à droite du modèle porte la
 référence Nomentrace de chaque ligne : c'est elle qui retrouve la ligne au retour, et
 une ligne n'est jamais ajoutée deux fois. Quand les lignes prévues par le modèle ne
-suffisent pas, des lignes s'insèrent avant le total, dont les sommes s'étendent. Une ligne
-saisie à la main, sans référence, est signalée et ignorée. À chaque passage, les cases
+suffisent pas, des lignes s'insèrent avant le total, dont les sommes s'étendent.
+
+Une ligne saisie à la main, sans référence, peut appartenir à un devis transmis ensuite :
+Nomentrace la reconnaît au fournisseur (majuscules, accents et espaces mis à part), puis à
+la référence fabricant, à une désignation très proche ou, pour un frais, au montant. Le
+panneau propose « Associer 8 lignes à CMD-003 », coché d'office quand chaque ligne de la
+commande a trouvé la sienne, et signale les écarts de quantité ou de montant sans jamais
+corriger le fichier. Retenue, l'association écrit la référence dans la colonne masquée et la
+commande n'est pas ajoutée une seconde fois. Une ligne qui ne correspond à rien est listée
+avec son fournisseur et sa désignation, et laissée telle quelle. Les cases que
+l'établissement fusionne sur toutes les lignes d'une commande (fournisseur, dates, montant)
+se lisent une fois et ne sont jamais réécrites. À chaque passage, les cases
 encore vides d'une ligne déjà écrite sont complétées de ce que Nomentrace sait depuis, par
 exemple une date de devis saisie après la transmission ; une case remplie, par
 l'établissement ou à la main, n'est jamais réécrite.

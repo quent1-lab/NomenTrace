@@ -341,6 +341,10 @@ class RetenuesSuivi(RootModel[dict[str, list[str]]]):
     """Changements du suivi retenus par l'utilisateur : {numéro de commande: [champs]}."""
 
 
+class AssociationsSuivi(RootModel[list[str]]):
+    """Commandes dont les lignes saisies à la main sont associées : [numéro de commande]."""
+
+
 class FraisCreation(Modele):
     type_frais: str = Field(min_length=1)
     montant_ht: float = Field(ge=0)

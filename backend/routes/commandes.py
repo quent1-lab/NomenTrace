@@ -13,6 +13,7 @@ from backend.arrondi import round_output
 from backend.deps import Auteur, Projet, UtilisateurRequete, get_conn, get_conn_comptes
 from backend.erreurs import ErreurMetier
 from backend.models import (
+    AssociationsSuivi,
     CommandeCreation,
     CommandeModif,
     DemandesDevis,
@@ -124,15 +125,20 @@ async def analyse_suivi(fichier: Annotated[UploadFile, File()], conn: Conn) -> d
 
 @router.post("/suivi-achats/appliquer")
 async def appliquer_suivi(
-    fichier: Annotated[UploadFile, File()], retenues: Annotated[str, Form()], conn: Conn
+    fichier: Annotated[UploadFile, File()],
+    retenues: Annotated[str, Form()],
+    conn: Conn,
+    associations: Annotated[str, Form()] = "[]",
 ) -> Response:
-    """Applique les changements retenus et renvoie le classeur complété, sous le même nom."""
+    """Associe les lignes retenues, applique les changements retenus et renvoie le classeur
+    complété, sous le même nom."""
     try:
         choix = RetenuesSuivi.model_validate_json(retenues).root
+        associees = AssociationsSuivi.model_validate_json(associations).root
     except ValidationError as erreur:
         raise ErreurMetier("Choix du suivi illisibles.") from erreur
     contenu = await fichier.read()
-    complete = await run_in_threadpool(suivi_achats.appliquer, conn, contenu, choix)
+    complete = await run_in_threadpool(suivi_achats.appliquer, conn, contenu, choix, associees)
     nom = fichier.filename or "suivi des achats.xlsx"
     return Response(
         complete,
