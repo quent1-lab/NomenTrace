@@ -344,7 +344,8 @@ L'écran Achats liste les devis et les commandes, filtrables par statut, par fou
 par retard de livraison. Une commande a un type (Devis ou Commande) et un statut qui suit
 son cycle : à demander, devis demandé, devis reçu, devis validé, commandé, livré en partie,
 livré, refusé. Seules les commandes de type Commande au statut commandé ou livré comptent
-dans le montant engagé ; un devis n'engage rien.
+dans le montant engagé ; un devis n'engage rien. Passer un devis au statut commandé, livré
+en partie ou livré en fait une commande : son type change avec son statut.
 
 « + Nouvelle commande » crée une commande vide chez un fournisseur. Sa page permet d'ajouter
 des lignes (composant, quantité, PU HT du devis), des frais (livraison, douane, frais de

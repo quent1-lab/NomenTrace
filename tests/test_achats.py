@@ -1,5 +1,7 @@
 """Achats et stock : réception, mouvements, lien avec le montage des ensembles."""
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 
@@ -214,3 +216,67 @@ def test_ajout_a_une_commande_passee_ligne_commandee(client_essai: TestClient) -
     ).status_code == 201
     ajoutee = client_essai.get(f"/api/commandes/{numero}/lignes").json()[-1]
     assert ajoutee["statut_ligne"] == "Commandee"
+
+
+# --- Un statut de commande passée fait le type Commande (2026-10-28) -----------------------------
+
+
+def test_statut_commande_sur_un_devis_engage(client_essai: TestClient) -> None:
+    """Le 28/10 : un devis passé au statut « Commandé » restait de type Devis, donc non engagé,
+    et ses composants étaient reproposés dans les demandes de devis."""
+    numero = _devis_mouser(client_essai, ["ESSAI-ALI-006"])
+    client_essai.patch(f"/api/commandes/{numero}/lignes/1", json={"pu_ht_devis": 30.7})
+    client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Commande"})
+    commande = client_essai.get(f"/api/commandes/{numero}").json()
+    assert (commande["type"], commande["statut"]) == ("Commande", "Commande")
+    assert abs(client_essai.get("/api/pilotage").json()["montant_engage_ht"] - 30.7) < 0.01
+    candidats = client_essai.get("/api/demandes-devis").json()
+    proposes = {c["id"] for g in candidats["fournisseurs"] for c in g["lignes"]}
+    assert "ESSAI-ALI-006" not in proposes
+
+
+def test_migration_rattrape_les_devis_au_statut_commande(tmp_path: Path) -> None:
+    from backend import db
+    from tests.jeu_essai import charger_jeu_essai
+
+    anciennes = tmp_path / "migrations"
+    anciennes.mkdir()
+    for numero, fichier in db.list_migrations():
+        if numero <= 26:
+            (anciennes / fichier.name).write_bytes(fichier.read_bytes())
+    conn = db.connect(tmp_path / "base.db")
+    db.apply_migrations(conn, anciennes)
+    charger_jeu_essai(conn)
+    for numero, statut in (
+        ("CMD-901", "Commande"),
+        ("CMD-902", "Livre"),
+        ("CMD-903", "Devis recu"),
+    ):
+        conn.execute(
+            "INSERT INTO commande (numero, fournisseur_nom, type, statut) VALUES (?, 'Mouser',"
+            " 'Devis', ?)",
+            (numero, statut),
+        )
+        conn.execute(
+            "INSERT INTO ligne_commande (commande_numero, composant_id, qte_commandee,"
+            " pu_ht_devis) VALUES (?, 'ESSAI-ALI-006', 1, 30.7)",
+            (numero,),
+        )
+    conn.commit()
+
+    db.apply_migrations(conn)
+
+    types = dict(conn.execute("SELECT numero, type FROM commande WHERE numero LIKE 'CMD-9%'"))
+    assert types == {"CMD-901": "Commande", "CMD-902": "Commande", "CMD-903": "Devis"}
+    lignes = dict(
+        conn.execute(
+            "SELECT commande_numero, statut_ligne FROM ligne_commande WHERE"
+            " commande_numero LIKE 'CMD-9%'"
+        )
+    )
+    assert lignes == {"CMD-901": "Commandee", "CMD-902": "Commandee", "CMD-903": "A commander"}
+    traces = conn.execute(
+        "SELECT cle_cible FROM journal WHERE table_cible = 'commande' AND champ = 'type'"
+    ).fetchall()
+    assert sorted(t[0] for t in traces) == ["CMD-901", "CMD-902"]
+    conn.close()

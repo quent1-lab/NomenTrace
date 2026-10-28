@@ -179,7 +179,8 @@ Commandes :
 
 ```
 commande engagée   = non archivée, type 'Commande', statut 'Commande', 'Livre partiel'
-                     ou 'Livre' ; ses lignes 'Annulee' sont exclues
+                     ou 'Livre' ; ses lignes 'Annulee' sont exclues. Un de ces trois
+                     statuts fait le type 'Commande' (service et migration 027)
 commande en cours  = non archivée, statut 'Devis demande', 'Devis recu', 'Devis valide',
                      'Commande' ou 'Livre partiel'
 commande en retard = non archivée, livraison_annoncee dépassée, pas de date de

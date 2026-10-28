@@ -44,6 +44,14 @@ def _est_engagee(commande: dict) -> bool:
     return commande["type"] == "Commande" and commande["statut"] in STATUTS_ENGAGES
 
 
+def type_au_statut(commande: dict) -> dict[str, str]:
+    """Un statut de commande passée (commandé, livré en partie, livré) fait le type Commande :
+    un devis à ce statut n'engagerait rien et ses composants resteraient « à commander »."""
+    if commande.get("statut") in STATUTS_ENGAGES and commande.get("type") != "Commande":
+        return {"type": "Commande"}
+    return {}
+
+
 def _marquer_lignes_commandees(conn: sqlite3.Connection, numero: str) -> None:
     """Quand la commande est passée, ses lignes « À commander » deviennent « Commandée »."""
     for (identifiant,) in conn.execute(
@@ -106,6 +114,7 @@ def create_commande(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
         fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
         if valeurs.get("taux_tva") is None:
             valeurs["taux_tva"] = parametres.get_taux_tva_defaut(conn)
+        valeurs = {**valeurs, **type_au_statut(valeurs)}
         numero = next_numero(conn)
         db.insert_row(conn, "commande", {"numero": numero, **valeurs})
         journal.write_journal(conn, "commande", numero, "creation", None, "créée")
@@ -118,6 +127,8 @@ def patch_commande(conn: sqlite3.Connection, numero: str, modifications: dict[st
         avant = get_commande(conn, numero)
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
+        apres = {**avant, **modifications}
+        modifications = {**modifications, **type_au_statut(apres)}
         apres = {**avant, **modifications}
         modifications = {**modifications, **date_devis_au_statut(avant, apres)}
         if _est_engagee(apres) and not _est_engagee(avant):
