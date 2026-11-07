@@ -26,7 +26,8 @@ répartit dans cet arbre, avec des montants verrouillables.
 
 Côté achats, l'outil prépare les demandes de devis par fournisseur à partir de ce qu'il
 reste à commander, suit les devis et les commandes jusqu'à la réception partielle ou
-complète, tient le stock et le montage. Le tableau de bord confronte le coût estimé et le
+complète, tient le stock et le montage. Une pièce vendue par lot s'achète en lots entiers
+et se compte en pièces partout ailleurs. Le tableau de bord confronte le coût estimé et le
 montant engagé au budget, et signale ce qui coince : composants à chiffrer, commandes en
 retard, composants bloquants pas encore commandés.
 

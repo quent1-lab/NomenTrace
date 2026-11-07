@@ -263,6 +263,12 @@ décimales se fait une seule fois, par `round_output()` au moment de renvoyer la
 ou dans l'export. Arrondir un PU HT avant de le multiplier fausse les totaux de quelques
 centimes, et c'est exactement ce que les tests vérifient sur le jeu d'essai.
 
+`v_composant` est aussi la seule vue qui passe des lots aux pièces. Une ligne de commande
+compte des lots et garde la taille du lot qu'elle avait à sa création ; la vue multiplie
+ses quantités par cette taille, sans toucher à son montant, et arrondit le nombre de lots à
+acheter en entiers, sans dépendre de la fonction `ceil()` de SQLite. Tout le reste lit des
+pièces, et tout pré-remplissage d'une ligne lit `prix_lot_ht` et `reste_a_commander_lots`.
+
 Trois calculs font exception et vivent en Python, parce qu'ils s'expriment mal en SQL : la
 répartition récursive des budgets d'ensemble (`ensembles_arbre`), l'assemblage de la frise
 d'un composant (`historique`) et la détection des doublons à l'import

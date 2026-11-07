@@ -62,6 +62,14 @@ composant, chaque équipe se voit proposer les références qui ressemblent chez
 et en reprend une avec ses fiches techniques, sous son propre identifiant et à son propre
 prix.
 
+Les achats suivent enfin la façon dont les pièces se vendent. Un composant vendu par lot
+s'achète en lots entiers, au prix du lot, et le surplus entre au stock ; le projet paie les
+lots, l'ensemble compte ses pièces. Le classeur de suivi tenu par l'établissement est relu
+même quand ses cases sont fusionnées, et les lignes qu'il y a saisies à la main se
+rattachent à leur commande. Un fichier trop lourd ou d'un type refusé est arrêté avant
+d'être envoyé, et chaque projet règle la taille de ses documents sous le plafond du
+serveur.
+
 ## Plus tard
 
 Ces évolutions sont retenues, sans ordre ni date arrêtés.
