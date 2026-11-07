@@ -1830,6 +1830,12 @@ td.editable:hover {
   font-size: 14px;
 }
 
+/* Propositions d'une commande dont l'association est refusée : rien ne sera repris. */
+.suivi-commande-bloc--inactif .suivi-changement {
+  color: var(--couleur-texte-doux);
+  text-decoration: line-through;
+}
+
 .suivi-changement {
   display: flex;
   white-space: normal;

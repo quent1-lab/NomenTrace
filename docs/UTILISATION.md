@@ -426,7 +426,10 @@ la référence fabricant, à une désignation très proche ou, pour un frais, au
 panneau propose « Associer 8 lignes à CMD-003 », coché d'office quand chaque ligne de la
 commande a trouvé la sienne, et signale les écarts de quantité ou de montant sans jamais
 corriger le fichier. Retenue, l'association écrit la référence dans la colonne masquée et la
-commande n'est pas ajoutée une seconde fois. Une ligne qui ne correspond à rien est listée
+commande n'est pas ajoutée une seconde fois. Décochée, ses lignes sont ajoutées en bas
+du fichier et ce que l'établissement y a noté n'est pas repris : le panneau barre les
+propositions de cette commande et recompte aussitôt les lignes à ajouter et à compléter.
+Une ligne qui ne correspond à rien est listée
 avec son fournisseur et sa désignation, et laissée telle quelle. Les cases que
 l'établissement fusionne sur toutes les lignes d'une commande (fournisseur, dates, montant)
 se lisent une fois et ne sont jamais réécrites. À chaque passage, les cases

@@ -35,11 +35,16 @@ function blocCommande(proposition) {
     const coche = el("input", { type: "checkbox", checked: true, value: c.champ });
     return el("label", { class: "filtre-case suivi-changement" }, coche, `${CHAMPS[c.champ] ?? c.champ} : ${valeur(c.champ, c.avant)} → ${valeur(c.champ, c.apres)}`);
   });
-  return {
-    numero: proposition.numero,
-    cases,
-    element: el("div", { class: "suivi-commande-bloc" }, el("h3", {}, `${proposition.numero} · ${proposition.fournisseur ?? ""}`), cases),
+  const note = el("p", { class: "texte-doux texte-petit", hidden: true }, "Lue dans des lignes saisies à la main : sans leur association, rien n'est repris pour cette commande.");
+  const element = el("div", { class: "suivi-commande-bloc" }, el("h3", {}, `${proposition.numero} · ${proposition.fournisseur ?? ""}`), note, cases);
+  // Une proposition tirée des lignes d'une association refusée n'est pas appliquée par le
+  // serveur : l'écran la grise et l'exclut de l'envoi.
+  const activer = (actif) => {
+    cases.forEach((c) => { c.querySelector("input").disabled = !actif; });
+    element.classList.toggle("suivi-commande-bloc--inactif", !actif);
+    note.hidden = actif;
   };
+  return { numero: proposition.numero, cases, element, activer };
 }
 
 // Lignes saisies à la main reconnues comme celles d'une commande : cochée d'office quand
@@ -50,6 +55,7 @@ function blocAssociation(association) {
     el("li", {}, `ligne ${l.ligne} : ${l.designation ?? ""}`, l.ecarts.length ? el("span", { class: "texte-surveiller" }, ` (${l.ecarts.join(" ; ")})`) : null),
   );
   return {
+    association,
     coche,
     element: el(
       "div",
@@ -68,7 +74,7 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
   const associations = (analyse.associations ?? []).map(blocAssociation);
   const appliquer = async () => {
     const retenues = Object.fromEntries(
-      blocs.map((b) => [b.numero, b.cases.map((c) => c.querySelector("input")).filter((c) => c.checked).map((c) => c.value)]),
+      blocs.map((b) => [b.numero, b.cases.map((c) => c.querySelector("input")).filter((c) => c.checked && !c.disabled).map((c) => c.value)]),
     );
     const donnees = new FormData();
     donnees.append("fichier", fichier);
@@ -84,9 +90,26 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
       afficherErreur(erreur);
     }
   };
-  const ajout = analyse.nb_lignes_a_ajouter
-    ? `${analyse.nb_lignes_a_ajouter} ligne(s) à ajouter au fichier (${analyse.commandes_a_ajouter.join(", ")}).`
-    : "Aucune nouvelle ligne à ajouter : tous les devis transmis y sont déjà.";
+  // L'analyse suppose toutes les associations retenues : les textes suivent les cases cochées.
+  const texteAjout = el("p");
+  const texteCompletion = el("p");
+  const majTextes = () => {
+    const refusees = associations.filter((a) => !a.coche.checked).map((a) => a.association);
+    const nbAjout = analyse.nb_lignes_a_ajouter + refusees.reduce((s, a) => s + a.lignes_ajoutees_si_refusee, 0);
+    const commandesAjout = [...new Set([...analyse.commandes_a_ajouter, ...refusees.map((a) => a.numero)])].sort();
+    const nbCompletion = analyse.nb_lignes_a_completer - refusees.reduce((s, a) => s + a.lignes_completees_si_retenue, 0);
+    texteAjout.textContent = nbAjout
+      ? `${nbAjout} ligne(s) à ajouter au fichier (${commandesAjout.join(", ")}).`
+      : "Aucune nouvelle ligne à ajouter : tous les devis transmis y sont déjà.";
+    texteCompletion.textContent = nbCompletion
+      ? `${nbCompletion} ligne(s) déjà présente(s) dont des cases vides seront complétées (date du devis, par exemple) ; une case déjà remplie n'est jamais réécrite.`
+      : "";
+    texteCompletion.hidden = !nbCompletion;
+    const numerosRefuses = new Set(refusees.map((a) => a.numero));
+    blocs.forEach((b) => b.activer(!numerosRefuses.has(b.numero)));
+  };
+  associations.forEach((a) => a.coche.addEventListener("change", majTextes));
+  majTextes();
   return [
     associations.length
       ? [
@@ -101,10 +124,8 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
       ? el("div", { class: "texte-surveiller texte-petit" }, el("p", {}, "Lignes sans référence Nomentrace, ignorées :"), el("ul", { class: "liste-simple" }, analyse.lignes_inconnues.map((l) => el("li", {}, l))))
       : null,
     el("h3", {}, "Ajouts au fichier"),
-    el("p", {}, ajout),
-    analyse.nb_lignes_a_completer
-      ? el("p", {}, `${analyse.nb_lignes_a_completer} ligne(s) déjà présente(s) dont des cases vides seront complétées (date du devis, par exemple) ; une case déjà remplie n'est jamais réécrite.`)
-      : null,
+    texteAjout,
+    texteCompletion,
     el("div", { class: "actions-formulaire" },
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Annuler"),
       el("button", { type: "button", class: "bouton", onclick: appliquer }, "Appliquer et télécharger le fichier"),

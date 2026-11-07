@@ -378,6 +378,29 @@ def test_association_non_retenue_ajoute_les_lignes(client_essai: TestClient) -> 
     assert rendu.cell(14, 12).value == f"{numero} · ESSAI-ALI-003"
 
 
+def test_association_dit_ce_que_change_son_refus(client_essai: TestClient) -> None:
+    """ACH-05 : décocher une association remet ses lignes à ajouter en bas et retire ses
+    cases à compléter ; l'écran recalcule ses textes avec ces deux nombres."""
+    numero, contenu = _commande_ecrite_a_la_main(client_essai)
+    analyse = _analyse(client_essai, contenu)
+    association = analyse["associations"][0]
+    sans = load_workbook(io.BytesIO(_appliquer(client_essai, contenu))).active
+    ajoutees = [r for r in range(14, 30) if str(sans.cell(r, 12).value or "").startswith(numero)]
+    assert association["lignes_ajoutees_si_refusee"] == len(ajoutees) == 4
+    avec = load_workbook(io.BytesIO(_appliquer(client_essai, contenu, associations=[numero])))
+    completees = [
+        r
+        for r in range(10, 14)
+        if any(
+            avec.active.cell(r, c).value is not None and sans.cell(r, c).value is None
+            for c in range(1, 12)
+        )
+    ]
+    assert association["lignes_completees_si_retenue"] == len(completees)
+    assert completees  # le cas mesuré complète une ligne : le test ne passe pas à vide
+    assert analyse["nb_lignes_a_completer"] >= association["lignes_completees_si_retenue"]
+
+
 def test_association_signale_l_ecart_de_quantite(client_essai: TestClient) -> None:
     _, contenu = _commande_ecrite_a_la_main(client_essai, qte_lue=5)
     association = _analyse(client_essai, contenu)["associations"][0]

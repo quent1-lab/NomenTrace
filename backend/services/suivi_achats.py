@@ -370,8 +370,15 @@ def analyse(conn: sqlite3.Connection, contenu: bytes) -> dict:
                 }
             )
     a_ajouter = _absentes(modele, transmises)
+    cases = _cases_a_completer(modele, transmises)
+    for association in associations:
+        # Ce que change son refus, pour que l'écran recalcule ses textes quand on la décoche :
+        # ses lignes reconnues sont ajoutées en bas, ses cases ne sont plus complétées.
+        rangs = {ligne["ligne"] for ligne in association["lignes"]}
+        association["lignes_ajoutees_si_refusee"] = len(rangs)
+        association["lignes_completees_si_retenue"] = len(rangs & cases.keys())
     return {
-        "nb_lignes_a_completer": nb_lignes_a_completer(modele, transmises),
+        "nb_lignes_a_completer": len(cases),
         "propositions": propositions,
         "associations": associations,
         "lignes_inconnues": decrire_inconnues(modele, inconnues),
