@@ -163,13 +163,22 @@ facultative, propose toutes les caractéristiques, l'affectation aux ensembles e
 de documents, pour que rien ne soit oublié ; « Passer » la saute, et fermer le panneau garde
 le composant créé.
 
+Un composant vendu par lot (vis par sachet de 100, câble en bobine) porte la quantité par
+lot, 1 pour une vente à l'unité, et son prix relevé est celui du lot. Le besoin, le stock et
+les affectations restent comptés en pièces ; la quantité à acheter est arrondie au lot
+entier, et le surplus entre au stock à la réception. Pour 230 vis vendues par 100 à 12 € HT,
+la fiche montre « 12,00 € HT le lot de 100, soit 0,12 € HT la pièce » et un total de 36 €
+pour 3 lots ; un ensemble qui reçoit 50 vis compte 6 €. Changer la taille du lot d'un
+composant chiffré demande de saisir en même temps le prix du nouveau lot. Les commandes déjà
+passées gardent la taille du lot qu'elles avaient.
+
 Dans un dossier qui met ses composants en commun, la création cherche, pendant qu'on tape
 la désignation ou la référence fabricant, les références qui ressemblent chez les autres
 équipes du dossier. Une pastille « 2 références dans le dossier » s'affiche sous la
 référence, dépliée ; elle se replie d'un clic. Chaque proposition montre la désignation, la
 référence, le fabricant, le fournisseur, l'équipe qui l'a saisie, si elle l'a déjà reçue et
 combien de fiches techniques elle porte. « Reprendre » préremplit le formulaire avec la
-fonction, la désignation, la référence, le fabricant, le fournisseur, le lien, le prix (« relevé
+fonction, la désignation, la référence, le fabricant, le fournisseur, le lien, la quantité par lot, le prix (« relevé
 par l'Équipe Bêta », à vérifier), la base du prix, la TVA, les caractéristiques et le bloc
 s'il fait partie des vôtres. Les quantités, les statuts, la criticité et les notes restent à
 saisir. Le composant reçoit son propre identifiant et son propre prix, sans lien avec
@@ -350,6 +359,10 @@ son cycle : à demander, devis demandé, devis reçu, devis validé, commandé, 
 livré, refusé. Seules les commandes de type Commande au statut commandé ou livré comptent
 dans le montant engagé ; un devis n'engage rien. Passer un devis au statut commandé, livré
 en partie ou livré en fait une commande : son type change avec son statut.
+
+Une ligne de commande compte des lots, au prix d'un lot : 3 lots de 100 vis à 12 € font
+36 €. Le document envoyé au fournisseur ne donne que le nombre de lots. La réception se
+saisit aussi en lots, et chaque lot reçu fait entrer ses pièces au stock.
 
 « + Nouvelle commande » crée une commande vide chez un fournisseur. Sa page permet d'ajouter
 des lignes (composant, quantité, PU HT du devis), des frais (livraison, douane, frais de

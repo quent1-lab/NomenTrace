@@ -15,6 +15,7 @@ import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
+import openpyxl
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -775,6 +776,42 @@ def test_articles_regroupes_pour_le_fournisseur() -> None:
     ]
     regroupees = demande_document.regrouper(lignes)
     assert [(r["designation"], r["qte"]) for r in regroupees] == [("Roulement", 18), ("Axe", 1)]
+
+
+def test_lots_de_tailles_differentes_non_additionnes() -> None:
+    """ACH-08 : 3 lots de 100 et 230 pièces du même article restent deux lignes."""
+    from backend.services import demande_document
+
+    vis = {"ref_fabricant": "M3x8", "designation": "Vis", "fabricant": "X", "lien_produit": None}
+    lignes = [
+        {**vis, "qte": 3, "qte_par_lot": 100},
+        {**vis, "qte": 230, "qte_par_lot": 1},
+        {**vis, "qte": 2, "qte_par_lot": 100},
+    ]
+    regroupees = demande_document.regrouper(lignes)
+    assert [(r["qte_par_lot"], r["qte"]) for r in regroupees] == [(100, 5), (1, 230)]
+
+
+def test_commune_lots_de_tailles_differentes(app: FastAPI, client: TestClient) -> None:
+    """ACH-08 : le même article en lots de 100 chez A et à l'unité chez B donne deux lignes
+    au fournisseur ; chaque copie fige la taille du lot de son composant."""
+    numero = nouvelle(client)
+    a1, b1 = composant(client, PROJET, "Farnell"), composant(client, "beta", "Farnell")
+    corps = {"qte_par_lot": 100}
+    assert client.patch(f"/p/{PROJET}/api/composants/{a1}", json=corps).status_code == 200
+    ajouter(client, numero, [ligne(PROJET, a1, 3, 12.0), ligne("beta", b1, 230, 0.15)])
+    lignes_a = client.get(
+        f"/p/{PROJET}/api/commandes/{copie(app, PROJET, numero)['numero']}/lignes"
+    )
+    assert lignes_a.json()[0]["qte_par_lot"] == 100
+    excel = client.get(f"{URL}/{numero}/demande-devis.xlsx")
+    feuille = openpyxl.load_workbook(io.BytesIO(excel.content)).active
+    quantites = [
+        next(v for v in rangee if isinstance(v, int))
+        for rangee in feuille.iter_rows(values_only=True)
+        if "Pièce Farnell" in rangee
+    ]
+    assert sorted(quantites) == [3, 230]
 
 
 def test_session_dit_si_le_dossier_est_visible(app: FastAPI, client: TestClient) -> None:

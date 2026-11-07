@@ -88,6 +88,7 @@ def _modifier(conn: sqlite3.Connection, identifiant: str, modifs: dict, lot: int
     champs, caracteristiques = _separer(modifs)
     try:
         saisie.verifier(champs, champs.keys())
+        composants.check_lot(composants.get_composant(conn, identifiant), champs)
     except ErreurMetier as erreur:
         raise LigneRefusee(erreur.message) from erreur
     journal.update_with_journal(

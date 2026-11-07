@@ -261,6 +261,8 @@ class ComposantCreation(Modele):
     lien_produit: Lien = None
     qte_rechange: int = Field(default=0, ge=0)
     qte_disponible: int = Field(default=0, ge=0)
+    # Taille du lot vendu par le fournisseur ; le prix relevé est celui du lot.
+    qte_par_lot: int = Field(default=1, ge=1)
     pu_releve: float | None = Field(default=None, ge=0)
     base_prix_releve: BasePrix = "HT"
     taux_tva: float | None = Field(default=None, ge=0, lt=1)
@@ -285,6 +287,7 @@ class ComposantModif(Modele):
     lien_produit: Lien = None
     qte_rechange: int | None = Field(default=None, ge=0)
     qte_disponible: int | None = Field(default=None, ge=0)
+    qte_par_lot: int | None = Field(default=None, ge=1)
     pu_releve: float | None = Field(default=None, ge=0)
     base_prix_releve: BasePrix | None = None
     taux_tva: float | None = Field(default=None, ge=0, lt=1)

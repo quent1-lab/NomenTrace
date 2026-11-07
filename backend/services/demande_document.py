@@ -106,7 +106,9 @@ def assembler(
 
 def regrouper(lignes: list[dict]) -> list[dict]:
     """Lignes de plusieurs projets : un même article (référence, désignation, fabricant,
-    lien) n'apparaît qu'une fois au fournisseur, quantités additionnées."""
+    lien) vendu par lots de même taille n'apparaît qu'une fois au fournisseur, nombres de
+    lots additionnés. Deux tailles de lot donnent deux lignes : on n'additionne pas des
+    lots de 100 et des pièces."""
     regroupees: dict[tuple, dict] = {}
     for ligne in lignes:
         cle = (
@@ -114,6 +116,7 @@ def regrouper(lignes: list[dict]) -> list[dict]:
             ligne["designation"],
             ligne["fabricant"],
             ligne["lien_produit"],
+            ligne.get("qte_par_lot", 1),
         )
         if cle in regroupees:
             regroupees[cle]["qte"] += ligne["qte"]

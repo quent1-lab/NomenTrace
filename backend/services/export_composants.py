@@ -43,6 +43,7 @@ COLONNES: dict[str, ColonneExport] = {
     "qte_disponible": ColonneExport("Dispo.", "entier"),
     "qte_a_acheter": ColonneExport("À acheter", "entier"),
     "qte_affectee": ColonneExport("Qté affectée", "entier"),
+    "qte_par_lot": ColonneExport("Lot", "entier"),
     "pu_releve": ColonneExport("PU relevé", "pu_releve"),
     "pu_ht": ColonneExport("PU HT", "montant"),
     "total_ht": ColonneExport("Total HT", "montant"),

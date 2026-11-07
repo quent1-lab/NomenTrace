@@ -66,7 +66,7 @@ def test_export_libelle_des_listes_parametrables(client_essai: TestClient) -> No
 def test_export_toutes_colonnes_par_defaut(client_essai: TestClient) -> None:
     lignes = _feuille(client_essai.get("/api/composants/export").content)
     assert lignes[0][:4] == ("ID", "Bloc", "Fonction", "Désignation")
-    assert len(lignes[0]) == 20
+    assert len(lignes[0]) == 21
     assert len(lignes) == 60 + 2
     assert lignes[-1][0] == "60 composant(s) affiché(s)"
     assert lignes[-1][lignes[0].index("Total HT")] == 3184.98

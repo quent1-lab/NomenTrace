@@ -3,7 +3,7 @@
 import { api } from "../api.js";
 import { sectionDocuments } from "../documents.js";
 import { editerCellule } from "../edition.js";
-import { aujourdhui, formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
+import { aujourdhui, formatDate, formatLots, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, codeDossier, nomAuteur, voitDossier } from "../session.js";
@@ -75,7 +75,7 @@ function ligneCommande(ligne) {
     // Le conteneur flex reste dans la cellule : posé sur la cellule, il la sortirait du tableau
     // et décalerait les bordures de la ligne.
     el("td", {}, el("div", { class: "attendent" }, attendent)),
-    celluleEditable(ligne, { champ: "qte_commandee", type: "entier" }, formatNombre(ligne.qte_commandee)),
+    celluleEditable(ligne, { champ: "qte_commandee", type: "entier" }, formatLots(ligne.qte_commandee, ligne.qte_par_lot)),
     celluleEditable(ligne, { champ: "pu_ht_devis", type: "montant" }, formatMontant(ligne.pu_ht_devis) || el("span", { class: "a-chiffrer" }, "à saisir")),
     el("td", { class: "nombre texte-doux" }, formatMontant(ligne.pu_ht_estime)),
     el("td", { class: `nombre ${ecart.classe}` }, ecart.texte),
@@ -107,9 +107,10 @@ function formulaireAjout() {
   entree.addEventListener("change", () => {
     const choisi = lireComposant(entree.value, etat.composants);
     if (!choisi) return;
-    qte.value = String(Math.max(1, choisi.reste_a_commander));
-    pu.value = choisi.pu_ht === null ? "" : formatNombre(choisi.pu_ht, 2);
-    aide.textContent = `Reste à commander : ${choisi.reste_a_commander}, PU HT estimé : ${formatMontant(choisi.pu_ht) || "non chiffré"}`;
+    // La ligne compte des lots : quantité et prix sont ceux du lot.
+    qte.value = String(Math.max(1, choisi.reste_a_commander_lots));
+    pu.value = choisi.prix_lot_ht === null ? "" : formatNombre(choisi.prix_lot_ht, 2);
+    aide.textContent = `Reste à commander : ${formatLots(choisi.reste_a_commander_lots, choisi.qte_par_lot)}, PU HT estimé : ${formatMontant(choisi.prix_lot_ht) || "non chiffré"}`;
   });
   const formulaire = el("form", { class: "formulaire-ligne formulaire-ajout" }, composant, qte, pu, el("button", { type: "submit", class: "bouton" }, "Ajouter la ligne"), aide);
   formulaire.addEventListener("submit", async (e) => {
@@ -141,8 +142,8 @@ function ajoutCandidats() {
   if (!modifiable() || !etat.candidats.length || ["Livre", "Refuse"].includes(c.statut)) return null;
   const lignes = etat.candidats.map((k) => {
     const coche = el("input", { type: "checkbox", checked: !k.demandes_ouvertes.length, "aria-label": `Ajouter ${k.id}` });
-    const qte = el("input", { class: "champ champ--nombre champ--court", type: "text", inputmode: "numeric", value: String(k.reste_a_commander), "aria-label": `Quantité de ${k.id}` });
-    const pu = el("input", { class: "champ champ--nombre champ--court", type: "text", inputmode: "decimal", value: k.pu_ht === null ? "" : formatNombre(k.pu_ht, 2), "aria-label": `PU HT de ${k.id}` });
+    const qte = el("input", { class: "champ champ--nombre champ--court", type: "text", inputmode: "numeric", value: String(k.reste_a_commander_lots), "aria-label": `Quantité de ${k.id}` });
+    const pu = el("input", { class: "champ champ--nombre champ--court", type: "text", inputmode: "decimal", value: k.prix_lot_ht === null ? "" : formatNombre(k.prix_lot_ht, 2), "aria-label": `PU HT de ${k.id}` });
     return {
       k,
       coche,
@@ -154,7 +155,7 @@ function ajoutCandidats() {
         el("td", {}, coche),
         el("td", { class: "code" }, k.id),
         el("td", {}, k.designation),
-        el("td", { class: "nombre" }, formatNombre(k.reste_a_commander)),
+        el("td", { class: "nombre" }, formatLots(k.reste_a_commander_lots, k.qte_par_lot)),
         el("td", { class: "nombre" }, qte),
         el("td", { class: "nombre" }, pu),
         el("td", {}, k.demandes_ouvertes.length ? el("span", { class: "puce-fiche puce-fiche--info" }, `déjà dans ${k.demandes_ouvertes.join(", ")}`) : null),

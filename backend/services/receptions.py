@@ -40,15 +40,17 @@ def _receive_line(
             "composant_id": ligne["composant_id"],
             "sens": "Entree",
             "type_mouvement": "Reception achat",
-            "qte": qte,
+            # La ligne compte des lots ; le stock compte des pièces.
+            "qte": qte * ligne["qte_par_lot"],
             "emplacement": reception.get("emplacement"),
             "par_qui": reception.get("par_qui"),
             "commande_numero": ligne["commande_numero"],
         },
     )
     if recue > ligne["qte_commandee"]:
+        unite = " lot(s)" if ligne["qte_par_lot"] > 1 else ""
         return (
-            f"{ligne['composant_id']} : {recue} reçu(s) pour {ligne['qte_commandee']} "
+            f"{ligne['composant_id']} : {recue}{unite} reçu(s) pour {ligne['qte_commandee']} "
             "commandé(s). La réception est enregistrée, vérifier le bon de livraison."
         )
     return None

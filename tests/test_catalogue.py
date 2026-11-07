@@ -204,6 +204,7 @@ def test_reprise_recopie_la_reference_seule(app: FastAPI, client: TestClient) ->
         "fabricant": "ams-OSRAM",
         "fournisseur_nom": "Mouser",
         "lien_produit": "https://www.mouser.fr/as5047d",
+        "qte_par_lot": 1,
         "pu_releve": 12.5,
         "base_prix_releve": "HT",
         "taux_tva": 0.2,

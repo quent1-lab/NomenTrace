@@ -153,7 +153,7 @@ def list_lignes(conn: sqlite3.Connection, numero: str) -> list[dict]:
     get_commande(conn, numero)
     lignes = db.fetch_all(
         conn,
-        "SELECT l.*, c.designation, c.bloc_code, c.lien_produit, c.pu_ht AS pu_ht_estime,"
+        "SELECT l.*, c.designation, c.bloc_code, c.lien_produit, c.prix_lot_ht AS pu_ht_estime,"
         " l.qte_commandee * l.pu_ht_devis AS montant_ligne_ht,"
         " (SELECT json_group_array(json_object('code', a.ensemble_code, 'qte', a.qte))"
         "  FROM affectation a WHERE a.composant_id = l.composant_id) AS ensembles"
@@ -180,7 +180,9 @@ def _get_ligne(conn: sqlite3.Connection, numero: str, identifiant: int) -> dict:
 
 def _inserer_ligne(conn: sqlite3.Connection, commande: dict, valeurs: dict[str, Any]) -> int:
     """Insère une ligne, « Commandée » si la commande est déjà passée. Dans une transaction."""
-    composants.get_composant(conn, valeurs["composant_id"])
+    composant = composants.get_composant(conn, valeurs["composant_id"])
+    # La ligne compte des lots : la taille du lot y est figée à sa création.
+    valeurs = {**valeurs, "qte_par_lot": composant["qte_par_lot"]}
     if _est_engagee(commande) and valeurs.get("statut_ligne") == "A commander":
         valeurs = {**valeurs, "statut_ligne": "Commandee"}
     numero = commande["numero"]

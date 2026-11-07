@@ -40,7 +40,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `bloc` | Blocs, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage` ; `parent_code` désigne l'ensemble parent (un seul, ou aucun pour un ensemble de premier niveau) ; `budget_cible_ht` et `budget_verrouille` pour le budget d'ensemble. | `code` |
 | `fournisseur` | Fournisseurs : catégorie, contact pour les devis, numéro de compte client, site, délai, `statut` (`Valide` ou `A valider` : trouvé par l'équipe, à compléter et valider). Le renommage se propage (`ON UPDATE CASCADE`). | `nom` |
-| `composant` | Le cœur : quantités, prix relevé, statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
+| `composant` | Le cœur : quantités, taille du lot (`qte_par_lot`), prix relevé (celui du lot), statuts ; `remplace_par` désigne le remplaçant d'un composant reclassé. | `id` (`PREFIXE-BLOC-NNN`) |
 | `attribut` | Caractéristiques paramétrables des composants (tension, matériau…) : `libelle`, `type` (`texte`, `nombre`, `liste`, `booleen`), `unite`, `ordre`, `actif`, `obligatoire`. Code dérivé du libellé et type figés à la création. | `code` |
 | `attribut_valeur` | Valeurs possibles d'un attribut de type liste ; renommer ne change que le libellé. | `attribut_code`, `code` |
 | `composant_attribut` | Valeur d'un attribut pour un composant : `valeur_nombre` pour le type nombre, `valeur_texte` sinon (texte, code de liste, `1`/`0` pour un booléen). Une seule valeur par couple. | `composant_id`, `attribut_code` |
@@ -48,7 +48,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `commande` | Devis et commandes, avec `taux_tva`. `port_ht` est obsolète et vaut toujours 0 : le port est devenu un frais (migration 018). | `numero` (`CMD-NNN`) |
 | `commande` (suivi) | Champs appris du suivi de l'établissement : `date_transmission_suivi`, `montant_commande_ht` (montant réel, frais compris), `date_commande_confirmee`, `livraison_confirmee`, `date_reception_annoncee`, `commentaire_suivi`. | |
 | `frais_commande` | Frais d'une commande : `type_frais` (liste paramétrable), `montant_ht`, `commentaire`. | `id` |
-| `ligne_commande` | Lignes d'une commande : quantités commandée et reçue, `pu_ht_devis`. | `id` |
+| `ligne_commande` | Lignes d'une commande : quantités commandée et reçue en lots, `pu_ht_devis` (prix d'un lot), `qte_par_lot` figée à la création de la ligne. | `id` |
 | `mouvement_stock` | Entrées et sorties de stock, montages (avec `ensemble_code`). | `id` |
 | `visa` | Visa d'un composant par un responsable : `vise_par` (nom affiché), `vise_le`, `modifie_le_vise` (date de modification du composant quand le visa a été posé). Le visa vaut tant que `modifie_le_vise` égale `composant.modifie_le` ; un composant sans visa valable est « à voir ». | `composant_id` |
 | `logo` | Logo de l'établissement repris dans les demandes de devis : une ligne au plus (`id = 1`), `type_mime` (`image/png` ou `image/jpeg`), `contenu` (l'image, gardée en base pour partir avec les sauvegardes), `largeur` et `hauteur` en pixels. | `id` |
@@ -148,16 +148,23 @@ est une donnée, saisie dans l'écran Paramètres.
 
 ## Définitions de calcul communes
 
-Quantités et prix d'un composant (`v_composant`) :
+Quantités et prix d'un composant (`v_composant`). Besoin, stock, affectations et montage
+se comptent en pièces. Un composant vendu par lot porte la taille du lot (`qte_par_lot`,
+1 pour une vente à l'unité) et son prix relevé est celui du lot ; on achète des lots
+entiers, le surplus entre au stock. Une ligne de commande compte des lots, au prix d'un lot,
+avec la taille du lot figée à sa création.
 
 ```
-qte_a_acheter      = MAX(0, qte_besoin + qte_rechange - qte_disponible)
-pu_ht              = pu_releve / (1 + taux_tva)   si base_prix_releve = 'TTC'
+qte_a_acheter      = MAX(0, qte_besoin + qte_rechange - qte_disponible)      (pièces)
+prix_lot_ht        = pu_releve / (1 + taux_tva)   si base_prix_releve = 'TTC'
                      pu_releve                    sinon
+pu_ht              = prix_lot_ht / qte_par_lot                              (une pièce)
 pu_ttc             = pu_ht * (1 + taux_tva)
-total_ht           = qte_a_acheter * pu_ht        si mode_appro = 'Achat', sinon 0
-qte_commandee      = somme des qte_commandee des lignes engagées
-qte_recue          = somme des qte_recue des lignes engagées
+nb_lots_a_acheter  = qte_a_acheter / qte_par_lot, arrondi à l'entier supérieur
+total_ht           = nb_lots_a_acheter * prix_lot_ht si mode_appro = 'Achat', sinon 0
+qte_commandee      = somme des qte_commandee * qte_par_lot des lignes engagées (pièces)
+qte_recue          = somme des qte_recue * qte_par_lot des lignes engagées     (pièces)
+reste_a_commander_lots = reste_a_commander / qte_par_lot, arrondi au supérieur
 stock_actuel       = somme des mouvements (Entree en +, Sortie en -)
 qte_affectee       = somme des quantités d'affectation (ensembles non archivés)
 ecart_affectation  = qte_besoin - qte_affectee
@@ -222,7 +229,10 @@ Le stock déjà disponible couvre d'abord le besoin, et chaque ensemble en profi
 prorata de ses pièces : un moteur à 20 € HT, besoin 10, 4 disponibles, affecté 6 à A et 4
 à B, coûte 120 € et 80 € en matière, et fait dépenser 72 € et 48 €, soit les 120 € achetés.
 La rechange n'est affectée à aucun ensemble : elle reste dans la dépense du projet
-(`total_ht`), pas dans celle des ensembles.
+(`total_ht`), pas dans celle des ensembles. Il en va de même du surplus d'un lot : des vis vendues par 100 à 12 € HT, besoin 230,
+coûtent 36 € au projet (3 lots), et un ensemble qui en reçoit 50 compte 6 € (50 pièces à
+0,12 €). La différence entre le projet et la somme de ses ensembles vient de la rechange,
+du surplus des lots et des composants non affectés.
 
 Montage (`v_ensemble_composant`, `v_ensemble`) :
 

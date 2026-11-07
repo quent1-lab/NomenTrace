@@ -245,6 +245,8 @@ def _convertir(champ: str, valeur: Any, ctx: Contexte) -> tuple[Any, str | None,
     if nombre is None or nombre < 0:
         return None, f"{libelle} : « {texte} » n'est pas un nombre positif", None
     if nature == "entier":
+        if champ == "qte_par_lot" and nombre < 1:
+            return None, f"{libelle} : « {texte} » (un lot compte au moins une pièce)", None
         if float(nombre).is_integer():
             return int(nombre), None, None
         return None, f"{libelle} : « {texte} » n'est pas un nombre entier", None

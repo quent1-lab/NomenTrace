@@ -34,6 +34,7 @@ CHAMPS_MODIFIABLES: frozenset[str] = frozenset(
         "lien_produit",
         "qte_rechange",
         "qte_disponible",
+        "qte_par_lot",
         "pu_releve",
         "base_prix_releve",
         "taux_tva",
@@ -315,6 +316,19 @@ def create_composant(
     return get_composant(conn, identifiant)
 
 
+def check_lot(actuel: dict, modifications: dict[str, Any]) -> None:
+    """Le prix relevé est celui du lot : changer le lot d'un composant chiffré sans revoir
+    son prix dans la même requête fausserait le total à acheter."""
+    lot = modifications.get("qte_par_lot")
+    if lot is None or lot == actuel["qte_par_lot"] or actuel["pu_releve"] is None:
+        return
+    if "pu_releve" not in modifications:
+        raise ErreurMetier(
+            f"Le prix relevé ({actuel['pu_releve']} € par lot de {actuel['qte_par_lot']}) est"
+            f" celui du lot : indiquer le prix du lot de {lot} en même temps que sa taille."
+        )
+
+
 def patch_composant(
     conn: sqlite3.Connection, identifiant: str, modifications: dict[str, Any]
 ) -> dict:
@@ -337,6 +351,7 @@ def patch_composant(
             conn, {k: v for k, v in modifications.items() if k in CHAMPS_LISTES and v != actuel[k]}
         )
         saisie.verifier(modifications, modifications.keys())
+        check_lot(actuel, modifications)
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
         changes = journal.update_with_journal(

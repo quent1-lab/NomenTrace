@@ -15,6 +15,14 @@ export function formatNombre(valeur, decimales = 0) {
   return signe + grouperMilliers(entier) + (fraction ? "," + fraction : "");
 }
 
+// Quantité d'une ligne de commande, en lots : « 3 lots de 100 », ou le nombre seul pour un
+// composant vendu à l'unité.
+export function formatLots(nombre, parLot) {
+  if (nombre === null || nombre === undefined) return "";
+  if (!parLot || parLot <= 1) return formatNombre(nombre);
+  return `${formatNombre(nombre)} lot${nombre > 1 ? "s" : ""} de ${formatNombre(parLot)}`;
+}
+
 export function formatMontant(valeur) {
   const texte = formatNombre(valeur, 2);
   return texte === "" ? "" : `${texte}${ESPACE_FINE}€`;

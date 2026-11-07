@@ -2,7 +2,7 @@
 // fournisseur ; une demande (devis « À demander ») est créée par fournisseur coché.
 
 import { api } from "../api.js";
-import { formatMontant, formatNombre } from "../format.js";
+import { formatLots, formatMontant, formatNombre } from "../format.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
@@ -26,8 +26,8 @@ function tableGroupe(groupe, cases, surChangement) {
       el("td", { class: "code" }, lienComposant(l.id)),
       el("td", { class: "tronque", title: l.designation }, l.designation),
       el("td", {}, l.bloc_code),
-      el("td", { class: "nombre" }, formatNombre(l.reste_a_commander)),
-      el("td", { class: "nombre" }, l.pu_ht === null ? el("span", { class: "a-chiffrer" }, "à chiffrer") : formatMontant(l.pu_ht)),
+      el("td", { class: "nombre" }, formatLots(l.reste_a_commander_lots, l.qte_par_lot)),
+      el("td", { class: "nombre" }, l.prix_lot_ht === null ? el("span", { class: "a-chiffrer" }, "à chiffrer") : formatMontant(l.prix_lot_ht)),
       el("td", { class: "texte-petit" }, deja ? el("span", { class: "texte-surveiller", title: "Déjà dans une demande en cours : décoché d'office" }, `déjà dans ${l.demandes_ouvertes.join(", ")}`) : ""),
     );
   });
@@ -36,8 +36,8 @@ function tableGroupe(groupe, cases, surChangement) {
     casesGroupe.forEach((c) => (c.checked = tout.checked));
     surChangement();
   });
-  // Estimation indicative : reste à commander × PU HT connu, composants chiffrés seulement.
-  const estimation = groupe.lignes.reduce((s, l) => s + (l.pu_ht ?? 0) * l.reste_a_commander, 0);
+  // Estimation indicative : lots restant à commander × prix du lot, composants chiffrés seulement.
+  const estimation = groupe.lignes.reduce((s, l) => s + (l.prix_lot_ht ?? 0) * l.reste_a_commander_lots, 0);
   return el(
     "section",
     { class: "devis__groupe" },

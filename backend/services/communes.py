@@ -292,7 +292,8 @@ def list_candidats(
         try:
             composants = db.fetch_all(
                 lecture,
-                "SELECT id, designation, fournisseur_nom, reste_a_commander, pu_ht"
+                "SELECT id, designation, fournisseur_nom, reste_a_commander,"
+                " reste_a_commander_lots, qte_par_lot, pu_ht, prix_lot_ht"
                 " FROM v_composant WHERE mode_appro = 'Achat' ORDER BY id",
             )
         finally:
@@ -438,15 +439,18 @@ def _inserer_lignes(
         with communes_sync.ouverte(conn):
             communes_sync.assurer_copie(conn, commune, numero_local)
             for ligne in lignes:
-                if not db.fetch_one(
+                composant = db.fetch_one(
                     conn,
-                    "SELECT 1 FROM composant WHERE id = ? AND archive = 0",
+                    "SELECT qte_par_lot FROM composant WHERE id = ? AND archive = 0",
                     (ligne["composant_id"],),
-                ):
+                )
+                if not composant:
                     raise Introuvable(
                         f"Composant « {ligne['composant_id']} » introuvable ou archivé."
                     )
                 valeurs = {k: v for k, v in ligne.items() if k != "projet"}
+                # La ligne compte des lots : la taille du lot y est figée à sa création.
+                valeurs["qte_par_lot"] = composant["qte_par_lot"]
                 valeurs["statut_ligne"] = "Commandee" if engagee else "A commander"
                 identifiant = db.insert_row(
                     conn, "ligne_commande", {"commande_numero": numero_local, **valeurs}
@@ -618,6 +622,7 @@ def _articles_demande(base: Any, numero_local: str) -> list[dict]:
         return db.fetch_all(
             lecture,
             "SELECT c.ref_fabricant, c.designation, c.fabricant, l.qte_commandee AS qte,"
+            " l.qte_par_lot,"
             " c.lien_produit FROM ligne_commande l JOIN composant c ON c.id = l.composant_id"
             " WHERE l.commande_numero = ? AND l.statut_ligne <> 'Annulee' ORDER BY l.id",
             (numero_local,),

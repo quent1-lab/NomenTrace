@@ -38,6 +38,7 @@ CHAMPS_REPRIS: tuple[str, ...] = (
     "fabricant",
     "fournisseur_nom",
     "lien_produit",
+    "qte_par_lot",
     "pu_releve",
     "base_prix_releve",
     "taux_tva",

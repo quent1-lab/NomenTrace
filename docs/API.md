@@ -19,7 +19,10 @@ Les corps de requête et les réponses sont en JSON, sauf les dépôts de fichie
 (`multipart/form-data`) et les téléchargements (classeurs Excel, archive zip, documents).
 Un champ inconnu dans un corps est refusé. Les montants sont en euros, hors taxes sauf
 mention contraire, arrondis à deux décimales dans les réponses ; les taux de TVA sont des
-fractions (0,2 pour 20 %). Les dates sont au format `AAAA-MM-JJ`, les horodatages en
+fractions (0,2 pour 20 %). Une ligne de commande compte des lots (`qte_commandee`, `qte_recue`, `pu_ht_devis` au prix
+d'un lot, `qte_par_lot` figé à sa création) ; un composant compte ses quantités en pièces.
+Changer `qte_par_lot` d'un composant chiffré sans `pu_releve` dans la même requête est
+refusé (400). Les dates sont au format `AAAA-MM-JJ`, les horodatages en
 `AAAA-MM-JJTHH:MM:SS`, heure locale.
 
 Les valeurs énumérées circulent sans accents, telles qu'elles sont stockées (`Recu`,
@@ -242,7 +245,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | GET, PATCH, DELETE | `/api/commandes/{numero}` | Détail, modification, archivage |
 | GET, POST | `/api/commandes/{numero}/lignes` | Lignes d'une commande ; ajout |
 | POST | `/api/commandes/{numero}/lignes/lot` | Ajout de plusieurs lignes (`lignes`, comme pour une ligne), toutes ou aucune |
-| GET | `/api/commandes/{numero}/candidats` | Composants en mode Achat du fournisseur de la commande qui restent à commander et n'y figurent pas (`reste_a_commander`, `pu_ht`, `demandes_ouvertes` : autres devis en cours) |
+| GET | `/api/commandes/{numero}/candidats` | Composants en mode Achat du fournisseur de la commande qui restent à commander et n'y figurent pas (`reste_a_commander` en pièces, `reste_a_commander_lots`, `qte_par_lot`, `pu_ht` d'une pièce, `prix_lot_ht`, `demandes_ouvertes` : autres devis en cours) |
 | GET, POST | `/api/commandes/{numero}/frais` | Frais d'une commande (livraison, douane…) ; ajout |
 | PATCH, DELETE | `/api/frais/{id}` | Type, montant, commentaire d'un frais ; retrait |
 | GET | `/api/commandes/{numero}/demande-devis.pdf` | Demande de devis à envoyer au fournisseur ; `avant` : date de réponse souhaitée |

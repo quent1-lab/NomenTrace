@@ -6,7 +6,7 @@ import { frise } from "../historique.js";
 import { api } from "../api.js";
 import { champAttribut, chargerAttributs, formatAttribut, tousLesAttributs } from "../attributs.js";
 import { sectionDocuments } from "../documents.js";
-import { formatDate, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
+import { formatDate, formatLots, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
@@ -26,6 +26,7 @@ const DESCRIPTION_MODIF = {
   qte_besoin: "entier",
   qte_rechange: "entier",
   qte_disponible: "entier",
+  qte_par_lot: "entier",
   pu_releve: "montant",
   base_prix_releve: "choix",
   taux_tva: "taux",
@@ -257,9 +258,12 @@ function blocPrixFournisseur(c, statuts) {
   const prix = c.pu_ht === null
     ? [el("div", { class: "fiche-prix__montant" }, c.mode_appro === "Achat" ? "à chiffrer" : "—")]
     : [
-        el("div", { class: "fiche-prix__montant" }, `${formatMontant(c.pu_ht)} HT `, el("span", { class: "texte-doux" }, "l'unité")),
+        c.qte_par_lot > 1
+          ? el("div", { class: "fiche-prix__montant" }, `${formatMontant(c.prix_lot_ht)} HT `, el("span", { class: "texte-doux" }, `le lot de ${formatNombre(c.qte_par_lot)}`))
+          : el("div", { class: "fiche-prix__montant" }, `${formatMontant(c.pu_ht)} HT `, el("span", { class: "texte-doux" }, "l'unité")),
+        c.qte_par_lot > 1 ? el("div", { class: "texte-doux" }, `soit ${formatMontant(c.pu_ht)} HT la pièce`) : null,
         el("div", { class: "texte-doux" }, `Relevé ${formatMontant(c.pu_releve)} ${c.base_prix_releve} · TVA ${formatPourcent(c.taux_tva * 100, 1)}`),
-        el("div", {}, "Total HT ", el("strong", {}, formatMontant(c.total_ht))),
+        el("div", {}, "Total HT ", el("strong", {}, formatMontant(c.total_ht)), c.qte_par_lot > 1 && c.nb_lots_a_acheter > 0 ? el("span", { class: "texte-doux" }, ` · ${formatLots(c.nb_lots_a_acheter, c.qte_par_lot)}`) : null),
       ];
   const reference = [c.ref_fabricant, c.fabricant].filter(Boolean).join(" · ");
   return el(
@@ -335,7 +339,8 @@ function formulaireModif(c, valeursAttributs, fournisseurs, { surEnregistre, sur
     ligneChamp("Qté besoin", champNombre("qte_besoin", c.qte_besoin), { requis: true }),
     ligneChamp("Qté rechange", champNombre("qte_rechange", c.qte_rechange)),
     ligneChamp("Qté déjà disponible", champNombre("qte_disponible", c.qte_disponible)),
-    ligneChamp("PU relevé", champNombre("pu_releve", c.pu_releve, 2), requis("pu_releve")),
+    ligneChamp("Qté par lot", champNombre("qte_par_lot", c.qte_par_lot), { aide: "1 si le composant se vend à l'unité. Changer le lot demande de revoir le prix relevé." }),
+    ligneChamp("PU relevé", champNombre("pu_releve", c.pu_releve, 2), { ...requis("pu_releve"), aide: "Prix du lot, ou de la pièce si le lot vaut 1." }),
     ligneChamp("Base du prix", base),
     ligneChamp("Taux de TVA (%)", champNombre("taux_tva", c.taux_tva * 100, 1)),
     ligneChamp("Statut choix", champChoix("statut_choix", valeursListe("statut_choix", { valeurCourante: c.statut_choix }), c.statut_choix, { vide: "—" })),
@@ -512,7 +517,7 @@ function sectionCommandes(lignes) {
     "Lignes de commande",
     tableSimple(
       [["Commande"], ["Statut"], ["Qté", "nombre"], ["PU HT devis", "nombre"], ["Reçu", "nombre"]],
-      lignes.map((l) => el("tr", {}, el("td", {}, l.commande_numero), el("td", {}, `${libelle(l.statut)}, ${libelle(l.statut_ligne)}`), el("td", { class: "nombre" }, formatNombre(l.qte_commandee)), el("td", { class: "nombre" }, formatMontant(l.pu_ht_devis)), el("td", { class: "nombre" }, formatNombre(l.qte_recue)))),
+      lignes.map((l) => el("tr", {}, el("td", {}, l.commande_numero), el("td", {}, `${libelle(l.statut)}, ${libelle(l.statut_ligne)}`), el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)), el("td", { class: "nombre" }, formatMontant(l.pu_ht_devis)), el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)))),
       "Aucune ligne de commande.",
     ),
   );

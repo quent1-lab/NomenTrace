@@ -6,7 +6,7 @@ import { api, lienFichierCommune } from "../api.js";
 import { sectionDocuments } from "../documents.js";
 import { lireLimites } from "../envoi.js";
 import { badgeStatut } from "../badges.js";
-import { formatDate, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
+import { formatDate, formatLots, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, enregistrerFichier, lienExterne, masquerErreur } from "../ui.js";
@@ -214,9 +214,9 @@ async function ajouterComposants() {
       el("tr", { class: "ligne-groupe" }, el("td", { colspan: 6 }, p.nom, presents.has(p.projet) ? null : el("span", { class: "texte-doux" }, " · rejoindra la commande"))),
       ...candidats.map((k) => {
         const coche = el("input", { type: "checkbox", "aria-label": `Choisir ${k.id}` });
-        const qte = champNombre("qte", k.reste_a_commander, 0, { "aria-label": "Quantité" });
+        const qte = champNombre("qte", k.reste_a_commander_lots, 0, { "aria-label": "Quantité" });
         cases.push({ projet: p.projet, composant: k, coche, qte });
-        return el("tr", {}, el("td", {}, coche), el("td", { class: "code" }, k.id), el("td", {}, k.designation), el("td", { class: "nombre" }, String(k.reste_a_commander)), el("td", { class: "nombre" }, qte), el("td", { class: "nombre" }, formatMontant(k.pu_ht)));
+        return el("tr", {}, el("td", {}, coche), el("td", { class: "code" }, k.id), el("td", {}, k.designation), el("td", { class: "nombre" }, formatLots(k.reste_a_commander_lots, k.qte_par_lot)), el("td", { class: "nombre" }, qte), el("td", { class: "nombre" }, formatMontant(k.prix_lot_ht)));
       }),
     ];
   });
@@ -232,7 +232,7 @@ async function ajouterComposants() {
     agir(async () => {
       const lignes = cases
         .filter((x) => x.coche.checked)
-        .map((x) => ({ projet: x.projet, composant_id: x.composant.id, qte_commandee: lireNombre(x.qte.value), pu_ht_devis: x.composant.pu_ht ?? null }));
+        .map((x) => ({ projet: x.projet, composant_id: x.composant.id, qte_commandee: lireNombre(x.qte.value), pu_ht_devis: x.composant.prix_lot_ht ?? null }));
       if (choixComposant.value) {
         lignes.push({ projet: choixProjet.value, composant_id: choixComposant.value, qte_commandee: lireNombre(qteMain.value), pu_ht_devis: lireNombre(puMain.value) });
       }
