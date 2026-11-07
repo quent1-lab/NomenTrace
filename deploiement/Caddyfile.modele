@@ -9,8 +9,8 @@
 __DOMAINE__ {
 	encode zstd gzip
 
-	# Au-delà, réponse 413 sans rien transmettre. L'application limite chaque document
-	# joint à 20 Mo ; un envoi peut en compter plusieurs.
+	# Au-delà, réponse 413 sans rien transmettre. Au moins égal à NOMENTRACE_ENVOI_MAX_MO
+	# (100 Mo par défaut), le plafond d'un envoi dans l'application, tous fichiers compris.
 	request_body {
 		max_size 100MB
 	}

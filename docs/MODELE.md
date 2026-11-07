@@ -35,7 +35,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 
 | Table | Rôle | Clé |
 |---|---|---|
-| `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut`, `champs_obligatoires` (champs de base séparés par des virgules), `champs_obligatoires_portee` (`achat` ou `tous`), stockés en texte. | `cle` |
+| `parametre` | Réglages de l'instance : `nom_projet`, `prefixe_id`, `budget_ht`, `taux_tva_defaut`, `champs_obligatoires` (champs de base séparés par des virgules), `champs_obligatoires_portee` (`achat` ou `tous`), `taille_max_document_mo` (taille maximale d'un document joint en Mo, 20 si absent), stockés en texte. | `cle` |
 | `valeur_liste` | Listes paramétrables : `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `type_mouvement`, `type_frais`. `systeme = 1` : valeur utilisée par les calculs, ni supprimable ni désactivable. `sens` : sens imposé d'un type de mouvement (`Entree`, `Sortie` ou NULL = libre). | `liste`, `code` |
 | `bloc` | Blocs, avec `budget_cible_ht` ; `archive` ferme le bloc aux nouveaux composants. | `code` (2 à 4 lettres) |
 | `ensemble` | Ensembles physiques, avec `statut_montage` ; `parent_code` désigne l'ensemble parent (un seul, ou aucun pour un ensemble de premier niveau) ; `budget_cible_ht` et `budget_verrouille` pour le budget d'ensemble. | `code` |

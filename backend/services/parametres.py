@@ -1,5 +1,6 @@
 """Paramètres de l'instance : nom du projet, préfixe d'identifiant, budget, TVA par défaut,
-champs obligatoires des composants, coordonnées de l'établissement (demandes de devis)."""
+champs obligatoires des composants, coordonnées de l'établissement (demandes de devis),
+taille maximale d'un document joint."""
 
 import sqlite3
 from typing import Any
@@ -22,6 +23,7 @@ CLES: frozenset[str] = frozenset(
         "contact_achats_nom",
         "contact_achats_mail",
         "contact_achats_tel",
+        "taille_max_document_mo",
     }
 )
 
@@ -55,12 +57,22 @@ def get_prefixe_id(conn: sqlite3.Connection) -> str:
     return prefixe
 
 
-def patch_parametres(conn: sqlite3.Connection, modifications: dict[str, Any]) -> dict:
-    """Modifie les paramètres fournis, avec une ligne de journal par valeur changée."""
+def patch_parametres(
+    conn: sqlite3.Connection, modifications: dict[str, Any], plafond_mo: int | None = None
+) -> dict:
+    """Modifie les paramètres fournis, avec une ligne de journal par valeur changée.
+
+    `plafond_mo` : plafond d'envoi du serveur, que la taille d'un document ne peut dépasser
+    (absent pour la recopie des réglages d'un dossier, déjà contrôlés à leur saisie)."""
     with db.transaction(conn):
         for cle, valeur in modifications.items():
             if cle not in CLES:
                 raise ErreurMetier(f"Paramètre inconnu : {cle}.")
+            if cle == "taille_max_document_mo" and plafond_mo and (valeur or 0) > plafond_mo:
+                raise ErreurMetier(
+                    f"La taille d'un document ne peut dépasser le plafond du serveur,"
+                    f" {plafond_mo} Mo."
+                )
             # Une liste (champs obligatoires) est rangée en texte, séparée par des virgules.
             if isinstance(valeur, list):
                 texte = ",".join(valeur) or None

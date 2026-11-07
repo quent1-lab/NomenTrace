@@ -325,6 +325,7 @@ REGLES: dict[tuple[str, str], Regle] = {
     # Pilotage, paramètres, journal, export
     ("GET", "/api/pilotage"): LECTURE,
     ("GET", "/api/parametres"): LECTURE,
+    ("GET", "/api/envoi"): LECTURE,
     ("PATCH", "/api/parametres"): ADMIN,
     ("GET", "/api/parametres/logo"): LECTURE,
     ("GET", "/api/parametres/logo/infos"): LECTURE,

@@ -85,7 +85,8 @@ function requeteFormulaire(chemin, donnees, progression = null) {
       const resultat = xhr.response;
       if (xhr.status < 200 || xhr.status >= 300) {
         if (xhr.status === 401) allerConnexion();
-        const message = xhr.status === 413 ? "Envoi trop volumineux : 100 Mo au plus à la fois." : resultat?.erreur;
+        // Un refus 413 de Nomentrace porte son message ; celui du proxy, aucun.
+        const message = resultat?.erreur ?? (xhr.status === 413 ? "Envoi trop volumineux pour le serveur." : null);
         rejeter(new ErreurApi(message ?? `Erreur ${xhr.status}`, xhr.status));
         return;
       }
@@ -226,6 +227,8 @@ export const api = {
   telechargerHistorique: (filtres) => requeteFichier(avecParametres("/api/historique/export", filtres)),
   getPilotage: () => requete("GET", "/api/pilotage"),
   getParametres: () => requete("GET", "/api/parametres"),
+  // Sans projet : celui de la page. Avec un projet (page d'un dossier, sans préfixe) : le sien.
+  getLimitesEnvoi: (projet = null) => requete("GET", projet ? `/p/${projet}/api/envoi` : "/api/envoi"),
   patchParametres: (modifs) => requete("PATCH", "/api/parametres", modifs),
   getLogoInfos: () => requete("GET", "/api/parametres/logo/infos"),
   envoyerLogo: (donnees) => requeteFormulaire("/api/parametres/logo", donnees),

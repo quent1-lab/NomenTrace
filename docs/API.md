@@ -159,7 +159,8 @@ lignes des communes. L'analyse d'un classeur de suivi donne aussi
 |---|---|---|
 | GET | `/api/sante` | État du serveur, nom du projet, export en attente |
 | GET | `/api/pilotage` | Indicateurs du tableau de bord (vue `v_pilotage`) |
-| GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget, TVA par défaut, champs obligatoires et leur portée |
+| GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget, TVA par défaut, champs obligatoires et leur portée, taille maximale d'un document (`taille_max_document_mo`, entier de 1 au plafond d'envoi) |
+| GET | `/api/envoi` | Limites d'un envoi, que l'interface vérifie avant d'envoyer : `envoi_max_octets` (plafond du serveur, tous fichiers compris), `document_max_octets` (réglage du projet), `extensions` acceptées pour un document |
 | GET, POST, DELETE | `/api/parametres/logo` | Logo de l'établissement : l'image ; envoi (`fichier`, PNG ou JPEG, 2 Mo au plus) ; retrait |
 | GET | `/api/parametres/logo/infos` | Présence du logo, dimensions en pixels, date de modification |
 | GET | `/api/journal` | Dernières lignes du journal, filtrables par `table_cible` et `cle_cible` |

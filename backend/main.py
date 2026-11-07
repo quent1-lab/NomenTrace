@@ -18,6 +18,7 @@ from backend import config, db
 from backend.aiguillage import AiguillageProjet, code_valide
 from backend.deps import verifier_acces, verifier_acces_commun
 from backend.erreurs import ErreurMetier
+from backend.limite_envoi import MO, LimiteEnvoi
 from backend.routes import (
     attributs,
     blocs,
@@ -221,11 +222,13 @@ def create_app(
     chemin_comptes: Path | None = None,
     code_projet: str | None = None,
     chemin_ancienne_base: Path | None = None,
+    envoi_max_octets: int | None = None,
 ) -> FastAPI:
     """Construit l'application.
 
     Les tests passent un dossier de données, un dossier d'échange et une base commune
-    temporaires. Sans mode local explicite, la connexion est exigée.
+    temporaires, et au besoin un plafond d'envoi. Sans mode local explicite, la connexion
+    est exigée.
     """
     _configure_logging()
     data = dossier_data or config.DOSSIER_DATA
@@ -267,6 +270,7 @@ def create_app(
     app.state.mode_local = local
     app.state.chemin_comptes = chemin_comptes
     app.state.code_projet = projet
+    app.state.envoi_max = envoi_max_octets or config.ENVOI_MAX_MO * MO
     app.state.registre = projets.Registre()
     app.state.exports = {}
     app.state.limiteurs = authentification.Limiteurs()
@@ -309,6 +313,8 @@ def create_app(
     install_securite(app, local)
     # Plus extérieur encore : le préfixe /p/<code> est retiré avant toute autre couche.
     app.add_middleware(AiguillageProjet, registre=app.state.registre, defaut=projet)
+    # Tout à l'extérieur : un envoi trop gros est refusé avant qu'une couche ne le lise.
+    app.add_middleware(LimiteEnvoi, plafond=app.state.envoi_max)
     app.mount("/", StaticFiles(directory=config.DOSSIER_STATIC, html=True), name="static")
     return app
 

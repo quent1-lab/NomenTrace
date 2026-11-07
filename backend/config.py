@@ -47,6 +47,21 @@ def lire_concurrence(valeur: str | None, defaut: int = 100) -> int:
     return int(valeur)
 
 
+def lire_envoi_max(valeur: str | None, defaut: int = 100) -> int:
+    """Plafond d'un envoi de fichiers, en Mo ; refuse clairement une valeur illisible."""
+    if not valeur:
+        return defaut
+    if not valeur.strip().isdigit() or int(valeur) < 1:
+        raise ValueError(
+            f"NOMENTRACE_ENVOI_MAX_MO doit être un entier positif (lu : « {valeur} »)."
+        )
+    return int(valeur)
+
+
+# Plafond d'une requête d'envoi de fichiers, tous fichiers compris : refusée dès son en-tête
+# au-delà. Le `request_body max_size` de Caddy doit valoir au moins autant.
+ENVOI_MAX_MO: int = lire_envoi_max(os.environ.get("NOMENTRACE_ENVOI_MAX_MO"))
+
 # Adresse et port d'écoute, lus par `python -m backend` (backend/__main__.py).
 HOTE: str = os.environ.get("NOMENTRACE_HOTE") or "127.0.0.1"
 PORT: int = lire_port(os.environ.get("NOMENTRACE_PORT"))

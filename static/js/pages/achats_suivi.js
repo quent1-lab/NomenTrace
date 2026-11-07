@@ -3,6 +3,7 @@
 // rempli, applique ce qu'on retient et rend le fichier complété des devis transmis.
 
 import { api } from "../api.js";
+import { lireLimites, refusEnvoi } from "../envoi.js";
 import { formatDate, formatMontant, libelle } from "../format.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, afficherInformation, el, enregistrerFichier, masquerErreur, suiviEnvoi } from "../ui.js";
@@ -120,6 +121,8 @@ export function ouvrirSuivi(surApplique, { analyser = api.analyserSuivi, appliqu
     e.preventDefault();
     const choisi = fichier.files[0];
     if (!choisi) return afficherErreur("Choisir le fichier de suivi.");
+    const refus = refusEnvoi([choisi], await lireLimites(), { extensions: [".xlsx"] });
+    if (refus) return afficherErreur(refus);
     const donnees = new FormData();
     donnees.append("fichier", choisi);
     const suivi = suiviEnvoi(1, "Lecture");

@@ -528,6 +528,8 @@ class ParametresModif(Modele):
     contact_achats_nom: str | None = Field(default=None, max_length=120)
     contact_achats_mail: str | None = Field(default=None, max_length=120)
     contact_achats_tel: str | None = Field(default=None, max_length=40)
+    # Taille maximale d'un document joint, en Mo, sous le plafond d'envoi du serveur.
+    taille_max_document_mo: int | None = Field(default=None, ge=1)
 
 
 # --- Comptes ------------------------------------------------------------------------------------

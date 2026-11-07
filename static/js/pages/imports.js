@@ -1,6 +1,7 @@
 // Écran imports (#/imports) : modèles à remplir, dépôt des fichiers de l'équipe, historique.
 
 import { api, lienModele } from "../api.js";
+import { lireLimites, refusEnvoi } from "../envoi.js";
 import { formatDate } from "../format.js";
 import { lienRoute, naviguer } from "../router.js";
 import { modeLocal, peutEcrire } from "../session.js";
@@ -103,6 +104,8 @@ function sectionDepot() {
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!fichiers.files.length) return afficherErreur("Choisir au moins un fichier Excel à analyser.");
+    const refus = refusEnvoi(fichiers.files, await lireLimites(), { extensions: [".xlsx", ".xlsm"] });
+    if (refus) return afficherErreur(refus);
     const donnees = new FormData();
     for (const fichier of fichiers.files) donnees.append("fichiers", fichier);
     if (auteur?.value.trim()) donnees.append("depose_par", auteur.value.trim());

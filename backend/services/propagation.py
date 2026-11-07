@@ -39,6 +39,7 @@ CLES_IMPOSEES: tuple[str, ...] = (
     "contact_achats_nom",
     "contact_achats_mail",
     "contact_achats_tel",
+    "taille_max_document_mo",
 )
 
 

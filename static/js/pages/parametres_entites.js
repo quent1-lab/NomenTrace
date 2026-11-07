@@ -1,6 +1,7 @@
 // Onglets « Blocs », « Ensembles » et « Fournisseurs » des paramètres.
 
 import { api } from "../api.js";
+import { lireLimites, refusEnvoi } from "../envoi.js";
 import { reglagesImposes } from "../session.js";
 import { formatMontant, formatNombre, libelle } from "../format.js";
 import { champNombre, champTexte, champZone, lireFormulaire, ligneChamp, suivreModifications } from "../formulaire.js";
@@ -220,6 +221,11 @@ function champFichierListe(surComparaison) {
   const fichier = el("input", { type: "file", accept: ".xlsx,.xlsm", hidden: true });
   fichier.addEventListener("change", async () => {
     if (!fichier.files.length) return;
+    const refus = refusEnvoi(fichier.files, await lireLimites(), { extensions: [".xlsx", ".xlsm"] });
+    if (refus) {
+      fichier.value = "";
+      return afficherErreur(refus);
+    }
     const donnees = new FormData();
     donnees.append("fichier", fichier.files[0]);
     try {

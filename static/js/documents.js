@@ -3,6 +3,7 @@
 import { api, lienFichierDocument } from "./api.js";
 import { formatDate } from "./format.js";
 import { lienRoute } from "./router.js";
+import { lireLimites, refusEnvoi } from "./envoi.js";
 import { afficherAvertissements, afficherErreur, afficherInformation, el, masquerErreur, suiviEnvoi } from "./ui.js";
 
 export const TYPES_DOCUMENT = [
@@ -55,8 +56,11 @@ function ligneDocument(document, { avecSource, surChangement, depot, lien, retir
   );
 }
 
-function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
+function formulaireDepot({ typeParDefaut, deposer, surChangement, limites }) {
   const fichiers = el("input", { type: "file", multiple: true, class: "champ-fichier", "aria-label": "Fichiers à joindre" });
+  // Les limites arrivent pendant l'affichage : le sélecteur ne montre ensuite que les types acceptés.
+  const limitesLues = limites();
+  limitesLues.then((l) => { if (l) fichiers.accept = l.extensions.join(","); });
   const type = el("select", { class: "filtre", "aria-label": "Type de document" }, TYPES_DOCUMENT.map((t) => el("option", { value: t, selected: t === typeParDefaut }, t)));
   const commentaire = el("input", { class: "champ", type: "text", placeholder: "Commentaire (facultatif)" });
   const formulaire = el("form", { class: "formulaire-ligne formulaire-depot" }, fichiers, type, commentaire, el("button", { type: "submit", class: "bouton" }, "Joindre"));
@@ -64,6 +68,8 @@ function formulaireDepot({ typeParDefaut, deposer, surChangement }) {
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!fichiers.files.length) return afficherErreur("Choisir au moins un fichier à joindre.");
+    const refus = refusEnvoi(fichiers.files, await limitesLues, { documents: true });
+    if (refus) return afficherErreur(refus);
     const donnees = new FormData();
     for (const fichier of fichiers.files) donnees.append("fichiers", fichier);
     donnees.append("type_document", type.value);
@@ -106,6 +112,8 @@ export function sectionDocuments({
   // Ailleurs que dans un projet (commande commune), l'adresse du fichier et le retrait diffèrent.
   lien = (d) => lienFichierDocument(d.id),
   retirer = (d) => api.retirerDocument(d.id),
+  // Limites d'envoi à respecter (GET /api/envoi) : celles du projet de la page par défaut.
+  limites = () => lireLimites(),
 }) {
   const entetes = ["Type", "Fichier", avecSource ? "Source" : null, "Taille", "Ajouté le", "Commentaire", ""].filter((t) => t !== null);
   return el(
@@ -121,6 +129,6 @@ export function sectionDocuments({
           el("tbody", {}, documents.map((d) => ligneDocument(d, { avecSource, surChangement, depot, lien, retirer }))),
         )
       : el("p", { class: "texte-doux" }, "Aucun document joint."),
-    depot ? formulaireDepot({ typeParDefaut, deposer, surChangement }) : null,
+    depot ? formulaireDepot({ typeParDefaut, deposer, surChangement, limites }) : null,
   );
 }

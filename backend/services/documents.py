@@ -19,11 +19,13 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import Conflit, ErreurMetier, Introuvable
-from backend.services import commandes, composants, journal
+from backend.services import commandes, composants, journal, parametres
 
 journal_log = logging.getLogger(__name__)
 
-TAILLE_MAX: int = 20 * 1024 * 1024
+# Taille maximale d'un document, en Mo, quand le projet ne l'a pas réglée
+# (paramètre `taille_max_document_mo`, sous le plafond d'envoi du serveur).
+TAILLE_MAX_DEFAUT_MO: int = 20
 EXTENSIONS: frozenset[str] = frozenset(
     {
         ".pdf",
@@ -71,7 +73,13 @@ def nom_sur(nom: str) -> str:
     return base[:120] or "document"
 
 
-def _check_fichier(nom: str, contenu: bytes) -> str:
+def taille_max(conn: sqlite3.Connection) -> int:
+    """Taille maximale d'un document du projet, en octets."""
+    valeur = parametres.get_parametre(conn, "taille_max_document_mo")
+    return int(valeur or TAILLE_MAX_DEFAUT_MO) * 1024 * 1024
+
+
+def _check_fichier(nom: str, contenu: bytes, maximum: int) -> str:
     """Contrôle extension et taille ; renvoie l'extension en minuscules."""
     extension = Path(nom).suffix.lower()
     if extension not in EXTENSIONS:
@@ -81,8 +89,8 @@ def _check_fichier(nom: str, contenu: bytes) -> str:
         )
     if not contenu:
         raise ErreurMetier(f"Le fichier « {nom} » est vide.")
-    if len(contenu) > TAILLE_MAX:
-        raise ErreurMetier(f"Le fichier « {nom} » dépasse {TAILLE_MAX // (1024 * 1024)} Mo.")
+    if len(contenu) > maximum:
+        raise ErreurMetier(f"Le fichier « {nom} » dépasse {maximum // (1024 * 1024)} Mo.")
     return extension
 
 
@@ -139,7 +147,7 @@ def add_document(
     `transaction` : la copie d'une commande commune s'écrit sous son verrou levé
     (communes_sync.ouverte), depuis la page du dossier seulement."""
     nom, contenu = fichier
-    _check_fichier(nom, contenu)
+    _check_fichier(nom, contenu, taille_max(conn))
     if meta["type_document"] not in TYPES_DOCUMENT:
         raise ErreurMetier(f"Type de document inconnu : « {meta['type_document']} ».")
     empreinte = hashlib.sha256(contenu).hexdigest()

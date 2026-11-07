@@ -518,7 +518,8 @@ fichiers doivent appartenir à l'utilisateur `nomentrace`
 
 Seul Caddy est exposé ; Nomentrace n'écoute que sur 127.0.0.1 et ne croit l'adresse du
 visiteur et le schéma (https) transmis dans les en-têtes `X-Forwarded-*` que s'ils
-viennent de là. Caddy limite la taille d'une requête à 100 Mo. Le service tourne sous un
+viennent de là. Caddy limite la taille d'une requête à 100 Mo, comme l'application
+(`NOMENTRACE_ENVOI_MAX_MO`) : pour accepter de plus gros envois, relever les deux ensemble. Le service tourne sous un
 utilisateur sans droits, ne peut écrire que dans ses données, et la VM n'accepte SSH que
 par clé. Les protections de l'application elle-même, et ce qui reste à faire, sont dans
 [SECURITE.md](../docs/SECURITE.md).

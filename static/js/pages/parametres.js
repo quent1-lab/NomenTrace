@@ -42,8 +42,8 @@ function message(texte, classe = "message-info") {
 
 // --- Projet -----------------------------------------------------------------------------------
 
-const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux" };
-const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut" };
+const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux", taille_max_document_mo: "entier" };
+const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut", taille_max_document_mo: "Taille maximale d'un document" };
 
 // Coordonnées reprises dans l'en-tête des demandes de devis envoyées aux fournisseurs.
 const CHAMPS_ETABLISSEMENT = [
@@ -190,7 +190,8 @@ function sectionObligatoires(parametres) {
 }
 
 async function afficherOngletProjet(cible) {
-  const parametres = await api.getParametres();
+  const [parametres, limites] = await Promise.all([api.getParametres(), api.getLimitesEnvoi()]);
+  const plafondMo = limites.envoi_max_octets / (1024 * 1024);
   const nombre = (texte) => (texte === null || texte === undefined ? null : Number(texte));
   const tva = nombre(parametres.taux_tva_defaut);
   const prefixe = champTexte("prefixe_id", parametres.prefixe_id ?? "", { maxlength: "10", autocomplete: "off" });
@@ -215,6 +216,9 @@ async function afficherOngletProjet(cible) {
     ligneChamp("TVA par défaut (%)", champNombre("taux_tva_defaut", tva === null ? null : tva * 100, 1), {
       aide: "Sert à convertir en HT un prix relevé TTC quand le composant n'a pas de taux propre.",
     }),
+    ligneChamp("Taille maximale d'un document (Mo)", champNombre("taille_max_document_mo", limites.document_max_octets / (1024 * 1024), 0), {
+      aide: `Fiches techniques, devis, plans joints aux composants et aux commandes. Le serveur accepte au plus ${plafondMo} Mo par envoi.`,
+    }),
     el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
     retour,
   );
@@ -231,9 +235,13 @@ async function afficherOngletProjet(cible) {
     if (lu.erreur) return afficherErreur(lu.erreur);
     if (!reference && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
     if (!reference && !lu.valeurs.prefixe_id) return afficherErreur("Le préfixe des identifiants est obligatoire.");
+    const taille = lu.valeurs.taille_max_document_mo;
+    if (taille !== undefined && (taille === null || taille < 1 || taille > plafondMo)) {
+      return afficherErreur(`La taille maximale d'un document va de 1 à ${plafondMo} Mo.`);
+    }
     const modifs = {};
     for (const [cle, valeur] of Object.entries(lu.valeurs)) {
-      const actuelle = cle === "nom_projet" || cle === "prefixe_id" ? parametres[cle] : nombre(parametres[cle]);
+      const actuelle = cle === "nom_projet" || cle === "prefixe_id" ? parametres[cle] : cle === "taille_max_document_mo" ? limites.document_max_octets / (1024 * 1024) : nombre(parametres[cle]);
       const identique = typeof valeur === "number" && actuelle !== null ? Math.abs(valeur - actuelle) < 1e-9 : valeur === actuelle;
       if (!identique) modifs[cle] = valeur;
     }
@@ -526,7 +534,7 @@ export async function afficherParametres(conteneur, parametres) {
     el("a", { class: "bouton bouton--discret si-admin", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
   );
   const bandeau = reglagesImposes()
-    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, nom et budget sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
+    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, taille des documents, nom et budget sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
     : typeReference() === "organisme"
     ? message(`Liste des fournisseurs de l'organisme « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
     : dossierReference()

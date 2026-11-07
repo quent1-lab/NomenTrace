@@ -120,7 +120,9 @@ en-têtes sont ignorés. La limite par adresse reste secondaire : derrière le r
 Le contrôle d'origine compare désormais le schéma en plus de l'hôte et du port : une page
 servie en `http` ne peut pas écrire sur l'instance servie en `https`. Uvicorn refuse
 aussitôt (503) les connexions au-delà de `NOMENTRACE_CONCURRENCE`, cent par défaut, et
-Caddy les requêtes de plus de 100 Mo (413), sans rien transmettre.
+Caddy les requêtes de plus de 100 Mo (413), sans rien transmettre. L'application refuse de
+même, dès l'en-tête, un envoi au-delà de `NOMENTRACE_ENVOI_MAX_MO`, et coupe à ce plafond un
+corps envoyé sans longueur annoncée.
 
 Le service tourne sous un utilisateur système sans shell et, par les protections de
 systemd, ne peut écrire que dans ses données ; le code appartient à root. Chaque nuit,

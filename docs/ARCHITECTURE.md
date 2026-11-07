@@ -44,6 +44,7 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 | `backend/deps.py` | Dépendances FastAPI : utilisateur de la requête, connexions SQLite, contrôle des droits |
 | `backend/securite.py` | Contrôle d'origine des écritures, restriction du mode local, en-têtes de sécurité |
 | `backend/aiguillage.py` | Projet de la requête lu dans l'adresse `/p/<code>/` |
+| `backend/limite_envoi.py` | Plafond d'un envoi : corps trop gros refusé avant d'être reçu |
 | `backend/__main__.py` | Lancement par `python -m backend` : adresse, port, options d'Uvicorn |
 | `backend/comptes.py` | Ligne de commande : premier administrateur et secours |
 | `backend/sauvegarde.py` | Ligne de commande du serveur : archive complète et restauration |
@@ -112,6 +113,13 @@ fournisseurs) sont asynchrones pour lire l'envoi, puis confient le traitement
 d'événements, il figerait le serveur pour tous les utilisateurs. Côté navigateur,
 `requeteFormulaire` d'`api.js` passe par `XMLHttpRequest`, seul à donner l'avancement de
 l'envoi, affiché par `ui.suiviEnvoi()`.
+
+Un envoi voué au refus n'est pas transféré. `limite_envoi.py`, la couche la plus
+extérieure, refuse en 413 dès l'en-tête un corps annoncé au-delà de
+`NOMENTRACE_ENVOI_MAX_MO`, et compte pendant la lecture un corps sans longueur annoncée.
+Avant d'envoyer, `static/js/envoi.js` lit `GET /api/envoi` et vérifie le type de chaque
+fichier, la taille d'un document réglée par le projet et le poids total ; le serveur refait
+ces contrôles et fait foi.
 
 ## Comptes et droits
 

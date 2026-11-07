@@ -3,12 +3,13 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from backend.arrondi import round_output
 from backend.deps import Emplacements, Export, get_conn
 from backend.erreurs import Introuvable
+from backend.limite_envoi import MO
 from backend.models import ParametresModif
 from backend.services import export_excel, historique, journal, logo, parametres, pilotage
 from backend.services.historique import FiltresJournal
@@ -29,8 +30,9 @@ def read_parametres(conn: Conn) -> dict:
 
 
 @router.patch("/parametres")
-def update_parametres(corps: ParametresModif, conn: Conn) -> dict:
-    return parametres.patch_parametres(conn, corps.model_dump(exclude_unset=True))
+def update_parametres(corps: ParametresModif, conn: Conn, request: Request) -> dict:
+    plafond_mo = request.app.state.envoi_max // MO
+    return parametres.patch_parametres(conn, corps.model_dump(exclude_unset=True), plafond_mo)
 
 
 @router.get("/parametres/logo")

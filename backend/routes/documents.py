@@ -3,7 +3,7 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -26,10 +26,20 @@ async def _deposer(
     L'empreinte, l'écriture sur disque et la base prennent du temps sur de gros fichiers :
     faits dans la boucle, ils figeraient le serveur pour tous les utilisateurs.
     """
-    contenus = [
-        (f.filename or "document", await f.read(documents.TAILLE_MAX + 1)) for f in fichiers
-    ]
+    # Le corps entier est déjà borné par le plafond d'envoi (limite_envoi.py).
+    contenus = [(f.filename or "document", await f.read()) for f in fichiers]
     return await run_in_threadpool(documents.add_documents, conn, emp.documents, contenus, meta)
+
+
+@router.get("/envoi")
+def read_limites_envoi(conn: Conn, request: Request) -> dict:
+    """Limites d'un envoi, vérifiées par l'interface avant d'envoyer quoi que ce soit."""
+    plafond = request.app.state.envoi_max
+    return {
+        "envoi_max_octets": plafond,
+        "document_max_octets": min(documents.taille_max(conn), plafond),
+        "extensions": sorted(documents.EXTENSIONS),
+    }
 
 
 @router.get("/commandes/{numero}/documents")

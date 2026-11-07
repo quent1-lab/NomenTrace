@@ -33,7 +33,6 @@ from backend.services import (
     communes,
     communes_documents,
     demande_document,
-    documents,
     suivi_communes,
 )
 
@@ -311,9 +310,8 @@ async def create_documents(
     """Joint chaque fichier à la copie de chaque projet de la commune."""
     registre = request.app.state.registre
     emp, participants = communes.contexte_documents(conn, registre, compte, (code, numero, True))
-    contenus = [
-        (f.filename or "document", await f.read(documents.TAILLE_MAX + 1)) for f in fichiers
-    ]
+    # Le corps entier est déjà borné par le plafond d'envoi (limite_envoi.py).
+    contenus = [(f.filename or "document", await f.read()) for f in fichiers]
     meta = {"type_document": type_document, "commentaire": commentaire}
     resultat = await run_in_threadpool(
         communes_documents.deposer, emp, participants, compte.nom, (contenus, meta)

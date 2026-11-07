@@ -4,6 +4,7 @@
 
 import { api, lienFichierCommune } from "../api.js";
 import { sectionDocuments } from "../documents.js";
+import { lireLimites } from "../envoi.js";
 import { badgeStatut } from "../badges.js";
 import { formatDate, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
@@ -534,6 +535,8 @@ function panneauDocuments() {
       surChangement: recharger,
       lien: (d) => lienFichierCommune(etat.code, etat.numero, premiere(d).projet, premiere(d).id),
       retirer: (d) => api.retirerDocumentCommune(etat.code, etat.numero, d.empreinte),
+      // Réglages imposés par le dossier : les limites d'un projet valent pour tous.
+      limites: () => lireLimites(c.projets[0]?.projet),
     }),
   );
 }

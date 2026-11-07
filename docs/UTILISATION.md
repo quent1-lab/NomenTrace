@@ -107,7 +107,9 @@ n'est écrasé sans qu'on le sache.
 ## Régler le projet
 
 Paramètres › Projet reçoit le nom du projet, le préfixe des identifiants, le budget HT
-total et le taux de TVA par défaut. Le préfixe est obligatoire avant de créer le premier
+total, le taux de TVA par défaut et la taille maximale d'un document joint (20 Mo par
+défaut), qu'on relève pour de grosses fiches techniques sans dépasser le plafond d'envoi du
+serveur, indiqué sous le champ. Le préfixe est obligatoire avant de créer le premier
 composant ; le changer plus tard ne renomme pas les composants existants. La section
 Établissement reçoit le nom de l'établissement, les adresses de livraison et de facturation
 et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs. Un logo,
@@ -249,6 +251,8 @@ où le composant figure. Pendant un envoi, une barre donne l'avancement, puis si
 l'enregistrement sur le serveur ; on peut changer d'écran sans l'interrompre, un bandeau
 annonce alors la fin. Fermer ou recharger l'onglet demande confirmation tant qu'un envoi
 est en cours. Il en va de même pour les commandes et pour les fichiers Excel de l'équipe.
+Un fichier d'un type non accepté, ou plus lourd que la taille permise, est signalé dès le
+clic sur « Joindre » et rien n'est envoyé : on n'attend pas la fin d'un envoi voué au refus.
 
 « Archiver » retire le composant des listes et des calculs sans rien effacer. « Reclasser »
 le déplace dans un autre bloc : comme le bloc fait partie de l'identifiant, l'outil crée
@@ -575,7 +579,7 @@ dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
 Un dossier impose à ses projets une partie de leurs réglages : les blocs (code, nom, ordre,
 description), les listes « modes d'approvisionnement », « criticités », « types de
 mouvement » et « types de frais », les attributs et leurs valeurs, les champs obligatoires,
-la TVA par défaut, l'établissement, ses adresses, son contact achats et son logo, et le nom
+la TVA par défaut, la taille maximale d'un document, l'établissement, ses adresses, son contact achats et son logo, et le nom
 du projet. Ces réglages communs se modifient depuis la page du dossier, bouton
 « Paramètres communs », dans les mêmes écrans que ceux d'un projet ; chaque modification est
 aussitôt recopiée dans tous les projets du dossier. Dans un projet rangé, ils restent
