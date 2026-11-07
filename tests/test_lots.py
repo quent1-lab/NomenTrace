@@ -240,3 +240,39 @@ def test_bloc_et_incoherences_comptent_les_lots(client_essai: TestClient) -> Non
     assert [i["type"] for i in incoherences_vis()] == ["affecte_non_commande"]
     _commande_passee(client_essai, vis)
     assert incoherences_vis() == []
+
+
+def test_devis_a_demander_suit_le_nouveau_lot(client_essai: TestClient) -> None:
+    """Une demande pas encore envoyée suit le lot, à pièces égales : 3 lots de 100 font 6 de 50."""
+    vis = _creer(client_essai)
+    numero = client_essai.post("/api/demandes-devis", json={"composants": [vis]}).json()[0][
+        "numero"
+    ]
+    corps = {"qte_par_lot": 50, "pu_releve": 6.0}
+    assert client_essai.patch(f"/api/composants/{vis}", json=corps).status_code == 200
+    ligne = client_essai.get(f"/api/commandes/{numero}/lignes").json()[0]
+    assert (ligne["qte_par_lot"], ligne["qte_commandee"]) == (50, 6)
+    journal = client_essai.get("/api/historique", params={"table": "ligne_commande"}).json()
+    champs = {(e["champ"], e["ancienne_valeur"], e["nouvelle_valeur"]) for e in journal["lignes"]}
+    assert {("qte_par_lot", "100", "50"), ("qte_commandee", "3", "6")} <= champs
+
+
+def test_devis_a_demander_arrondit_au_lot_superieur(client_essai: TestClient) -> None:
+    vis = _creer(client_essai)
+    numero = client_essai.post("/api/demandes-devis", json={"composants": [vis]}).json()[0][
+        "numero"
+    ]
+    client_essai.patch(f"/api/composants/{vis}", json={"qte_par_lot": 250, "pu_releve": 30.0})
+    ligne = client_essai.get(f"/api/commandes/{numero}/lignes").json()[0]
+    assert (ligne["qte_par_lot"], ligne["qte_commandee"]) == (250, 2)
+
+
+def test_devis_demande_garde_son_lot(client_essai: TestClient) -> None:
+    vis = _creer(client_essai)
+    numero = client_essai.post("/api/demandes-devis", json={"composants": [vis]}).json()[0][
+        "numero"
+    ]
+    client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Devis demande"})
+    client_essai.patch(f"/api/composants/{vis}", json={"qte_par_lot": 50, "pu_releve": 6.0})
+    ligne = client_essai.get(f"/api/commandes/{numero}/lignes").json()[0]
+    assert (ligne["qte_par_lot"], ligne["qte_commandee"]) == (100, 3)

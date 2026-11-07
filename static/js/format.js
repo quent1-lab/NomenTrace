@@ -19,8 +19,13 @@ export function formatNombre(valeur, decimales = 0) {
 // composant vendu à l'unité.
 export function formatLots(nombre, parLot) {
   if (nombre === null || nombre === undefined) return "";
-  if (!parLot || parLot <= 1) return formatNombre(nombre);
+  if (!parLot || parLot <= 1 || nombre === 0) return formatNombre(nombre);
   return `${formatNombre(nombre)} lot${nombre > 1 ? "s" : ""} de ${formatNombre(parLot)}`;
+}
+
+// Unité à côté d'une quantité saisie en lots (réception) : « lots de 100 », rien à l'unité.
+export function uniteLots(parLot) {
+  return parLot > 1 ? `lots de ${formatNombre(parLot)}` : "";
 }
 
 export function formatMontant(valeur) {

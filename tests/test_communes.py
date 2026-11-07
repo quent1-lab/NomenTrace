@@ -804,6 +804,11 @@ def test_commune_lots_de_tailles_differentes(app: FastAPI, client: TestClient) -
         f"/p/{PROJET}/api/commandes/{copie(app, PROJET, numero)['numero']}/lignes"
     )
     assert lignes_a.json()[0]["qte_par_lot"] == 100
+    # La page de la commune lit la taille du lot et le prix estimé d'un lot.
+    client.patch(f"/p/{PROJET}/api/composants/{a1}", json={"pu_releve": 12.0})
+    vue = client.get(f"{URL}/{numero}").json()
+    ligne_a = next(p for p in vue["projets"] if p["projet"] == PROJET)["lignes"][0]
+    assert (ligne_a["qte_par_lot"], ligne_a["pu_ht_estime"]) == (100, 12.0)
     excel = client.get(f"{URL}/{numero}/demande-devis.xlsx")
     feuille = openpyxl.load_workbook(io.BytesIO(excel.content)).active
     quantites = [

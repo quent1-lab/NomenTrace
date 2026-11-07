@@ -329,6 +329,46 @@ def check_lot(actuel: dict, modifications: dict[str, Any]) -> None:
         )
 
 
+# Champs de ligne que le report d'un lot réécrit, avec journal.
+CHAMPS_LIGNE_LOT: frozenset[str] = frozenset({"qte_par_lot", "qte_commandee"})
+
+
+def report_lot(
+    conn: sqlite3.Connection,
+    actuel: dict,
+    modifications: dict[str, Any],
+    origine: str = journal.ORIGINE_INTERFACE,
+    lot_id: int | None = None,
+) -> None:
+    """Le lot du composant a changé : ses lignes de devis encore « à demander », que le
+    fournisseur n'a pas vues, prennent la nouvelle taille à pièces égales, arrondies au lot
+    supérieur. Une ligne déjà demandée garde le lot sous lequel elle a été envoyée ; une copie
+    de commande commune, tenue par sa commune, n'est pas touchée. Dans une transaction."""
+    nouveau = modifications.get("qte_par_lot")
+    if nouveau is None or nouveau == actuel["qte_par_lot"]:
+        return
+    lignes = db.fetch_all(
+        conn,
+        "SELECT l.id, l.qte_commandee, l.qte_par_lot FROM ligne_commande l"
+        " JOIN commande c ON c.numero = l.commande_numero"
+        " WHERE l.composant_id = ? AND c.type = 'Devis' AND c.statut = 'A demander'"
+        " AND c.archive = 0 AND c.commune IS NULL AND l.statut_ligne = 'A commander'",
+        (actuel["id"],),
+    )
+    for ligne in lignes:
+        pieces = ligne["qte_commandee"] * ligne["qte_par_lot"]
+        lots = max(1, (pieces + nouveau - 1) // nouveau)
+        journal.update_with_journal(
+            conn,
+            "ligne_commande",
+            ligne["id"],
+            {"qte_par_lot": nouveau, "qte_commandee": lots},
+            CHAMPS_LIGNE_LOT,
+            origine,
+            lot_id=lot_id,
+        )
+
+
 def patch_composant(
     conn: sqlite3.Connection, identifiant: str, modifications: dict[str, Any]
 ) -> dict:
@@ -357,6 +397,7 @@ def patch_composant(
         changes = journal.update_with_journal(
             conn, "composant", identifiant, modifications, CHAMPS_MODIFIABLES
         )
+        report_lot(conn, actuel, modifications)
         ecrites = attributs.set_valeurs(conn, identifiant, caracteristiques)
         touches = set(modifications) | {f"{attributs.PREFIXE_CHAMP}{c}" for c in caracteristiques}
         obligatoires.verifier(conn, identifiant, touches)

@@ -6,7 +6,7 @@ import { api, lienFichierCommune } from "../api.js";
 import { sectionDocuments } from "../documents.js";
 import { lireLimites } from "../envoi.js";
 import { badgeStatut } from "../badges.js";
-import { formatDate, formatLots, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
+import { formatDate, formatLots, uniteLots, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, enregistrerFichier, lienExterne, masquerErreur } from "../ui.js";
@@ -322,7 +322,7 @@ function lignesProjet(p) {
       { class: l.statut_ligne === "Annulee" ? "texte-doux" : "" },
       el("td", { class: "code" }, l.composant_id),
       el("td", {}, l.designation ?? "—"),
-      el("td", { class: "nombre" }, String(l.qte_commandee)),
+      el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)),
       el("td", { class: "nombre" }, l.pu_ht_devis == null ? el("span", { class: "etiquette etiquette--attention" }, "sans prix") : formatMontant(l.pu_ht_devis)),
       el("td", { class: "nombre" }, l.pu_ht_devis == null ? "—" : formatMontant(l.qte_commandee * l.pu_ht_devis)),
       el("td", {}, libelle(l.statut_ligne)),
@@ -478,9 +478,10 @@ function sectionReception() {
       el("tr", { class: "ligne-groupe" }, el("td", { colspan: 5 }, p.nom)),
       ...lignes.map((l) => {
         const reste = Math.max(0, l.qte_commandee - l.qte_recue);
-        const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": `Reçu pour ${l.composant_id}` });
+        const unite = uniteLots(l.qte_par_lot);
+        const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": unite ? `Reçu pour ${l.composant_id}, en ${unite}` : `Reçu pour ${l.composant_id}` });
         champs.push({ projet: p.projet, ligne: l, champ });
-        return el("tr", {}, el("td", { class: "code" }, l.composant_id), el("td", {}, l.designation ?? "—"), el("td", { class: "nombre" }, String(l.qte_commandee)), el("td", { class: "nombre" }, String(l.qte_recue)), el("td", { class: "nombre" }, champ));
+        return el("tr", {}, el("td", { class: "code" }, l.composant_id), el("td", {}, l.designation ?? "—"), el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)), el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)), el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null));
       }),
     ];
   });

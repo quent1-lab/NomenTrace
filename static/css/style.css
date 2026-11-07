@@ -847,6 +847,14 @@ td.editable:hover {
   text-align: right;
 }
 
+/* Unité d'une quantité saisie en lots, sous le champ pour ne pas élargir la colonne. */
+.unite-saisie {
+  display: block;
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  white-space: nowrap;
+}
+
 .editeur-prix {
   display: inline-flex;
   gap: 2px;
@@ -3308,6 +3316,13 @@ body:not(.peut-ensembles) .si-ensembles {
   .panneau-lateral {
     width: 100vw;
     border-left: 0;
+  }
+
+  /* Réception : la colonne de saisie reste à l'écran ; la désignation suffit à reconnaître
+     la pièce, l'identifiant est masqué. */
+  .panneau--reception th:first-child,
+  .panneau--reception td:first-child:not([colspan]) {
+    display: none;
   }
 
   /* Messages en bas de l'écran, au-dessus d'une fiche ouverte en plein écran : en haut de

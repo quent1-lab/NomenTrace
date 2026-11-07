@@ -169,8 +169,10 @@ les affectations restent comptés en pièces ; la quantité à acheter est arron
 entier, et le surplus entre au stock à la réception. Pour 230 vis vendues par 100 à 12 € HT,
 la fiche montre « 12,00 € HT le lot de 100, soit 0,12 € HT la pièce » et un total de 36 €
 pour 3 lots ; un ensemble qui reçoit 50 vis compte 6 €. Changer la taille du lot d'un
-composant chiffré demande de saisir en même temps le prix du nouveau lot. Les commandes déjà
-passées gardent la taille du lot qu'elles avaient.
+composant chiffré demande de saisir en même temps le prix du nouveau lot. Une demande de
+devis encore « à demander » suit la nouvelle taille, au même nombre de pièces arrondi au lot
+supérieur (3 lots de 100 deviennent 6 lots de 50) ; une demande déjà envoyée et les
+commandes passées gardent la taille du lot qu'elles avaient.
 
 Dans un dossier qui met ses composants en commun, la création cherche, pendant qu'on tape
 la désignation ou la référence fabricant, les références qui ressemblent chez les autres
@@ -362,7 +364,8 @@ en partie ou livré en fait une commande : son type change avec son statut.
 
 Une ligne de commande compte des lots, au prix d'un lot : 3 lots de 100 vis à 12 € font
 36 €. Le document envoyé au fournisseur ne donne que le nombre de lots. La réception se
-saisit aussi en lots, et chaque lot reçu fait entrer ses pièces au stock.
+saisit aussi en lots, l'unité rappelée sous chaque case, et chaque lot reçu fait entrer ses
+pièces au stock.
 
 « + Nouvelle commande » crée une commande vide chez un fournisseur. Sa page permet d'ajouter
 des lignes (composant, quantité, PU HT du devis), des frais (livraison, douane, frais de

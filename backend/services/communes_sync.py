@@ -204,8 +204,9 @@ def lire_frais(ref: sqlite3.Connection, numero: str) -> list[dict]:
 def lire_lignes(conn: sqlite3.Connection, numero_local: str) -> list[dict]:
     return db.fetch_all(
         conn,
-        "SELECT l.id, l.composant_id, l.qte_commandee, l.pu_ht_devis, l.qte_recue,"
-        " l.date_reception, l.statut_ligne, l.commentaire, c.designation, c.pu_ht AS pu_ht_estime"
+        "SELECT l.id, l.composant_id, l.qte_commandee, l.qte_par_lot, l.pu_ht_devis, l.qte_recue,"
+        " l.date_reception, l.statut_ligne, l.commentaire, c.designation,"
+        " c.prix_lot_ht AS pu_ht_estime"
         " FROM ligne_commande l LEFT JOIN v_composant c ON c.id = l.composant_id"
         " WHERE l.commande_numero = ? ORDER BY l.id",
         (numero_local,),

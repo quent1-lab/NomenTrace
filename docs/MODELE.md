@@ -48,7 +48,7 @@ affectation n'est pas une anomalie : c'est un état normal.
 | `commande` | Devis et commandes, avec `taux_tva`. `port_ht` est obsolète et vaut toujours 0 : le port est devenu un frais (migration 018). | `numero` (`CMD-NNN`) |
 | `commande` (suivi) | Champs appris du suivi de l'établissement : `date_transmission_suivi`, `montant_commande_ht` (montant réel, frais compris), `date_commande_confirmee`, `livraison_confirmee`, `date_reception_annoncee`, `commentaire_suivi`. | |
 | `frais_commande` | Frais d'une commande : `type_frais` (liste paramétrable), `montant_ht`, `commentaire`. | `id` |
-| `ligne_commande` | Lignes d'une commande : quantités commandée et reçue en lots, `pu_ht_devis` (prix d'un lot), `qte_par_lot` figée à la création de la ligne. | `id` |
+| `ligne_commande` | Lignes d'une commande : quantités commandée et reçue en lots, `pu_ht_devis` (prix d'un lot), `qte_par_lot` figée à la création de la ligne, sauf sur un devis encore « à demander », qui suit le lot du composant à pièces égales. | `id` |
 | `mouvement_stock` | Entrées et sorties de stock, montages (avec `ensemble_code`). | `id` |
 | `visa` | Visa d'un composant par un responsable : `vise_par` (nom affiché), `vise_le`, `modifie_le_vise` (date de modification du composant quand le visa a été posé). Le visa vaut tant que `modifie_le_vise` égale `composant.modifie_le` ; un composant sans visa valable est « à voir ». | `composant_id` |
 | `logo` | Logo de l'établissement repris dans les demandes de devis : une ligne au plus (`id = 1`), `type_mime` (`image/png` ou `image/jpeg`), `contenu` (l'image, gardée en base pour partir avec les sauvegardes), `largeur` et `hauteur` en pixels. | `id` |

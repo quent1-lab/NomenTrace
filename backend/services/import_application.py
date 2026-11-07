@@ -86,14 +86,16 @@ def _verifier_obligatoires(conn: sqlite3.Connection, identifiant: str, touches: 
 
 def _modifier(conn: sqlite3.Connection, identifiant: str, modifs: dict, lot: int) -> None:
     champs, caracteristiques = _separer(modifs)
+    actuel = composants.get_composant(conn, identifiant)
     try:
         saisie.verifier(champs, champs.keys())
-        composants.check_lot(composants.get_composant(conn, identifiant), champs)
+        composants.check_lot(actuel, champs)
     except ErreurMetier as erreur:
         raise LigneRefusee(erreur.message) from erreur
     journal.update_with_journal(
         conn, "composant", identifiant, champs, composants.CHAMPS_MODIFIABLES, ORIGINE, lot_id=lot
     )
+    composants.report_lot(conn, actuel, champs, ORIGINE, lot)
     _attribuer(conn, identifiant, caracteristiques, lot)
     _verifier_obligatoires(conn, identifiant, set(modifs))
     conn.execute(

@@ -3,7 +3,7 @@
 import { api } from "../api.js";
 import { sectionDocuments } from "../documents.js";
 import { editerCellule } from "../edition.js";
-import { aujourdhui, formatDate, formatLots, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
+import { aujourdhui, formatDate, formatLots, uniteLots, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, codeDossier, nomAuteur, voitDossier } from "../session.js";
@@ -329,16 +329,17 @@ function modeReception() {
   const champs = new Map();
   const lignes = aRecevoir.map((l) => {
     const reste = Math.max(0, l.qte_commandee - l.qte_recue);
-    const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": `Reçu pour ${l.composant_id}` });
+    const unite = uniteLots(l.qte_par_lot);
+    const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": unite ? `Reçu pour ${l.composant_id}, en ${unite}` : `Reçu pour ${l.composant_id}` });
     champs.set(l.id, champ);
     return el(
       "tr",
       {},
       el("td", { class: "code" }, l.composant_id),
       el("td", { class: "tronque tronque--large", title: l.designation }, l.designation),
-      el("td", { class: "nombre" }, formatNombre(l.qte_commandee)),
-      el("td", { class: "nombre" }, formatNombre(l.qte_recue)),
-      el("td", { class: "nombre" }, champ),
+      el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)),
+      el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)),
+      el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null),
     );
   });
   const date = el("input", { class: "champ champ--date", type: "date", value: aujourdhui() });
@@ -368,7 +369,7 @@ function modeReception() {
     "section",
     { class: "panneau panneau--reception" },
     el("h2", {}, "Réception de la livraison"),
-    el("p", { class: "texte-doux" }, "Saisir la quantité reçue dans cette livraison ; elle s'ajoute aux réceptions précédentes. La validation met à jour les lignes, le stock et le statut de la commande."),
+    el("p", { class: "texte-doux" }, "Saisir la quantité reçue dans cette livraison, en lots pour un composant vendu par lot ; elle s'ajoute aux réceptions précédentes. La validation met à jour les lignes, le stock (en pièces) et le statut de la commande."),
     el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date), el("label", { class: "ligne-compacte" }, "Emplacement ", emplacement), el("label", { class: "ligne-compacte" }, "Reçu par ", parQui)),
     el(
       "table",
