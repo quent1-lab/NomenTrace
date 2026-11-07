@@ -3304,6 +3304,20 @@ body:not(.peut-ensembles) .si-ensembles {
     border-left: 0;
   }
 
+  /* Messages en bas de l'écran, au-dessus d'une fiche ouverte en plein écran : en haut de
+     la page, ils restaient cachés sous elle. */
+  .bandeau-erreur,
+  .bandeau-avertissement {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 25;
+    max-height: 50vh;
+    overflow-y: auto;
+    box-shadow: 0 -4px 16px rgb(0 0 0 / 18%);
+  }
+
   .panneau {
     padding: var(--espace-3);
   }
