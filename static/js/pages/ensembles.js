@@ -6,12 +6,11 @@ import { formatMontant, formatNombre, formatPourcent } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
 import { estAdmin } from "../session.js";
 import { vueSchema } from "./ensembles_schema.js";
-import { el, rangsBlocs } from "../ui.js";
+import { el } from "../ui.js";
 import {
   alerteDepassement,
   cadenas,
   barreProgression,
-  barreRepartition,
   ouvrirFormulaireEnsemble,
   selectStatutMontage,
   texteBudget,
@@ -40,20 +39,11 @@ const TYPES_INCOHERENCE = {
   },
 };
 
-// Chiffre d'une carte : cumulé pour un parent, avec la part propre en second.
-function chiffre(ensemble, cle) {
-  if (!ensemble.nb_sous_ensembles) return formatNombre(ensemble[cle]);
-  return [formatNombre(ensemble.cumul[cle]), el("span", { class: "carte__propre" }, `dont propre ${formatNombre(ensemble[cle])}`)];
-}
-
-function carte(ensemble, repartition, rangs, rafraichir, noms) {
-  const parent = ensemble.nb_sous_ensembles > 0;
-  const mentions = [
-    ensemble.parent_code ? `Sous-ensemble de ${noms.get(ensemble.parent_code) ?? ensemble.parent_code}` : null,
-    parent ? `chiffres cumulés avec ${ensemble.nb_sous_ensembles} sous-ensemble(s)` : null,
-  ].filter(Boolean);
-  const mention = mentions.join(" · ");
-  const chiffres = parent ? ensemble.cumul : ensemble;
+// Carte compacte : ce qui reste à dépenser face au budget, et l'avancement. Les chiffres d'un
+// parent sont cumulés avec ses sous-ensembles ; le détail (part propre, coût matière,
+// répartition par bloc) est sur la page de l'ensemble.
+function carte(ensemble, rafraichir) {
+  const chiffres = ensemble.nb_sous_ensembles > 0 ? ensemble.cumul : ensemble;
   return el(
     "article",
     {
@@ -65,25 +55,16 @@ function carte(ensemble, repartition, rangs, rafraichir, noms) {
       },
     },
     el("header", { class: "carte__entete" }, el("h2", {}, ensemble.nom), el("span", { class: "etiquette" }, ensemble.code)),
-    mention ? el("p", { class: "texte-doux texte-petit carte__mention" }, mention.charAt(0).toUpperCase() + mention.slice(1)) : null,
     el(
       "dl",
       { class: "carte__chiffres" },
-      el("dt", {}, "Composants distincts"),
-      el("dd", {}, chiffre(ensemble, "nb_composants_distincts")),
-      el("dt", {}, "Pièces"),
-      el("dd", {}, chiffre(ensemble, "nb_pieces_total")),
-      el("dt", { title: "Toutes les pièces affectées, stock interne compris" }, "Coût matière HT"),
-      el("dd", {}, texteCout(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.cout_ht)}`) : null),
-      el("dt", { title: "Coût matière moins le stock déjà disponible" }, "À dépenser HT"),
-      el("dd", { class: "fort" }, texteDepense(chiffres), parent ? el("span", { class: "carte__propre" }, `dont propre ${formatMontant(ensemble.depense_ht)}`) : null),
+      el("dt", {}, "À dépenser HT"),
+      el("dd", { class: "fort" }, texteDepense(chiffres)),
       el("dt", {}, "Budget HT"),
       el("dd", {}, texteBudget(ensemble)),
       ensemble.ecart_depense_ht !== null ? situationEnsemble(ensemble).map((partie, rang) => el(rang ? "dd" : "dt", {}, partie)) : null,
-      ensemble.ecart_budget_ht !== null ? situationEnsemble(ensemble, "cout").map((partie, rang) => el(rang ? "dd" : "dt", { class: "texte-doux" }, partie)) : null,
     ),
     alerteDepassement(ensemble.depassement_verrouille_ht),
-    barreRepartition(repartition, rangs),
     barreProgression("Appro : composants reçus", chiffres.nb_composants_recus, chiffres.nb_composants_a_acheter, "rien à acheter"),
     barreProgression("Montage : pièces montées", chiffres.nb_pieces_montees, chiffres.nb_pieces_total, "aucune pièce"),
     el("footer", { class: "carte__pied carte__pied--espace" }, el("span", { class: "texte-doux" }, "Statut de montage"), selectStatutMontage(ensemble, rafraichir)),
@@ -272,15 +253,8 @@ function encadreCoherence(incoherences) {
 export async function afficherEnsembles(conteneur, parametres) {
   const vue = ["arbre", "schema"].includes(parametres?.get("vue")) ? parametres.get("vue") : "cartes";
   const rafraichir = () => afficherEnsembles(conteneur, new URLSearchParams({ vue }));
-  const [arbre, repartition, repartitionCumul, blocs, incoherences] = await Promise.all([
-    api.getArbreEnsembles(),
-    api.getRepartition(),
-    api.getRepartition(true),
-    api.getBlocs(),
-    api.getIncoherences(),
-  ]);
+  const [arbre, incoherences] = await Promise.all([api.getArbreEnsembles(), api.getIncoherences()]);
   const ensembles = arbre.ensembles;
-  const rangs = rangsBlocs(blocs);
   const ordreSuggere = ensembles.filter((e) => e.niveau === 1).reduce((max, e) => Math.max(max, e.ordre), 0) + 1;
   const creer = () =>
     ouvrirFormulaireEnsemble({ ordreSuggere, surEnregistre: (e) => naviguer(`/ensembles/${e.code}`) });
@@ -294,13 +268,8 @@ export async function afficherEnsembles(conteneur, parametres) {
     conteneur.replaceChildren(entete, etatVide(creer), encadreCoherence(incoherences));
     return;
   }
-  // Toutes les cartes à plat, dans l'ordre de l'arbre ; un parent affiche la répartition
-  // par bloc de toute sa branche.
-  const noms = new Map(ensembles.map((e) => [e.code, e.nom]));
-  const carteDe = (e) => {
-    const source = e.nb_sous_ensembles ? repartitionCumul : repartition;
-    return carte(e, source.filter((r) => r.ensemble_code === e.code), rangs, rafraichir, noms);
-  };
+  // Toutes les cartes à plat, dans l'ordre de l'arbre.
+  const carteDe = (e) => carte(e, rafraichir);
   const corps = {
     cartes: () => el("div", { class: "grille-cartes" }, ensembles.map(carteDe)),
     arbre: () => vueArbre(arbre, rafraichir),

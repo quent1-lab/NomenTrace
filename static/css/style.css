@@ -2585,10 +2585,6 @@ td.editable:hover {
   font-weight: 400;
 }
 
-.carte__mention {
-  margin: calc(-1 * var(--espace-2)) 0 0;
-}
-
 .carte__chiffres .texte-alerte {
   margin: 0;
 }

@@ -267,11 +267,11 @@ réellement en achats. Quand un composant en stock sert à plusieurs ensembles, 
 profite du stock au prorata de ses pièces. Un composant fabriqué, prêté ou donné n'a rien
 à dépenser, et les pièces de rechange restent comptées au niveau du projet seulement.
 
-L'onglet Cartes montre une carte par ensemble et par sous-ensemble : composants, pièces,
-coût matière, montant à dépenser, budget et marge (sur la dépense, puis sur le coût
-matière), répartition du coût par bloc, avancement de l'approvisionnement et du montage,
-statut de montage modifiable directement. La carte d'un ensemble qui a des sous-ensembles
-donne des chiffres cumulés, avec sa part propre en second.
+L'onglet Cartes montre une carte courte par ensemble et par sous-ensemble : montant à
+dépenser, budget et marge, avancement de l'approvisionnement et du montage, statut de
+montage modifiable directement. La carte d'un ensemble qui a des sous-ensembles donne des
+chiffres cumulés. Le reste, coût matière, part propre et répartition du coût par bloc, est
+sur la page de l'ensemble.
 
 L'onglet Arbre donne la hiérarchie complète dans un tableau, depuis la ligne du projet :
 coût matière et montant à dépenser cumulés, part propre, budget cible, budget calculé,
@@ -292,7 +292,7 @@ sous-ensembles.
 
 ### La page d'un ensemble
 
-Elle reprend les chiffres de la carte, liste les sous-ensembles, puis les composants
+Elle donne tous les chiffres de l'ensemble, liste les sous-ensembles, puis les composants
 affectés directement, groupables par bloc. Une quantité affectée se modifie en cliquant
 dessus ; la croix retire le composant. La liste de montage, en bas, montre ce qu'il reste à
 monter avec l'état du stock : prêt à monter, en partie en stock, en attente de livraison,
