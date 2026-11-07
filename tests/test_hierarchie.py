@@ -336,7 +336,16 @@ def test_creation_d_un_projet_sans_redemarrage(app: FastAPI, dossier_data: Path)
 
 
 def _contenu(dossier: Path) -> set[Path]:
-    return {chemin for chemin in dossier.rglob("*") if "sauvegardes" not in chemin.parts}
+    """Fichiers et dossiers présents, hors sauvegardes et hors fichiers -wal et -shm.
+
+    SQLite crée ces deux fichiers à l'ouverture d'une base en WAL et les efface à la
+    fermeture de la dernière connexion : leur présence dépend du moment, pas de la création.
+    """
+    return {
+        chemin
+        for chemin in dossier.rglob("*")
+        if "sauvegardes" not in chemin.parts and not chemin.name.endswith(("-wal", "-shm"))
+    }
 
 
 @pytest.mark.parametrize(
