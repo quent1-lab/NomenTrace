@@ -43,6 +43,8 @@ function message(texte, classe = "message-info") {
 // --- Projet -----------------------------------------------------------------------------------
 
 const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux", taille_max_document_mo: "entier" };
+// La référence d'un dossier n'affiche que ces champs : ni nom, ni préfixe, ni budget.
+const DESCRIPTION_REFERENCE = { taux_tva_defaut: "taux", taille_max_document_mo: "entier" };
 const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut", taille_max_document_mo: "Taille maximale d'un document" };
 
 // Coordonnées reprises dans l'en-tête des demandes de devis envoyées aux fournisseurs.
@@ -231,7 +233,7 @@ async function afficherOngletProjet(cible) {
   }
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const lu = lireFormulaire(formulaire, DESCRIPTION_PROJET, LIBELLES_PROJET);
+    const lu = lireFormulaire(formulaire, reference ? DESCRIPTION_REFERENCE : DESCRIPTION_PROJET, LIBELLES_PROJET);
     if (lu.erreur) return afficherErreur(lu.erreur);
     if (!reference && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
     if (!reference && !lu.valeurs.prefixe_id) return afficherErreur("Le préfixe des identifiants est obligatoire.");

@@ -142,7 +142,7 @@ window.addEventListener("nomentrace:projet", rafraichirEntete);
 // Pastille du menu Composants pour les responsables (administrateur, permission achats) :
 // nombre de composants sans visa valable, qui mène à la liste « À voir ».
 async function rafraichirVisas() {
-  if (!aPermission("achats")) return;
+  if (!aPermission("achats") || dossierReference()) return; // Une référence n'a pas de composants.
   const lien = document.querySelector('.menu__lien[data-route="/composants"]');
   let compte;
   try {
