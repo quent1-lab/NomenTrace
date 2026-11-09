@@ -172,6 +172,19 @@ def _devis_mouser(client: TestClient, composants: list[str], statut: str = "Devi
     return numero
 
 
+def test_candidats_portent_le_lien_produit(client_essai: TestClient) -> None:
+    """Les listes à cocher affichent le lien produit à côté de l'identifiant."""
+    lien = "https://exemple.test/produit"
+    corps = {"lien_produit": lien}
+    assert client_essai.patch("/api/composants/ESSAI-TR-001", json=corps).status_code == 200
+    numero = _devis_mouser(client_essai, ["ESSAI-AGI-003"])
+    commande = client_essai.get(f"/api/commandes/{numero}/candidats").json()
+    assert {c["id"]: c for c in commande}["ESSAI-TR-001"]["lien_produit"] == lien
+    devis = client_essai.get("/api/demandes-devis").json()
+    lignes = {c["id"]: c for g in devis["fournisseurs"] for c in g["lignes"]}
+    assert lignes["ESSAI-TR-001"]["lien_produit"] == lien
+
+
 def test_candidats_du_fournisseur_absents_de_la_commande(client_essai: TestClient) -> None:
     numero = _devis_mouser(client_essai, ["ESSAI-AGI-003"])
     autre = _devis_mouser(client_essai, ["ESSAI-TR-001"])

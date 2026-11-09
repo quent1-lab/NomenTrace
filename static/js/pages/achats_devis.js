@@ -4,12 +4,8 @@
 import { api } from "../api.js";
 import { formatLots, formatMontant, formatNombre } from "../format.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
-import { lienRoute, naviguer } from "../router.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
-
-function lienComposant(id) {
-  return el("a", { href: lienRoute("/composants", { fiche: id }) }, id);
-}
+import { naviguer } from "../router.js";
+import { afficherErreur, el, idComposantSaisie, masquerErreur } from "../ui.js";
 
 function tableGroupe(groupe, cases, surChangement) {
   const casesGroupe = [];
@@ -23,7 +19,7 @@ function tableGroupe(groupe, cases, surChangement) {
       "tr",
       {},
       el("td", {}, coche),
-      el("td", { class: "code" }, lienComposant(l.id)),
+      el("td", { class: "code" }, idComposantSaisie(l.id, { lien: l.lien_produit })),
       el("td", { class: "tronque", title: l.designation }, l.designation),
       el("td", {}, l.bloc_code),
       el("td", { class: "nombre" }, formatLots(l.reste_a_commander_lots, l.qte_par_lot)),
@@ -74,7 +70,7 @@ export async function ouvrirDemandesDevis() {
         { class: "devis__sans-fournisseur" },
         el("h3", {}, `Sans fournisseur (${candidats.sans_fournisseur.length})`),
         el("p", { class: "texte-doux texte-petit" }, "Renseigner leur fournisseur sur leur fiche pour pouvoir les demander."),
-        el("p", {}, candidats.sans_fournisseur.map((l, i) => [i ? ", " : "", lienComposant(l.id)])),
+        el("p", {}, candidats.sans_fournisseur.map((l, i) => [i ? ", " : "", idComposantSaisie(l.id, { lien: l.lien_produit })])),
       )
     : null;
   const formulaire = el(

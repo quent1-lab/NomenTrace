@@ -135,7 +135,7 @@ la synchronisation (`synchronisation` : projets écrits, projets hors ligne, `pe
 | GET, POST | `/api/dossiers/{code}/communes` | Communes actives avec projets, statut, estimé et réel, `acheteur` ; nouvelle commune (`fournisseur_nom` de la liste de l'organisme, champs d'une commande) |
 | GET | `/api/dossiers/{code}/communes/fournisseurs` | Fournisseurs validés de l'organisme |
 | GET, PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}` | Commune, lignes par projet, part de chaque projet, frais, projets hors ligne ; modification de l'en-tête (Livré et Livré partiel refusés, 400) ; archivage, copies comprises |
-| GET | `/api/dossiers/{code}/communes/{numero}/candidats` | Composants achetés de chaque projet en ligne, avec fournisseur et reste à commander |
+| GET | `/api/dossiers/{code}/communes/{numero}/candidats` | Composants achetés de chaque projet en ligne, avec fournisseur, reste à commander et lien produit |
 | POST | `/api/dossiers/{code}/communes/{numero}/lignes` | Lignes (`projet`, `composant_id`, `qte_commandee`, `pu_ht_devis`, `commentaire`), chacune dans la copie de son projet, créée au besoin |
 | PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/lignes/{projet}/{id}` | Quantité, prix, commentaire, statut (À commander, Commandée, Annulée) ; suppression d'une ligne sans réception |
 | POST | `/api/dossiers/{code}/communes/{numero}/frais` | Nouveau frais |
@@ -245,7 +245,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | GET, PATCH, DELETE | `/api/commandes/{numero}` | Détail, modification, archivage |
 | GET, POST | `/api/commandes/{numero}/lignes` | Lignes d'une commande ; ajout |
 | POST | `/api/commandes/{numero}/lignes/lot` | Ajout de plusieurs lignes (`lignes`, comme pour une ligne), toutes ou aucune |
-| GET | `/api/commandes/{numero}/candidats` | Composants en mode Achat du fournisseur de la commande qui restent à commander et n'y figurent pas (`reste_a_commander` en pièces, `reste_a_commander_lots`, `qte_par_lot`, `pu_ht` d'une pièce, `prix_lot_ht`, `demandes_ouvertes` : autres devis en cours) |
+| GET | `/api/commandes/{numero}/candidats` | Composants en mode Achat du fournisseur de la commande qui restent à commander et n'y figurent pas (`reste_a_commander` en pièces, `reste_a_commander_lots`, `qte_par_lot`, `pu_ht` d'une pièce, `prix_lot_ht`, `lien_produit`, `demandes_ouvertes` : autres devis en cours) |
 | GET, POST | `/api/commandes/{numero}/frais` | Frais d'une commande (livraison, douane…) ; ajout |
 | PATCH, DELETE | `/api/frais/{id}` | Type, montant, commentaire d'un frais ; retrait |
 | GET | `/api/commandes/{numero}/demande-devis.pdf` | Demande de devis à envoyer au fournisseur ; `avant` : date de réponse souhaitée |

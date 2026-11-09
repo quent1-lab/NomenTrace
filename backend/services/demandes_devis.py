@@ -23,7 +23,7 @@ STATUTS_DEMANDE_OUVERTE: tuple[str, ...] = (
 SQL_CANDIDATS = """
 SELECT v.id, v.designation, v.bloc_code, v.fournisseur_nom, v.reste_a_commander,
        v.reste_a_commander_lots, v.qte_par_lot, v.pu_ht, v.prix_lot_ht,
-       v.criticite,
+       v.criticite, v.lien_produit,
        (SELECT group_concat(DISTINCT c.numero)
           FROM ligne_commande l JOIN commande c ON c.numero = l.commande_numero
          WHERE l.composant_id = v.id AND l.statut_ligne <> 'Annulee' AND c.archive = 0
@@ -36,7 +36,7 @@ ORDER BY v.fournisseur_nom IS NULL, v.fournisseur_nom, v.id
 
 SQL_CANDIDATS_COMMANDE = """
 SELECT v.id, v.designation, v.reste_a_commander, v.reste_a_commander_lots, v.qte_par_lot,
-       v.pu_ht, v.prix_lot_ht,
+       v.pu_ht, v.prix_lot_ht, v.lien_produit,
        (SELECT group_concat(DISTINCT c.numero)
           FROM ligne_commande l JOIN commande c ON c.numero = l.commande_numero
          WHERE l.composant_id = v.id AND l.statut_ligne <> 'Annulee' AND c.archive = 0

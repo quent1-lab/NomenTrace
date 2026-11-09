@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { PREFIXE, attribut, chargerAttributs, formatAttribut, titreAttribut } from "../attributs.js";
 import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { lienRoute, naviguer } from "../router.js";
-import { afficherAvertissements, afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherAvertissements, afficherErreur, el, idComposantSaisie, masquerErreur } from "../ui.js";
 import { resumeCategories } from "./imports.js";
 
 const CHAMPS = {
@@ -69,9 +69,7 @@ function remarques(ligne) {
   return el("div", { class: "texte-surveiller texte-petit", title: liste.join("\n") }, liste.length > 1 ? `${liste.length} remarques` : liste[0]);
 }
 
-function lienComposant(id) {
-  return el("a", { href: lienRoute("/composants", { fiche: id }) }, id);
-}
+const lienComposant = (id) => idComposantSaisie(id);
 
 // --- Décisions par défaut (ce qui est coché à l'ouverture) ------------------------------------
 
@@ -304,7 +302,7 @@ function sections() {
   const identiques = par("IDENTIQUE");
   if (identiques.length) {
     resultat.push(el("details", { class: "panneau" }, el("summary", {}, `${identiques.length} composant(s) identique(s) à la base`),
-      el("p", { class: "texte-petit texte-doux" }, identiques.map((l) => l.composant_id).join(", "))));
+      el("p", { class: "texte-petit texte-doux" }, identiques.map((l, i) => [i ? ", " : "", lienComposant(l.composant_id)]))));
   }
   return resultat;
 }

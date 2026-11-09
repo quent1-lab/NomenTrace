@@ -9,7 +9,7 @@ import { formatDate, formatMontant, formatNombre, libelle } from "../format.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer } from "../router.js";
 import { estAdmin } from "../session.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherErreur, el, idComposantSaisie, masquerErreur } from "../ui.js";
 
 const TYPES_ENTITE = { bloc: "Bloc", ensemble: "Ensemble", fournisseur: "Fournisseur" };
 const FILTRE_ANOMALIES = "__anomalies";
@@ -190,7 +190,7 @@ async function sectionComposants(cible, blocs, apresLot) {
     selection,
     surSelection: () => actions.maj(),
     cellules: (c) => [
-      el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: c.id }) }, c.id)),
+      el("td", { class: "code" }, idComposantSaisie(c.id)),
       el("td", {}, c.bloc_code),
       el("td", { class: "tronque tronque--large", title: c.designation }, c.designation),
       el("td", { class: "tronque", title: c.fonction }, c.fonction),

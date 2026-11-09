@@ -203,6 +203,21 @@ def test_exemple_de_bout_en_bout(app: FastAPI, client: TestClient, exemple: str)
     assert liste["communes"][0]["estime_ht"] == pytest.approx(420.0)
 
 
+def test_candidats_et_lignes_portent_le_lien_produit(client: TestClient) -> None:
+    lien = "https://exemple.test/produit"
+    numero = nouvelle(client)
+    identifiant = composant(client, PROJET, "Farnell")
+    fiche = f"/p/{PROJET}/api/composants/{identifiant}"
+    assert client.patch(fiche, json={"lien_produit": lien}).status_code == 200
+    projets = client.get(f"{URL}/{numero}/candidats").json()
+    candidats = {k["id"]: k for p in projets if p["projet"] == PROJET for k in p["composants"]}
+    assert candidats[identifiant]["lien_produit"] == lien
+    ajouter(client, numero, [ligne(PROJET, identifiant, 1, 5.0)])
+    commune = client.get(f"{URL}/{numero}").json()
+    lignes = next(p for p in commune["projets"] if p["projet"] == PROJET)["lignes"]
+    assert [x["lien_produit"] for x in lignes] == [lien]
+
+
 def test_statut_livre_ne_se_pose_pas_a_la_main(client: TestClient, exemple: str) -> None:
     reponse = client.patch(f"{URL}/{exemple}", json={"statut": "Livre"})
     assert reponse.status_code == 400

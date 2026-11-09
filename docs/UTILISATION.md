@@ -400,6 +400,12 @@ fournisseur, dont les lignes portent le reste à commander et un PU HT vide, à 
 le devis arrive. Les composants sans fournisseur sont listés à part, avec un lien vers
 leur fiche.
 
+Dans les listes où l'on coche ou saisit (composants à ajouter à un devis ou à une commande,
+réceptions, commandes communes, choix des composants d'un ensemble, revue d'un import,
+nettoyage), l'identifiant ouvre la fiche dans un nouvel onglet : ce qui est en cours reste
+intact. Une petite icône à côté de l'identifiant ouvre directement la page produit, quand le
+composant en a une et que la liste la connaît.
+
 ### Le suivi de l'établissement
 
 Quand l'établissement passe lui-même les commandes, il tient souvent son propre suivi dans

@@ -9,7 +9,7 @@ import { badgeStatut } from "../badges.js";
 import { formatDate, formatLots, uniteLots, formatMontant, formatPourcent, libelle, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
-import { afficherErreur, el, enregistrerFichier, lienExterne, masquerErreur } from "../ui.js";
+import { afficherErreur, el, enregistrerFichier, idComposantSaisie, lienExterne, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, TYPES_COMMANDE } from "../valeurs.js";
 import { ouvrirSuivi } from "../pages/achats_suivi.js";
 import { afficherCompte, formulairePanneau } from "./elements.js";
@@ -216,7 +216,7 @@ async function ajouterComposants() {
         const coche = el("input", { type: "checkbox", "aria-label": `Choisir ${k.id}` });
         const qte = champNombre("qte", k.reste_a_commander_lots, 0, { "aria-label": "Quantité" });
         cases.push({ projet: p.projet, composant: k, coche, qte });
-        return el("tr", {}, el("td", {}, coche), el("td", { class: "code" }, k.id), el("td", {}, k.designation), el("td", { class: "nombre" }, formatLots(k.reste_a_commander_lots, k.qte_par_lot)), el("td", { class: "nombre" }, qte), el("td", { class: "nombre" }, formatMontant(k.prix_lot_ht)));
+        return el("tr", {}, el("td", {}, coche), el("td", { class: "code" }, idComposantSaisie(k.id, { lien: k.lien_produit, projet: p.projet })), el("td", {}, k.designation), el("td", { class: "nombre" }, formatLots(k.reste_a_commander_lots, k.qte_par_lot)), el("td", { class: "nombre" }, qte), el("td", { class: "nombre" }, formatMontant(k.prix_lot_ht)));
       }),
     ];
   });
@@ -320,7 +320,7 @@ function lignesProjet(p) {
     el(
       "tr",
       { class: l.statut_ligne === "Annulee" ? "texte-doux" : "" },
-      el("td", { class: "code" }, l.composant_id),
+      el("td", { class: "code" }, idComposantSaisie(l.composant_id, { lien: l.lien_produit, projet: p.projet })),
       el("td", {}, l.designation ?? "—"),
       el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)),
       el("td", { class: "nombre" }, l.pu_ht_devis == null ? el("span", { class: "etiquette etiquette--attention" }, "sans prix") : formatMontant(l.pu_ht_devis)),
@@ -481,7 +481,7 @@ function sectionReception() {
         const unite = uniteLots(l.qte_par_lot);
         const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": unite ? `Reçu pour ${l.composant_id}, en ${unite}` : `Reçu pour ${l.composant_id}` });
         champs.push({ projet: p.projet, ligne: l, champ });
-        return el("tr", {}, el("td", { class: "code" }, l.composant_id), el("td", {}, l.designation ?? "—"), el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)), el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)), el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null));
+        return el("tr", {}, el("td", { class: "code" }, idComposantSaisie(l.composant_id, { lien: l.lien_produit, projet: p.projet })), el("td", {}, l.designation ?? "—"), el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)), el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)), el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null));
       }),
     ];
   });

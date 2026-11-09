@@ -293,7 +293,7 @@ def list_candidats(
             composants = db.fetch_all(
                 lecture,
                 "SELECT id, designation, fournisseur_nom, reste_a_commander,"
-                " reste_a_commander_lots, qte_par_lot, pu_ht, prix_lot_ht"
+                " reste_a_commander_lots, qte_par_lot, pu_ht, prix_lot_ht, lien_produit"
                 " FROM v_composant WHERE mode_appro = 'Achat' ORDER BY id",
             )
         finally:

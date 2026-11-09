@@ -1,5 +1,7 @@
 // Petits outils d'interface partagés : création d'éléments et bandeau d'erreur.
 
+import { lienRoute } from "./router.js";
+
 // el("div", { class: "carte", onclick: f }, enfant1, "texte", ...)
 export function el(balise, attributs = {}, ...enfants) {
   const element = document.createElement(balise);
@@ -162,4 +164,14 @@ export function lienProduit(adresse) {
   const lien = el("a", { class: "lien-produit", href: adresse, target: "_blank", rel: "noopener noreferrer", title: `Ouvrir la page produit : ${adresse}` }, iconeLienExterne());
   lien.addEventListener("click", (e) => e.stopPropagation());
   return lien;
+}
+
+// Identifiant d'un composant dans une liste de saisie : la fiche s'ouvre dans un nouvel onglet
+// pour garder ce qui est coché ou saisi, le lien produit suit s'il existe. `projet` désigne le
+// projet du composant quand la page n'en est pas un (commandes communes).
+export function idComposantSaisie(id, { lien = null, projet = null } = {}) {
+  const route = lienRoute("/composants", { fiche: id });
+  const href = projet ? `/p/${encodeURIComponent(projet)}/${route}` : route;
+  const fiche = el("a", { href, target: "_blank", rel: "noopener", title: "Ouvrir la fiche dans un nouvel onglet" }, id);
+  return el("span", {}, fiche, lienProduit(lien) ? " " : null, lienProduit(lien));
 }

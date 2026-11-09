@@ -15,7 +15,7 @@ import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormula
 import { champFournisseur } from "./fournisseurs_commun.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { ecritBloc } from "../session.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherErreur, el, idComposantSaisie, masquerErreur } from "../ui.js";
 import { BASES_PRIX, valeursListe } from "../valeurs.js";
 
 const DESCRIPTION = {
@@ -235,7 +235,7 @@ function zoneCatalogue(formulaire, surReprendre) {
       { class: "catalogue__liste", hidden: replie },
       propositions.map(ligneProposition),
       doublons.map((d) =>
-        el("div", { class: "catalogue__doublon" }, el("span", { class: "puce-fiche puce-fiche--actions" }, "Existe déjà dans ce projet"), el("span", { class: "code" }, d.id), ` ${d.designation}`),
+        el("div", { class: "catalogue__doublon" }, el("span", { class: "puce-fiche puce-fiche--actions" }, "Existe déjà dans ce projet"), el("span", { class: "code" }, idComposantSaisie(d.id)), ` ${d.designation}`),
       ),
     );
     const pastille = el("button", {

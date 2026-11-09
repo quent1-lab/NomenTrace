@@ -6,7 +6,7 @@ import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { ouvrirPanneau } from "../panneau.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
-import { afficherErreur, classeBloc, el, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
+import { afficherErreur, classeBloc, el, idComposantSaisie, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { ecritBloc } from "../session.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import {
@@ -345,7 +345,7 @@ function ligneSelecteur(c, ici, surAffecte) {
   return el(
     "tr",
     { class: ici ? "ligne--selection" : "" },
-    el("td", { class: "code" }, c.id),
+    el("td", { class: "code" }, idComposantSaisie(c.id, { lien: c.lien_produit })),
     el("td", { class: "tronque", title: c.designation }, c.designation),
     el("td", {}, c.bloc_code),
     el("td", { class: "nombre" }, formatNombre(c.qte_besoin)),

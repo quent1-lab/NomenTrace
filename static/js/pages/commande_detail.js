@@ -7,7 +7,7 @@ import { aujourdhui, formatDate, formatLots, uniteLots, formatMontant, formatNom
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, codeDossier, nomAuteur, voitDossier } from "../session.js";
-import { afficherAvertissements, afficherErreur, el, enregistrerFichier, lienExterne, lienProduit, masquerErreur } from "../ui.js";
+import { afficherAvertissements, afficherErreur, el, enregistrerFichier, idComposantSaisie, lienExterne, lienProduit, masquerErreur } from "../ui.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE, valeursListe } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { lienFournisseur } from "./fournisseurs_commun.js";
@@ -153,7 +153,7 @@ function ajoutCandidats() {
         "tr",
         {},
         el("td", {}, coche),
-        el("td", { class: "code" }, k.id),
+        el("td", { class: "code" }, idComposantSaisie(k.id, { lien: k.lien_produit })),
         el("td", {}, k.designation),
         el("td", { class: "nombre" }, formatLots(k.reste_a_commander_lots, k.qte_par_lot)),
         el("td", { class: "nombre" }, qte),
@@ -335,7 +335,7 @@ function modeReception() {
     return el(
       "tr",
       {},
-      el("td", { class: "code" }, l.composant_id),
+      el("td", { class: "code" }, idComposantSaisie(l.composant_id, { lien: l.lien_produit })),
       el("td", { class: "tronque tronque--large", title: l.designation }, l.designation),
       el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)),
       el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)),
