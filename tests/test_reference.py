@@ -421,6 +421,15 @@ def test_reference_cachee_et_reservee(app: FastAPI, range_: TestClient) -> None:
     assert range_.post("/api/dossiers/epreuve/projets", json=corps).status_code == 400
 
 
+def test_reference_donne_les_limites_d_envoi(app: FastAPI, range_: TestClient) -> None:
+    """L'onglet Projet des paramètres communs lit la taille maximale d'un document."""
+    corps = {"taille_max_document_mo": 30}
+    assert range_.patch(f"/p/{REF}/api/parametres", json=corps).status_code == 200
+    limites = range_.get(f"/p/{REF}/api/envoi")
+    assert limites.status_code == 200, limites.text
+    assert limites.json()["document_max_octets"] == 30 * 1024 * 1024
+
+
 # --- Conflits au rangement d'un second projet (point 4 du débat) -------------------------------
 
 

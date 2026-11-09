@@ -31,6 +31,7 @@ ROUTES_REFERENCE: tuple[str, ...] = (
     "/api/listes",
     "/api/attributs",
     "/api/parametres",
+    "/api/envoi",
     "/api/journal",
     "/api/historique",
 )
