@@ -430,6 +430,15 @@ def test_reference_donne_les_limites_d_envoi(app: FastAPI, range_: TestClient) -
     assert limites.json()["document_max_octets"] == 30 * 1024 * 1024
 
 
+def test_taille_max_document_descend_aux_projets(app: FastAPI, range_: TestClient) -> None:
+    """La taille réglée dans les paramètres communs s'applique aux projets du dossier."""
+    corps = {"taille_max_document_mo": 30}
+    assert range_.patch(f"/p/{REF}/api/parametres", json=corps).status_code == 200
+    limites = range_.get(f"/p/{PROJET}/api/envoi").json()
+    assert limites["document_max_octets"] == 30 * 1024 * 1024
+    assert empreinte(app, REF) == empreinte(app, PROJET)
+
+
 # --- Conflits au rangement d'un second projet (point 4 du débat) -------------------------------
 
 

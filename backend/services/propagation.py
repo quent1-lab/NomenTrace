@@ -69,7 +69,8 @@ TABLES: tuple[Table, ...] = (
         ("valeur",),
         "cle IN ('taux_tva_defaut', 'champs_obligatoires', 'champs_obligatoires_portee',"
         " 'etablissement_nom', 'adresse_livraison', 'adresse_facturation',"
-        " 'contact_achats_nom', 'contact_achats_mail', 'contact_achats_tel')",
+        " 'contact_achats_nom', 'contact_achats_mail', 'contact_achats_tel',"
+        " 'taille_max_document_mo')",
     ),
     Table("logo", ("id",), ("type_mime", "contenu", "largeur", "hauteur", "modifie_le")),
 )
