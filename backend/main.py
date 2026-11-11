@@ -31,6 +31,7 @@ from backend.routes import (
     hierarchie,
     imports,
     listes,
+    mcp,
     nettoyage,
     pilotage,
     recherche,
@@ -61,6 +62,7 @@ SANS_EXPORT: tuple[str, ...] = (
     "/api/organismes",
     "/api/dossiers",
     "/api/projets",
+    "/api/mcp",
 )
 
 # Routes de l'API, dans l'ordre d'inclusion ; chacune a sa règle dans services/droits.py.
@@ -82,6 +84,7 @@ MODULES = (
     routes_sauvegardes,
     recherche,
     visas,
+    mcp,
 )
 ROUTEURS_PROJET = (session.router_projet, *(module.router for module in MODULES))
 # Routes communes : connexion, accueil, organismes, dossiers ; aucune base de projet.

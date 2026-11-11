@@ -2,15 +2,17 @@
 
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Annotated
 
 from fastapi import Depends, Request
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
-from backend.services import authentification, comptes, droits
+from backend.services import authentification, comptes, droits, mcp_outils
 from backend.services.droits import Utilisateur
 from backend.services.export_excel import PlanificateurExport
+from backend.services.mcp import CLE_PORTEE
 from backend.services.projets import EmplacementsProjet
 
 COOKIE_SESSION = "nomentrace_session"
@@ -96,9 +98,24 @@ def get_utilisateur(request: Request) -> Utilisateur | None:
 
     Les droits sont relus dans la base à chaque requête : un rôle retiré ou un compte
     désactivé prend effet immédiatement, sans attendre la fin de la session.
+
+    Une requête émise par la route MCP porte le compte de son jeton dans sa portée ASGI
+    (jamais dans un en-tête) : l'utilisateur est marqué `mcp`, signé « (IA) » au journal.
     """
+    appel_mcp = request.scope.get(CLE_PORTEE)
     if request.app.state.mode_local:
+        if appel_mcp is not None:
+            return replace(droits.UTILISATEUR_LOCAL, nom="local (IA)", mcp=True)
         return droits.UTILISATEUR_LOCAL
+    if appel_mcp is not None:
+        conn = db.connect(request.app.state.chemin_comptes)
+        try:
+            utilisateur = comptes.get_utilisateur(
+                conn, appel_mcp["utilisateur_id"], get_projet(request)
+            )
+        finally:
+            conn.close()
+        return replace(utilisateur, nom=f"{utilisateur.nom} (IA)", mcp=True)
     jeton = request.cookies.get(COOKIE_SESSION)
     if not jeton:
         return None
@@ -134,8 +151,15 @@ def verifier_acces(
 ) -> None:
     """Applique la règle de la route demandée (table REGLES de services/droits.py)."""
     route = request.scope.get("route")
-    regle = droits.get_regle(request.method, getattr(route, "path", ""))
+    chemin = getattr(route, "path", "")
+    regle = droits.get_regle(request.method, chemin)
     droits.verifier(regle, utilisateur, conn, request.path_params)
+    if (
+        utilisateur is not None
+        and utilisateur.mcp
+        and (request.method, chemin) not in (mcp_outils.ROUTES)
+    ):
+        raise droits.AccesRefuse("Cette action n'est pas ouverte à un assistant IA.")
 
 
 def exiger_mode_connecte(request: Request) -> None:

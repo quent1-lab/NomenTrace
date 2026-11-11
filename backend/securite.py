@@ -75,6 +75,14 @@ def requete_locale(request: Request) -> bool:
     return client in config.HOTES_LOCAUX and hote in config.HOTES_LOCAUX
 
 
+def _client_mcp(request: Request) -> bool:
+    """Client MCP hors navigateur : la route MCP, sans en-tête Origin. Il s'authentifie par
+    un jeton porté dans un en-tête, qu'un site tiers ne peut pas faire envoyer : le contrôle
+    d'origine, qui protège le cookie de session, n'a pas lieu d'être. Une origine présente
+    reste contrôlée (protection contre le rebond DNS)."""
+    return request.url.path == "/api/mcp" and "origin" not in request.headers
+
+
 def _refus(message: str, statut: int) -> JSONResponse:
     return JSONResponse({"erreur": message}, status_code=statut)
 
@@ -98,7 +106,12 @@ def install_securite(app: FastAPI, mode_local: bool) -> None:
                 " adressées à 127.0.0.1 ou localhost.",
                 403,
             )
-        elif api and request.method in METHODES_ECRITURE and not origine_admise(request):
+        elif (
+            api
+            and request.method in METHODES_ECRITURE
+            and not origine_admise(request)
+            and not _client_mcp(request)
+        ):
             journal_log.warning(
                 "Écriture refusée : origine « %s » pour l'hôte « %s » (%s %s).",
                 request.headers.get("origin"),

@@ -589,6 +589,14 @@ class OrganismeCreation(Modele):
     nom: str = Field(min_length=1, max_length=80)
 
 
+class McpReglage(Modele):
+    acces: Literal["ferme", "admin", "membres"]
+
+
+class JetonApiCreation(Modele):
+    nom: str = Field(min_length=1, max_length=60)
+
+
 class OrganismeModif(Modele):
     nom: str = Field(min_length=1, max_length=80)
 

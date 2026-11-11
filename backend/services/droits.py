@@ -81,6 +81,8 @@ class Utilisateur:
     local: bool = False
     tous_blocs: bool = False
     admin_serveur: bool = False
+    # Requête faite par un assistant IA (route MCP) : limitée aux routes de ses outils.
+    mcp: bool = False
 
     @property
     def admin(self) -> bool:
@@ -323,6 +325,12 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("PATCH", "/api/utilisateurs/{identifiant}"): ADMIN,
     ("POST", "/api/utilisateurs/{identifiant}/invitation"): ADMIN,
     # Pilotage, paramètres, journal, export
+    ("GET", "/api/mcp/reglage"): LECTURE,
+    ("PATCH", "/api/mcp/reglage"): ADMIN,
+    ("POST", "/api/mcp/jetons"): LECTURE,
+    ("DELETE", "/api/mcp/jetons/{identifiant}"): LECTURE,
+    # Authentifiée par son jeton (routes/mcp.py), pas par la session.
+    ("POST", "/api/mcp"): PUBLIC,
     ("GET", "/api/pilotage"): LECTURE,
     ("GET", "/api/parametres"): LECTURE,
     ("GET", "/api/envoi"): LECTURE,

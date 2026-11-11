@@ -9,6 +9,7 @@ import { afficherErreur, el, enregistrerFichier, masquerErreur } from "../ui.js"
 import { afficherOngletBlocs, afficherOngletEnsembles, afficherOngletFournisseurs } from "./parametres_entites.js";
 import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherOngletHistorique } from "./parametres_historique.js";
+import { afficherOngletIa } from "./parametres_ia.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
 import { aPermission, dossierReference, estAdmin, modeLocal, nomLibre, reglagesImposes, typeReference } from "../session.js";
@@ -27,6 +28,7 @@ const ONGLETS = [
   ["listes", "Listes de valeurs", afficherListes, () => estAdmin() && horsOrganisme()],
   ["attributs", "Attributs", afficherOngletAttributs, () => aPermission("attributs") && horsOrganisme()],
   ["utilisateurs", "Utilisateurs", afficherOngletUtilisateurs, () => estAdmin() && !modeLocal() && horsReference()],
+  ["ia", "Assistant IA", afficherOngletIa, () => horsReference() && horsOrganisme()],
   ["historique", "Historique", afficherOngletHistorique, () => true],
   ["sauvegardes", "Export et sauvegardes", afficherOngletSauvegardes, horsReference],
 ];

@@ -230,6 +230,10 @@ export const api = {
   // Sans projet : celui de la page. Avec un projet (page d'un dossier, sans préfixe) : le sien.
   getLimitesEnvoi: (projet = null) => requete("GET", projet ? `/p/${projet}/api/envoi` : "/api/envoi"),
   patchParametres: (modifs) => requete("PATCH", "/api/parametres", modifs),
+  getReglageMcp: () => requete("GET", "/api/mcp/reglage"),
+  patchReglageMcp: (modifs) => requete("PATCH", "/api/mcp/reglage", modifs),
+  createJetonMcp: (corps) => requete("POST", "/api/mcp/jetons", corps),
+  deleteJetonMcp: (id) => requete("DELETE", `/api/mcp/jetons/${encodeURIComponent(id)}`),
   getLogoInfos: () => requete("GET", "/api/parametres/logo/infos"),
   envoyerLogo: (donnees) => requeteFormulaire("/api/parametres/logo", donnees),
   deleteLogo: () => requete("DELETE", "/api/parametres/logo"),
