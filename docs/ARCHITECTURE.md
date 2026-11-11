@@ -79,6 +79,12 @@ l'instance existe, puis sauvegarde et migre chaque projet inscrit, un par un : u
 met ce projet seul hors ligne (ses routes répondent 503), les autres démarrent. Elle lance
 enfin un fil d'export Excel par projet.
 
+`services/retrait_projet.py` retire un projet : il compte ses traces (composants, commandes,
+mouvements de stock, documents), met le projet hors ligne, puis le supprime s'il est vide
+(dossiers déplacés dans `_corbeille/`, lignes `jeton_api`, `acces` et `projet` effacées) ou
+l'archive sinon. Si l'opération échoue, les dossiers sont remis en place et le projet remis
+en ligne.
+
 S'assurer du projet de l'instance suit une règle écrite en tête de `services/projets.py`.
 L'ancienne base unique d'avant la version 1.10 (`NOMENTRACE_BASE`), si elle n'est pas
 encore marquée, est recopiée par l'API de sauvegarde de SQLite (journal WAL compris), avec

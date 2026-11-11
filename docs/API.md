@@ -106,6 +106,7 @@ périmètre.
 | POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
 | DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
 | PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur), avec le rapport de la synchronisation ; nom d'équipe ; `budget_ht` (administrateur de l'organisme) |
+| DELETE | `/api/projets/{code}` | Retrait d'un projet : gestion de l'organisme du dossier, administrateur du serveur pour un projet hors dossier ; une référence ne se retire pas (403), un projet hors ligne répond 503. Sans composant, commande, mouvement de stock ni document, le projet est supprimé (sauvegarde, dossiers à la corbeille, lignes de la base commune effacées) ; sinon il est archivé. Réponse `{code, action, traces}` : `action` vaut `supprime` ou `archive`, `traces` liste ce que le projet contient (vide si supprimé) |
 
 Les réglages communs d'un dossier se règlent par les routes ordinaires des blocs, listes,
 attributs et paramètres, sous l'adresse de sa référence, `/p/ref-<dossier>/`. Toute

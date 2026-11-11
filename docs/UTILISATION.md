@@ -599,7 +599,18 @@ des identifiants (proposés à partir du nom d'équipe, figés ensuite) et, si l
 l'adresse de l'administrateur du projet, qui reçoit un lien d'invitation. « Reprendre de »
 part d'un autre projet du dossier : le nouveau reçoit ses statuts d'appro et de choix et son
 arborescence d'ensembles, sans ses composants, ses commandes, son stock ni ses responsables.
-Le nom du projet vient du dossier quand celui-ci en donne un ; sinon la fenêtre demande aussi le nom du projet, que son administrateur pourra changer ensuite dans Paramètres › Projet. Le projet est aussitôt en ligne. Les responsables achats du dossier se
+Le nom du projet vient du dossier quand celui-ci en donne un ; sinon la fenêtre demande aussi le nom du projet, que son administrateur pourra changer ensuite dans Paramètres › Projet. Le projet est aussitôt en ligne.
+
+Qui gère l'organisme clique le nom d'un projet du tableau pour ouvrir son panneau. Il y
+change le nom d'équipe (le code d'adresse, lui, ne change pas) et y trouve « Retirer le
+projet », après confirmation. Un projet sans composant (archivés compris), sans commande,
+sans mouvement de stock et sans document est supprimé : une sauvegarde de sa base est prise,
+ses fichiers vont à la corbeille du serveur (voir l'exploitation) et son code redevient
+libre. Un projet qui porte l'une de ces traces est seulement archivé : il disparaît de la
+page et se met hors ligne, mais sa base reste intacte, et aucun écran ne permet de le
+désarchiver. Le message qui suit dit lequel des deux s'est produit et, pour un archivage,
+ce que le projet contient encore. Une référence de dossier ne se retire pas, et un projet
+hors ligne ne peut pas l'être tant qu'il n'est pas revenu en ligne. Les responsables achats du dossier se
 choisissent parmi les membres de ses projets : ils voient le résumé de tous les projets du
 dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
 

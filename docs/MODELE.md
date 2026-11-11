@@ -58,7 +58,8 @@ affectation n'est pas une anomalie : c'est un état normal.
 
 Composants, blocs, ensembles, commandes et fournisseurs portent une colonne `archive` qui
 les retire des listes et des calculs ; l'historique reste. Un bloc archivé n'accepte plus
-de nouveau composant.
+de nouveau composant. Dans la base commune, `projet.archive = 1` marque un projet retiré
+qui portait des traces : il n'est plus servi ni affiché, sa base reste intacte.
 
 La suppression physique est réservée à ce qui n'a laissé aucune trace (écran Nettoyage) :
 
