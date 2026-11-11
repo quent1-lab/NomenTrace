@@ -318,6 +318,7 @@ REGLES: dict[tuple[str, str], Regle] = {
         "/api/dossiers/{code}/communes/{numero}/documents/{projet}/{identifiant}/fichier",
     ): COMMUN,
     ("PATCH", "/api/projets/{code}"): COMMUN,
+    ("DELETE", "/api/projets/{code}"): COMMUN,
     # Utilisateurs
     ("GET", "/api/utilisateurs"): ADMIN,
     ("DELETE", "/api/utilisateurs/{identifiant}"): ADMIN,

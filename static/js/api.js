@@ -202,6 +202,7 @@ export const api = {
   addResponsable: (dossier, id) => requete("POST", `/api/dossiers/${dossier}/responsables`, { utilisateur_id: id }),
   retirerResponsable: (dossier, id) => requete("DELETE", `/api/dossiers/${dossier}/responsables/${id}`),
   patchProjet: (code, modifs) => requete("PATCH", `/api/projets/${code}`, modifs),
+  retirerProjet: (code) => requete("DELETE", `/api/projets/${code}`),
   getCommunes: (dossier) => requete("GET", `/api/dossiers/${dossier}/communes`),
   createCommune: (dossier, valeurs) => requete("POST", `/api/dossiers/${dossier}/communes`, valeurs),
   getFournisseursCommune: (dossier) => requete("GET", `/api/dossiers/${dossier}/communes/fournisseurs`),

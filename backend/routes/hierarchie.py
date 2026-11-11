@@ -22,7 +22,7 @@ from backend.models import (
     ProjetModif,
     ResponsableAchats,
 )
-from backend.services import accueil, hierarchie, projets, reference
+from backend.services import accueil, hierarchie, projets, reference, retrait_projet
 
 router = APIRouter(prefix="/api", tags=["hierarchie"])
 ConnComptes = Annotated[sqlite3.Connection, Depends(get_conn_comptes)]
@@ -141,3 +141,9 @@ def update_projet(
 ) -> dict:
     modifs = corps.model_dump(exclude_unset=True)
     return hierarchie.patch_projet(conn, compte, code, modifs, request.app.state.registre)
+
+
+@router.delete("/projets/{code}")
+def delete_projet(code: str, request: Request, compte: Compte, conn: ConnComptes) -> dict:
+    etat = request.app.state
+    return retrait_projet.delete_projet(conn, compte, code, etat.registre, etat.exports)

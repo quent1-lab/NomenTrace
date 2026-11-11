@@ -7,7 +7,7 @@ import { formatMontant, formatPourcent, lireNombre } from "../format.js";
 import { champChoix, champNombre, champTexte, suivreModifications } from "../formulaire.js";
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
-import { afficherErreur, el, masquerErreur } from "../ui.js";
+import { afficherErreur, afficherInformation, el, masquerErreur } from "../ui.js";
 import { panneauCommunes } from "./communes.js";
 import { afficherCompte, codeDepuis, formulairePanneau, libelleAcces, montantSuivi, nomProjet } from "./elements.js";
 
@@ -79,6 +79,45 @@ function fixerBudget(carte, rafraichir) {
   budget.focus();
 }
 
+// Nom d'équipe et retrait d'un projet, pour qui gère l'organisme.
+function modifierProjet(carte, rafraichir) {
+  const equipe = champTexte("nom_equipe", carte.nom_equipe ?? "", { maxlength: "80" });
+  const formulaire = formulairePanneau(
+    [["Nom d'équipe", equipe, { aide: `Affiché après le nom du projet. Le code d'adresse (${carte.code}) ne change pas.` }]],
+    "Enregistrer",
+    async (champs) => {
+      await api.patchProjet(carte.code, { nom_equipe: champs.nom_equipe.value.trim() || null });
+      fermerPanneau({ silencieux: true });
+      await rafraichir();
+    },
+  );
+  suivreModifications(formulaire);
+  const retirer = el("button", { type: "button", class: "bouton bouton--danger" }, "Retirer le projet");
+  retirer.addEventListener("click", async () => {
+    const question =
+      `Retirer le projet « ${nomProjet(carte)} » ?
+
+` +
+      "Vide (ni composant, ni commande, ni mouvement de stock, ni document), il est supprimé : " +
+      "une sauvegarde est prise et ses fichiers partent à la corbeille du serveur. " +
+      "Sinon, il est seulement archivé : masqué, ses données gardées.";
+    if (!confirm(question)) return;
+    try {
+      const resultat = await api.retirerProjet(carte.code);
+      fermerPanneau({ silencieux: true });
+      masquerErreur();
+      await rafraichir();
+      afficherInformation(
+        resultat.action === "archive" ? `Projet archivé : il contient encore ${resultat.traces.join(", ")}.` : "Projet supprimé.",
+      );
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  ouvrirPanneau(`Projet ${nomProjet(carte)}`, el("div", {}, formulaire, el("section", { class: "zone-retrait" }, el("h3", {}, "Retirer le projet"), el("p", { class: "texte-doux texte-petit" }, "Supprimé s'il est vide, archivé sinon."), retirer)));
+  equipe.focus();
+}
+
 function montantEngage(resume) {
   const { estime, montant } = montantSuivi(resume);
   if (!estime) return formatMontant(montant);
@@ -97,7 +136,13 @@ function ligneProjet(dossier, carte, rafraichir) {
   return el(
     "tr",
     {},
-    el("td", {}, el("strong", {}, nomProjet(carte))),
+    el(
+      "td",
+      {},
+      dossier.gestion && !carte.hors_ligne
+        ? el("button", { type: "button", class: "bouton-lien", title: "Nom d'équipe, retrait du projet", onclick: () => modifierProjet(carte, rafraichir) }, el("strong", {}, nomProjet(carte)))
+        : el("strong", {}, nomProjet(carte)),
+    ),
     el("td", {}, libelleAcces(carte.acces)),
     el("td", { class: "nombre" }, r.avancement_appro_pct == null ? "—" : formatPourcent(r.avancement_appro_pct, 0)),
     el(

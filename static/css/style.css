@@ -637,6 +637,18 @@ a.bouton {
   font-weight: 600;
 }
 
+/* Retrait d'un projet, à l'écart du formulaire dans son panneau. */
+.zone-retrait {
+  margin-top: var(--espace-5);
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.zone-retrait h3 {
+  margin: 0 0 var(--espace-1);
+  font-size: 1rem;
+}
+
 .bouton--danger {
   border-color: var(--couleur-alerte);
   background: transparent;
