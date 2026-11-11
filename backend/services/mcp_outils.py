@@ -133,7 +133,9 @@ OUTILS: tuple[Outil, ...] = (
     Outil("list_mouvements", "Mouvements de stock.", "GET", "/api/mouvements"),
     Outil(
         "get_journal",
-        "Journal des modifications (qui a changé quoi, quand).",
+        "Journal des modifications (qui a changé quoi, quand), le plus récent d'abord. Volumineux :"
+        " filtrer par `cle_cible` (identifiant d'un composant, code d'un ensemble, numéro de"
+        " commande) ou `table_cible`, et borner par `limite` (500 par défaut).",
         "GET",
         "/api/journal",
     ),
