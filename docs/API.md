@@ -69,7 +69,7 @@ l'auteur de la dernière modification.
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | POST | `/api/session` | Connexion : `identifiant`, `mot_de_passe` ; 401 si refusée, 429 après trop d'échecs, 503 si trop de connexions sont en cours |
-| GET | `/api/session` | Utilisateur connecté et ses droits effectifs dans le projet de l'adresse (`tous_blocs`, `admin_serveur` compris), nom du projet, nom d'équipe, mode local |
+| GET | `/api/session` | Utilisateur connecté et ses droits effectifs dans le projet de l'adresse (`tous_blocs`, `admin_serveur` compris), nom du projet, nom d'équipe, mode local ; `nom_libre` dit si le projet choisit son nom (hors dossier, ou dossier qui n'en donne pas) |
 | DELETE | `/api/session` | Déconnexion : la session est supprimée côté serveur |
 | POST | `/api/invitation/verifier` | Validité d'un jeton d'invitation (`jeton`) : compte concerné, ou 410 |
 | POST | `/api/invitation` | Choix du mot de passe (`jeton`, `mot_de_passe`), puis session ouverte ; 400 qui cite les exigences non remplies |
@@ -102,7 +102,7 @@ périmètre.
 | POST | `/api/organismes/{code}/membres` | Profil d'organisme (`identifiant`, `nom`, `profil`) ; compte créé au besoin, avec son jeton d'invitation |
 | PATCH, DELETE | `/api/organismes/{code}/membres/{id}` | Changement de profil ; retrait |
 | GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé, responsables achats, candidats ; nom, nom du projet et `partage_composants` |
-| POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `admin_identifiant`, `modele`) : base créée et en ligne sans redémarrage ; `modele`, un projet du même dossier dont il reprend les listes locales et les ensembles |
+| POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `nom_projet`, `admin_identifiant`, `modele`) : base créée et en ligne sans redémarrage ; `nom_projet`, facultatif, n'est pris que si le dossier ne donne pas de nom à ses projets ; `modele`, un projet du même dossier dont il reprend les listes locales et les ensembles |
 | POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
 | DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
 | PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur), avec le rapport de la synchronisation ; nom d'équipe ; `budget_ht` (administrateur de l'organisme) |
@@ -115,7 +115,7 @@ donnent 404. Dans un projet rangé, une écriture d'un réglage imposé répond 
 soit la route. `GET /api/dossiers/{code}` donne, pour l'administrateur de l'organisme, le
 code de la référence et l'état à jour de chaque projet. `GET /api/session` dit si la page est
 une référence (`reference`, `type_reference` : `dossier` ou `organisme`) ou un projet rangé
-(`imposes`), avec le nom du dossier ou de l'organisme.
+(`imposes`), avec le nom du dossier ou de l'organisme. Dans un projet rangé dont le dossier ne donne pas de nom, le nom du projet reste modifiable par `PATCH /api/parametres`.
 
 La liste des fournisseurs d'un organisme se règle par les routes `/api/fournisseurs` et la
 suppression `/api/nettoyage/entites/fournisseur/{nom}`, sous l'adresse de sa référence
@@ -287,6 +287,30 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | GET | `/api/imports/{depot}` | Propositions d'un dépôt |
 | POST | `/api/imports/{depot}/appliquer` | Applique les propositions retenues |
 | POST | `/api/imports/{depot}/abandonner` | Abandonne le dépôt sans rien appliquer |
+
+## Assistant IA (MCP)
+
+Un assistant IA se branche sur un projet par le protocole MCP. L'accès est fermé par
+défaut : l'administrateur du projet l'ouvre aux administrateurs seuls ou à tous les membres,
+puis chaque compte autorisé crée son jeton. Ces routes n'existent pas sous l'adresse d'une
+référence.
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| GET | `/api/mcp/reglage` | Réglage d'accès (`acces` : `ferme`, `admin` ou `membres`), `autorise` pour le compte, jetons actifs (les siens, tous pour l'administrateur ; aucun en mode local) |
+| PATCH | `/api/mcp/reglage` | Change l'accès (`acces`) ; administrateur. Fermer l'accès révoque tous les jetons du projet |
+| POST | `/api/mcp/jetons` | Nouveau jeton personnel (`nom`), valable pour ce seul projet ; le jeton en clair n'est rendu que dans cette réponse. 409 en mode local |
+| DELETE | `/api/mcp/jetons/{identifiant}` | Révoque un jeton : le sien, ou n'importe lequel pour l'administrateur |
+| POST | `/api/mcp` | Point d'entrée MCP (JSON-RPC : `initialize`, `ping`, `tools/list`, `tools/call`), authentifié par `Authorization: Bearer <jeton>` et non par la session ; 401 si le jeton est absent, inconnu, révoqué ou sans accès au projet. En mode local, pas de jeton mais l'accès doit être ouvert (403 sinon) |
+
+Chaque outil correspond à une route existante (lecture du pilotage, des composants, des
+ensembles, des commandes, des fournisseurs et du stock ; écriture des composants, des
+affectations, des ensembles hors budgets, des fournisseurs, des commandes et de leurs lignes,
+frais et réceptions, des mouvements de stock et des demandes de devis) que le serveur appelle
+lui-même avec l'identité du compte : mêmes validations, mêmes droits, même journal. Le
+schéma d'entrée d'un outil est tiré de la description OpenAPI de sa route. La liste fait
+foi dans `backend/services/mcp_outils.py` ; aucune suppression et aucune route réservée à
+l'administrateur n'y figure.
 
 ## Nettoyage, export et sauvegardes
 

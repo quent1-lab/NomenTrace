@@ -305,9 +305,10 @@ restauration de la base d'un projet ne touche pas aux comptes.
 | `utilisateur_permission` | Permissions en plus d'un contributeur : `achats`, `ensembles`, `attributs`. | `utilisateur_id`, `projet`, `permission` |
 | `invitation` | Liens d'invitation : empreinte SHA-256 du jeton, `expire_le` (72 heures), `utilisee_le`. | `id` |
 | `session` | Sessions ouvertes : empreinte SHA-256 du jeton du cookie, `expire_le` (14 jours), adresse IP. | `empreinte` |
-| `projet` | Registre des projets servis : `code` (minuscules, chiffres et tirets, 40 au plus), `dossier` (vide : hors dossier), `nom_equipe`, `cree_le`, `archive`. Chaque projet inscrit a sa base `data/projets/<code>/nomentrace.db` et son dossier `echange/projets/<code>/`. | `code` |
+| `projet` | Registre des projets servis : `code` (minuscules, chiffres et tirets, 40 au plus), `dossier` (vide : hors dossier), `nom_equipe`, `mcp_acces` (`ferme` par défaut, `admin` ou `membres` : qui peut brancher un assistant IA), `cree_le`, `archive`. Chaque projet inscrit a sa base `data/projets/<code>/nomentrace.db` et son dossier `echange/projets/<code>/`. | `code` |
+| `jeton_api` | Jeton personnel d'un compte pour un seul projet, pour l'accès d'un assistant IA : `utilisateur_id`, `projet`, `nom` (celui de l'ordinateur, par exemple), `empreinte` SHA-256 du jeton (le jeton en clair n'est jamais gardé), `cree_le`, `dernier_usage`, `revoque_le`. Supprimé avec son compte. | `id` |
 | `organisme` | Organisme : `code` d'adresse (`/o/<code>/`), `nom`, `archive`. | `code` |
-| `dossier` | Dossier d'un organisme : `code` d'adresse (`/d/<code>/`), `organisme`, `nom`, `nom_projet` (donné aux projets créés dans le dossier), `partage_composants` (0 ou 1, 0 par défaut : références proposées d'un projet à l'autre à la création d'un composant), `archive`. | `code` |
+| `dossier` | Dossier d'un organisme : `code` d'adresse (`/d/<code>/`), `organisme`, `nom`, `nom_projet` (donné aux projets créés dans le dossier ; vide, chaque projet choisit le sien), `partage_composants` (0 ou 1, 0 par défaut : références proposées d'un projet à l'autre à la création d'un composant), `archive`. | `code` |
 | `acces_organisme` | Profil d'un compte dans un organisme : `gestion`, `lecture` ou `achats_stock`. | `utilisateur_id`, `organisme` |
 | `acces_dossier` | Rôle d'un compte dans un dossier : `responsable_achats`. | `utilisateur_id`, `dossier` |
 
@@ -337,12 +338,12 @@ rangé est verrouillée par déclencheurs comme les autres réglages imposés.
 
 Dans chaque base de projet, la table `reglages_imposes` (une ligne) porte le verrou des
 réglages imposés : `actif` (projet rangé dans un dossier), `propagation` (synchronisation en
-cours, posé et retiré dans la même transaction), `dossier`, `empreinte` (empreinte SHA-256
+cours, posé et retiré dans la même transaction), `dossier`, `nom_impose` (1 quand le dossier donne un nom à ses projets, 0 sinon ; migration 029), `empreinte` (empreinte SHA-256
 du contenu imposé de la référence appliqué au projet) et, dans une référence,
 `initialisee`. Des déclencheurs refusent toute écriture d'un réglage imposé quand le verrou
 est posé hors synchronisation : blocs (code, nom, ordre, description, archive), valeurs des
 listes `mode_appro`, `criticite`, `type_mouvement`, `type_frais`, attributs et leurs
-valeurs, paramètres de l'établissement, TVA, champs obligatoires, nom du projet, budget,
+valeurs, paramètres de l'établissement, TVA, champs obligatoires, nom du projet (seulement quand `nom_impose` vaut 1), budget,
 préfixe, logo. Un projet est à jour quand son empreinte égale celle de la référence, relue à
 chaque contrôle.
 

@@ -112,7 +112,9 @@ défaut), qu'on relève pour de grosses fiches techniques sans dépasser le plaf
 serveur, indiqué sous le champ. Le préfixe est obligatoire avant de créer le premier
 composant ; le changer plus tard ne renomme pas les composants existants. La section
 Établissement reçoit le nom de l'établissement, les adresses de livraison et de facturation
-et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs. Un logo,
+et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs. Dans un projet rangé
+dont le dossier ne donne pas de nom à ses projets, le nom reste modifiable dans un panneau à part, au-dessus
+des réglages imposés. Un logo,
 image PNG ou JPEG de 2 Mo au plus, s'y ajoute : il se place en haut à droite du PDF et du
 classeur Excel de chaque demande.
 
@@ -597,7 +599,7 @@ des identifiants (proposés à partir du nom d'équipe, figés ensuite) et, si l
 l'adresse de l'administrateur du projet, qui reçoit un lien d'invitation. « Reprendre de »
 part d'un autre projet du dossier : le nouveau reçoit ses statuts d'appro et de choix et son
 arborescence d'ensembles, sans ses composants, ses commandes, son stock ni ses responsables.
-Le nom du projet vient du dossier. Le projet est aussitôt en ligne. Les responsables achats du dossier se
+Le nom du projet vient du dossier quand celui-ci en donne un ; sinon la fenêtre demande aussi le nom du projet, que son administrateur pourra changer ensuite dans Paramètres › Projet. Le projet est aussitôt en ligne. Les responsables achats du dossier se
 choisissent parmi les membres de ses projets : ils voient le résumé de tous les projets du
 dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
 
@@ -691,6 +693,30 @@ prorata de l'estimé. La page de la commune dit quelle règle s'applique.
 Un projet qui a des lignes dans une commande commune active ne peut pas quitter son
 dossier : annuler ses lignes ou archiver la commande d'abord. Si un projet présent est hors
 ligne, la page le signale et la répartition attend son retour.
+
+## Brancher un assistant IA
+
+Paramètres › Assistant IA permet de relier au projet un assistant compatible avec le
+protocole MCP, comme Claude Code. L'accès est fermé tant que l'administrateur ne l'a pas
+ouvert, aux administrateurs seuls ou à tous les membres du projet. Fermer l'accès révoque
+d'un coup tous les jetons : le rouvrir plus tard ne les ressuscite pas.
+
+Un compte autorisé crée son jeton en lui donnant un nom, celui de l'ordinateur par exemple.
+Le jeton s'affiche une seule fois, avec un bouton pour le copier ; il vaut pour ce projet
+seul, au nom de ce compte. Il se révoque à tout moment, par son propriétaire ou par un
+administrateur, qui voit tous les jetons du projet avec leur dernier usage. Dans Claude
+Code, la commande suivante déclare le projet auprès de l'assistant :
+
+```
+claude mcp add --transport http nomentrace <adresse>/p/<code>/api/mcp --header "Authorization: Bearer <jeton>"
+```
+
+L'adresse est celle du serveur et le code celui du projet. L'assistant lit le projet
+(pilotage, composants, ensembles, commandes, fournisseurs, stock) et peut y créer ou modifier
+composants, affectations, ensembles, fournisseurs, commandes, réceptions et mouvements de stock, avec les droits exacts du compte : un lecteur n'écrit pas, un contributeur reste
+limité à ses blocs. Il ne supprime rien et n'a pas accès aux budgets d'ensemble, aux
+comptes ni aux sauvegardes. Ses modifications sont signées « Nom (IA) » dans l'historique.
+En mode local, aucun jeton n'est nécessaire, mais l'accès doit avoir été ouvert.
 
 ## Gérer les comptes
 

@@ -81,7 +81,26 @@ invitations traitées en même temps, la requête suivante est refusée aussitô
 occuper de fil. Refait après correctif, le même essai laisse l'outil répondre en une
 seconde.
 
+Un assistant IA se branche par le protocole MCP sur un projet dont l'administrateur a ouvert
+l'accès (fermé par défaut). Le jeton est lié à un compte et à un projet, sa seule empreinte
+SHA-256 est gardée, il n'est montré qu'à sa création et se révoque à tout moment ; fermer
+l'accès au projet révoque tous les jetons. Il n'est lu que par `/api/mcp`, pas par les autres
+routes. Les outils appellent les routes existantes dans le processus, avec l'identité du
+compte posée dans la portée ASGI (clé `nomentrace.mcp`, qu'aucune requête du réseau ne peut
+remplir) : les droits de la table `REGLES` s'appliquent comme pour une session. Une liste
+blanche de routes (`mcp_outils.ROUTES`), vérifiée par `verifier_acces`, borne ce qu'un
+assistant atteint : aucune suppression, aucune route d'administrateur, pas de budget
+d'ensemble. Le journal signe ses écritures « Nom (IA) ». Le contrôle d'origine, qui protège le
+cookie de session, est levé pour `/api/mcp` seulement quand la requête n'a pas d'en-tête
+`Origin` (un client hors navigateur, authentifié par son jeton) ; une origine présente reste
+contrôlée. En mode local, aucun jeton n'est demandé, mais l'ouverture du projet reste exigée.
+
 ## Points restants
+
+Les jetons d'assistant IA n'expirent pas : ils vivent jusqu'à leur révocation. La connexion
+par OAuth, pour claude.ai ou une application, reste à venir. Et une donnée lue par
+l'assistant (une désignation, une note) peut contenir une consigne que le modèle suivrait :
+les droits du compte et la liste blanche limitent les dégâts, sans supprimer ce risque.
 
 Le verrouillage d'un compte pouvait servir à nuire : cinq mauvais mots de passe, tapés par
 n'importe qui, bloquaient le titulaire lui-même. Il est corrigé depuis l'audit. Les cinq

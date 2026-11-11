@@ -247,6 +247,7 @@ les services.
 | `historique`, `journal` | Frise d'un composant, journal global, écriture journalisée |
 | `recherche` | Recherche globale |
 | `authentification`, `comptes`, `droits` | Mots de passe et sessions, comptes et invitations, table des droits et vérifications |
+| `jetons_api`, `mcp`, `mcp_outils` | Assistant IA : ouverture par projet et jetons personnels ; protocole MCP (JSON-RPC, appel d'une route dans le processus sous l'identité du jeton) ; liste des outils, qui sert aussi de liste blanche de routes |
 | `tableur` | Outils communs aux classeurs produits (aucune cellule exportée n'est une formule) |
 | `nettoyage`, `suppressions`, `sauvegardes` | Contrôles de qualité, suppressions physiques, sauvegardes et archive |
 
