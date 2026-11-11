@@ -59,7 +59,9 @@ def _nom(nom: str | None, quoi: str) -> str:
 
 def get_organisme(conn: sqlite3.Connection, code: str) -> dict:
     ligne = db.fetch_one(
-        conn, "SELECT code, nom FROM organisme WHERE code = ? AND archive = 0", (code,)
+        conn,
+        "SELECT code, nom, saisie_budget FROM organisme WHERE code = ? AND archive = 0",
+        (code,),
     )
     if ligne is None:
         raise Introuvable(f"Organisme « {code} » introuvable.")
@@ -189,13 +191,23 @@ def create_organisme(
     return get_organisme(conn, code), emp
 
 
-def patch_organisme(conn: sqlite3.Connection, compte: Utilisateur, code: str, nom: str) -> dict:
+def patch_organisme(
+    conn: sqlite3.Connection, compte: Utilisateur, code: str, modifs: dict[str, Any]
+) -> dict:
+    """Nom de l'organisme et unité de saisie de ses budgets (HT ou TTC)."""
     get_organisme(conn, code)
     exiger_gestion(conn, compte, code)
     with db.transaction(conn):
-        conn.execute(
-            "UPDATE organisme SET nom = ? WHERE code = ?", (_nom(nom, "d'organisme"), code)
-        )
+        if modifs.get("nom") is not None:
+            conn.execute(
+                "UPDATE organisme SET nom = ? WHERE code = ?",
+                (_nom(modifs["nom"], "d'organisme"), code),
+            )
+        if modifs.get("saisie_budget") is not None:
+            conn.execute(
+                "UPDATE organisme SET saisie_budget = ? WHERE code = ?",
+                (modifs["saisie_budget"], code),
+            )
     return get_organisme(conn, code)
 
 

@@ -45,6 +45,11 @@ export function budgetLibre() {
   return courante?.budget_libre ?? true;
 }
 
+// Unité de saisie des budgets (« HT » ou « TTC »), choisie par l'organisme du dossier.
+export function saisieBudget() {
+  return courante?.saisie_budget ?? "HT";
+}
+
 // Nom du dossier dont cette page règle les paramètres communs, ou null (projet ordinaire).
 export function dossierReference() {
   return courante?.reference ?? null;

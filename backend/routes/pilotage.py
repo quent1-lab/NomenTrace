@@ -11,7 +11,7 @@ from backend.deps import Emplacements, Export, get_conn
 from backend.erreurs import Introuvable
 from backend.limite_envoi import MO
 from backend.models import ParametresModif
-from backend.services import export_excel, historique, journal, logo, parametres, pilotage
+from backend.services import budgets, export_excel, historique, journal, logo, parametres, pilotage
 from backend.services.historique import FiltresJournal
 
 router = APIRouter(prefix="/api", tags=["pilotage"])
@@ -26,13 +26,17 @@ def read_pilotage(conn: Conn) -> dict:
 
 @router.get("/parametres")
 def read_parametres(conn: Conn) -> dict:
-    return parametres.list_parametres(conn)
+    return round_output(budgets.avec_ttc(conn, parametres.list_parametres(conn)))
 
 
 @router.patch("/parametres")
 def update_parametres(corps: ParametresModif, conn: Conn, request: Request) -> dict:
     plafond_mo = request.app.state.envoi_max // MO
-    return parametres.patch_parametres(conn, corps.model_dump(exclude_unset=True), plafond_mo)
+    taux = parametres.get_taux_tva_defaut(conn)
+    modifs = budgets.convertir(corps.model_dump(exclude_unset=True), taux)
+    return round_output(
+        budgets.avec_ttc(conn, parametres.patch_parametres(conn, modifs, plafond_mo))
+    )
 
 
 @router.get("/parametres/logo")

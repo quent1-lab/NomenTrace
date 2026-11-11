@@ -15,6 +15,7 @@ from backend.erreurs import ErreurMetier
 from backend.models import Connexion, InvitationAcceptation, InvitationVerification
 from backend.services import (
     authentification,
+    budgets,
     comptes,
     hierarchie,
     parametres,
@@ -86,6 +87,7 @@ def read_session(
         "nom_projet": nom_projet,
         "nom_equipe": projets.get_nom_equipe(conn_comptes, get_projet(request)),
         **situation,
+        "saisie_budget": budgets.saisie_du_dossier(conn_comptes, situation["dossier"]),
         "voit_dossier": bool(dossier)
         and hierarchie.voit_dossier(conn_comptes, utilisateur, dossier),
         "mode_local": request.app.state.mode_local,

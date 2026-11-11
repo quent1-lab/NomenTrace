@@ -521,6 +521,8 @@ class ParametresModif(Modele):
     nom_projet: str | None = Field(default=None, min_length=1)
     prefixe_id: str | None = Field(default=None, pattern=r"^[A-Z0-9]{1,10}$")
     budget_ht: float | None = Field(default=None, ge=0)
+    # Saisi en TTC (organisme qui saisit en TTC) : converti en HT au taux par défaut.
+    budget_ttc: float | None = Field(default=None, ge=0)
     taux_tva_defaut: float | None = Field(default=None, ge=0, lt=1)
     champs_obligatoires: list[ChampObligatoire] | None = None
     champs_obligatoires_portee: Literal["achat", "tous"] | None = None
@@ -598,7 +600,9 @@ class JetonApiCreation(Modele):
 
 
 class OrganismeModif(Modele):
-    nom: str = Field(min_length=1, max_length=80)
+    nom: str | None = Field(default=None, min_length=1, max_length=80)
+    # Unité de saisie des budgets de l'organisme ; ils restent stockés en HT.
+    saisie_budget: Literal["HT", "TTC"] | None = None
 
 
 class DossierCreation(Modele):
@@ -610,8 +614,9 @@ class DossierCreation(Modele):
 class DossierModif(Modele):
     nom: str | None = Field(default=None, min_length=1, max_length=80)
     nom_projet: str | None = Field(default=None, max_length=80)
-    # Enveloppe du dossier, HT ; None l'efface.
+    # Enveloppe du dossier, HT (ou TTC, converti) ; None l'efface.
     budget_ht: float | None = Field(default=None, ge=0)
+    budget_ttc: float | None = Field(default=None, ge=0)
     partage_composants: bool | None = None
 
 
@@ -631,6 +636,7 @@ class ProjetModif(Modele):
     dossier: str | None = Field(default=None, pattern=CODE_ADRESSE)
     nom_equipe: str | None = Field(default=None, max_length=80)
     budget_ht: float | None = Field(default=None, ge=0)
+    budget_ttc: float | None = Field(default=None, ge=0)
 
 
 class MembreOrganisme(Modele):

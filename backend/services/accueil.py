@@ -17,7 +17,7 @@ import sqlite3
 from typing import Any
 
 from backend import db
-from backend.services import comptes, hierarchie, parametres, reference
+from backend.services import budgets, comptes, hierarchie, parametres, reference
 from backend.services.droits import Utilisateur
 from backend.services.projets import Registre
 
@@ -197,9 +197,17 @@ def get_vue_dossier(
         (code,),
     )
     cartes = [carte(conn, registre, compte, p) for p in projets]
+    taux = budgets.taux_du_dossier(registre, code)
+    for c in cartes:
+        if c["resume"] is not None:
+            c["resume"]["budget_ttc"] = budgets.en_ttc(c["resume"]["budget_ht"], taux)
+    montants = {**enveloppe(dossier["budget_ht"], cartes), "budget_ht": dossier["budget_ht"]}
     return {
         **dossier,
-        **enveloppe(dossier["budget_ht"], cartes),
+        **montants,
+        **{cle.replace("_ht", "_ttc"): budgets.en_ttc(v, taux) for cle, v in montants.items()},
+        "taux_tva": taux,
+        "saisie_budget": budgets.saisie_du_dossier(conn, code),
         "organisme": hierarchie.get_organisme(conn, dossier["organisme"]),
         "compte": resume_compte(compte),
         "gestion": gestion,

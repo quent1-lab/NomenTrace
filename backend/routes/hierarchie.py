@@ -22,7 +22,7 @@ from backend.models import (
     ProjetModif,
     ResponsableAchats,
 )
-from backend.services import accueil, hierarchie, projets, reference, retrait_projet
+from backend.services import accueil, budgets, hierarchie, projets, reference, retrait_projet
 
 router = APIRouter(prefix="/api", tags=["hierarchie"])
 ConnComptes = Annotated[sqlite3.Connection, Depends(get_conn_comptes)]
@@ -57,7 +57,7 @@ def read_organisme(code: str, request: Request, compte: Compte, conn: ConnCompte
 
 @router.patch("/organismes/{code}")
 def update_organisme(code: str, corps: OrganismeModif, compte: Compte, conn: ConnComptes) -> dict:
-    return hierarchie.patch_organisme(conn, compte, code, corps.nom)
+    return hierarchie.patch_organisme(conn, compte, code, corps.model_dump(exclude_unset=True))
 
 
 @router.post("/organismes/{code}/dossiers", status_code=201)
@@ -104,8 +104,12 @@ def read_dossier(code: str, request: Request, compte: Compte, conn: ConnComptes)
 def update_dossier(
     code: str, corps: DossierModif, request: Request, compte: Compte, conn: ConnComptes
 ) -> dict:
-    dossier = hierarchie.patch_dossier(conn, compte, code, corps.model_dump(exclude_unset=True))
-    return {**dossier, "propagation": reference.propager(conn, request.app.state.registre, code)}
+    registre = request.app.state.registre
+    modifs = budgets.convertir(
+        corps.model_dump(exclude_unset=True), budgets.taux_du_dossier(registre, code)
+    )
+    dossier = hierarchie.patch_dossier(conn, compte, code, modifs)
+    return {**dossier, "propagation": reference.propager(conn, registre, code)}
 
 
 @router.post("/dossiers/{code}/projets", status_code=201)
@@ -139,8 +143,10 @@ def delete_responsable(code: str, identifiant: int, compte: Compte, conn: ConnCo
 def update_projet(
     code: str, corps: ProjetModif, request: Request, compte: Compte, conn: ConnComptes
 ) -> dict:
-    modifs = corps.model_dump(exclude_unset=True)
-    return hierarchie.patch_projet(conn, compte, code, modifs, request.app.state.registre)
+    registre = request.app.state.registre
+    taux = budgets.taux_pour_projet(conn, registre, code)
+    modifs = budgets.convertir(corps.model_dump(exclude_unset=True), taux)
+    return hierarchie.patch_projet(conn, compte, code, modifs, registre)
 
 
 @router.delete("/projets/{code}")

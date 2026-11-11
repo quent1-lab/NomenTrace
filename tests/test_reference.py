@@ -640,3 +640,29 @@ def test_enveloppe_du_dossier_repartie_et_reste(app: FastAPI, perso: TestClient)
     dossiers = perso.get("/api/organismes/meca").json()["dossiers"]
     assert next(d for d in dossiers if d["code"] == "perso")["enveloppe_ht"] == pytest.approx(1000)
     assert perso.patch("/api/dossiers/perso", json={"budget_ht": -1}).status_code == 422
+
+
+# --- 13. Budgets saisis en TTC, stockés en HT --------------------------------------------------
+
+
+def test_budgets_saisis_en_ttc_convertis_en_ht(app: FastAPI, perso: TestClient) -> None:
+    """TVA par défaut du jeu d'essai, imposée au dossier : 0,2. 1 200 TTC → 1 000 HT."""
+    taux = float(lire(app, REF, "SELECT valeur FROM parametre WHERE cle = 'taux_tva_defaut'")[0][0])
+    assert taux == pytest.approx(0.2)
+    reponse = perso.patch("/api/organismes/meca", json={"saisie_budget": "TTC"})
+    assert reponse.status_code == 200 and reponse.json()["saisie_budget"] == "TTC"
+    assert perso.get("/p/solo/api/session").json()["saisie_budget"] == "TTC"
+    perso.patch("/api/projets/solo", json={"budget_ttc": 1200})
+    assert float(budget_de(app, "solo")[0][0]) == pytest.approx(1000)
+    perso.patch("/api/dossiers/perso", json={"budget_ttc": 6000})
+    vue = perso.get("/api/dossiers/perso").json()
+    assert vue["budget_ht"] == pytest.approx(5000) and vue["budget_ttc"] == pytest.approx(6000)
+    assert vue["budget_reste_ttc"] == pytest.approx(4800)
+    assert resume_solo(perso)["budget_ttc"] == pytest.approx(1200)
+    # Rendu au projet, il le saisit lui aussi en TTC.
+    perso.patch("/api/projets/solo", json={"budget_ht": None})
+    reponse = perso.patch("/p/solo/api/parametres", json={"budget_ttc": 600})
+    assert reponse.json()["budget_ttc"] == pytest.approx(600)
+    assert float(budget_de(app, "solo")[0][0]) == pytest.approx(500)
+    deux = {"budget_ht": 1, "budget_ttc": 1}
+    assert perso.patch("/api/projets/solo", json=deux).status_code == 400

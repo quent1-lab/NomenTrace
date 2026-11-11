@@ -103,10 +103,15 @@ function panneauMembres(organisme, rafraichir) {
 function panneauNom(organisme, rafraichir) {
   if (!organisme.gestion) return null;
   const formulaire = formulairePanneau(
-    [["Nom", champTexte("nom", organisme.nom, { maxlength: "80" }), { requis: true }]],
+    [
+      ["Nom", champTexte("nom", organisme.nom, { maxlength: "80" }), { requis: true }],
+      ["Budgets saisis en", champChoix("saisie_budget", [["HT", "HT"], ["TTC", "TTC"]], organisme.saisie_budget ?? "HT"), {
+        aide: "Unité dans laquelle on saisit les budgets des dossiers et des projets. Ils restent calculés en HT : un montant TTC est converti au taux de TVA par défaut.",
+      }],
+    ],
     "Enregistrer",
     async (champs) => {
-      await api.patchOrganisme(organisme.code, { nom: champs.nom.value.trim() });
+      await api.patchOrganisme(organisme.code, { nom: champs.nom.value.trim(), saisie_budget: champs.saisie_budget.value });
       await rafraichir();
     },
   );

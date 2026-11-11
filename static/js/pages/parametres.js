@@ -12,7 +12,7 @@ import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherOngletIa } from "./parametres_ia.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
-import { aPermission, budgetLibre, dossierReference, estAdmin, modeLocal, nomLibre, reglagesImposes, typeReference } from "../session.js";
+import { aPermission, budgetLibre, dossierReference, estAdmin, modeLocal, nomLibre, reglagesImposes, saisieBudget, typeReference } from "../session.js";
 
 // [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur,
 // sauf Attributs, ouvert aussi aux contributeurs qui ont la permission.
@@ -47,7 +47,7 @@ function message(texte, classe = "message-info") {
 const DESCRIPTION_PROJET = { nom_projet: "texte", prefixe_id: "texte", budget_ht: "montant", taux_tva_defaut: "taux", taille_max_document_mo: "entier" };
 // La référence d'un dossier n'affiche que ces champs : ni nom, ni préfixe, ni budget.
 const DESCRIPTION_REFERENCE = { taux_tva_defaut: "taux", taille_max_document_mo: "entier" };
-const LIBELLES_PROJET = { budget_ht: "Budget HT", taux_tva_defaut: "TVA par défaut", taille_max_document_mo: "Taille maximale d'un document" };
+const LIBELLES_PROJET = { budget_ht: "Budget HT", budget_ttc: "Budget TTC", taux_tva_defaut: "TVA par défaut", taille_max_document_mo: "Taille maximale d'un document" };
 
 // Coordonnées reprises dans l'en-tête des demandes de devis envoyées aux fournisseurs.
 const CHAMPS_ETABLISSEMENT = [
@@ -295,10 +295,12 @@ async function afficherOngletProjet(cible) {
 // Projet rangé dont le dossier ne fixe pas le nom ou le budget : le projet règle les siens.
 function sectionLibre(parametres, cible) {
   const dossier = reglagesImposes();
+  const ttc = saisieBudget() === "TTC";
+  const cle = ttc ? "budget_ttc" : "budget_ht";
   const description = {};
   if (nomLibre()) description.nom_projet = "texte";
-  if (budgetLibre()) description.budget_ht = "montant";
-  const montant = parametres.budget_ht == null ? null : Number(parametres.budget_ht);
+  if (budgetLibre()) description[cle] = "montant";
+  const montant = parametres[cle] == null ? null : Number(parametres[cle]);
   const formulaire = el(
     "form",
     { class: "formulaire formulaire--reglages", novalidate: true },
@@ -306,7 +308,9 @@ function sectionLibre(parametres, cible) {
       ? ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? "", { maxlength: "80" }), { requis: true, aide: `Le dossier « ${dossier} » laisse chaque projet choisir son nom.` })
       : null,
     budgetLibre()
-      ? ligneChamp("Budget HT", champNombre("budget_ht", montant, 2), { aide: `Le dossier « ${dossier} » n'a pas fixé de budget à ce projet. S'il en fixe un, il s'imposera.` })
+      ? ligneChamp(ttc ? "Budget TTC" : "Budget HT", champNombre(cle, montant, 2), {
+          aide: `Le dossier « ${dossier} » n'a pas fixé de budget à ce projet. S'il en fixe un, il s'imposera.${ttc ? " Converti en HT au taux de TVA par défaut ; les calculs restent en HT." : ""}`,
+        })
       : null,
     el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
   );
@@ -319,8 +323,8 @@ function sectionLibre(parametres, cible) {
     if (nomLibre() && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
     const modifs = {};
     if (nomLibre() && lu.valeurs.nom_projet !== parametres.nom_projet) modifs.nom_projet = lu.valeurs.nom_projet;
-    const budget = lu.valeurs.budget_ht;
-    if (budgetLibre() && !(budget === montant || (budget != null && montant != null && Math.abs(budget - montant) < 0.005))) modifs.budget_ht = budget;
+    const budget = lu.valeurs[cle];
+    if (budgetLibre() && !(budget === montant || (budget != null && montant != null && Math.abs(budget - montant) < 0.005))) modifs[cle] = budget;
     if (!Object.keys(modifs).length) return;
     try {
       await api.patchParametres(modifs);

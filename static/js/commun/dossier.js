@@ -61,17 +61,27 @@ function nouveauProjet(dossier, rafraichir) {
   equipe.focus();
 }
 
-function fixerBudget(carte, rafraichir) {
+// Unité de saisie des budgets, choisie par l'organisme : clé envoyée et suffixe affiché.
+function unite(dossier) {
+  return dossier.saisie_budget === "TTC" ? { cle: "budget_ttc", suffixe: "TTC" } : { cle: "budget_ht", suffixe: "HT" };
+}
+
+function equivalentHt(dossier, montantHt) {
+  return dossier.saisie_budget === "TTC" && montantHt != null ? ` Soit ${formatMontant(montantHt)} HT.` : "";
+}
+
+function fixerBudget(dossier, carte, rafraichir) {
+  const { cle, suffixe } = unite(dossier);
   const impose = Boolean(carte.resume?.budget_impose);
-  const budget = champNombre("budget_ht", impose ? (carte.resume?.budget_ht ?? null) : null, 2);
-  const actuel = !impose && carte.resume?.budget_ht != null ? ` Le projet a fixé le sien : ${formatMontant(carte.resume.budget_ht)}.` : "";
+  const budget = champNombre(cle, impose ? (carte.resume?.[cle] ?? null) : null, 2);
+  const actuel = !impose && carte.resume?.[cle] != null ? ` Le projet a fixé le sien : ${formatMontant(carte.resume[cle])} ${suffixe}.` : "";
   const formulaire = formulairePanneau(
-    [["Budget HT", budget, { aide: `Fixé ici, il s'impose au projet. Laisser vide pour le rendre au projet, qui garde le dernier montant.${actuel}` }]],
+    [[`Budget ${suffixe}`, budget, { aide: `Fixé ici, il s'impose au projet. Laisser vide pour le rendre au projet, qui garde le dernier montant.${actuel}${impose ? equivalentHt(dossier, carte.resume?.budget_ht) : ""}` }]],
     "Enregistrer",
     async (champs) => {
-      const valeur = lireNombre(champs.budget_ht.value);
+      const valeur = lireNombre(champs[cle].value);
       if (Number.isNaN(valeur)) throw new Error("Budget illisible.");
-      await api.patchProjet(carte.code, { budget_ht: valeur });
+      await api.patchProjet(carte.code, { [cle]: valeur });
       fermerPanneau({ silencieux: true });
       await rafraichir();
     },
@@ -156,8 +166,8 @@ function ligneProjet(dossier, carte, rafraichir) {
       "td",
       { class: "nombre" },
       dossier.gestion && !carte.hors_ligne
-        ? el("button", { type: "button", class: "bouton-lien", title: "Fixer le budget", onclick: () => fixerBudget(carte, rafraichir) }, formatMontant(r.budget_ht) || "à fixer", origineBudget(r))
-        : [formatMontant(r.budget_ht), origineBudget(r)],
+        ? el("button", { type: "button", class: "bouton-lien", title: "Fixer le budget", onclick: () => fixerBudget(dossier, carte, rafraichir) }, formatMontant(r[unite(dossier).cle]) || "à fixer", origineBudget(r))
+        : [formatMontant(r[unite(dossier).cle]), origineBudget(r)],
     ),
     el("td", { class: "nombre" }, montantEngage(carte.resume)),
     dossier.gestion ? el("td", {}, etatReglages(dossier, carte)) : null,
@@ -230,20 +240,21 @@ function panneauDossier(dossier, rafraichir) {
   const nom = champTexte("nom", dossier.nom, { maxlength: "80" });
   const nomProjetImpose = champTexte("nom_projet", dossier.nom_projet ?? "", { maxlength: "80" });
   const partage = el("input", { type: "checkbox", name: "partage_composants", checked: Boolean(dossier.partage_composants) });
-  const enveloppe = champNombre("budget_ht", dossier.budget_ht ?? null, 2);
+  const { cle, suffixe } = unite(dossier);
+  const enveloppe = champNombre(cle, dossier[cle] ?? null, 2);
   const formulaire = formulairePanneau(
     [
       ["Nom du dossier", nom, { requis: true }],
-      ["Enveloppe budgétaire HT", enveloppe, { aide: "Budget global du dossier, à répartir entre ses projets. Vide : pas d'enveloppe." }],
+      [`Enveloppe budgétaire ${suffixe}`, enveloppe, { aide: `Budget global du dossier, à répartir entre ses projets. Vide : pas d'enveloppe.${equivalentHt(dossier, dossier.budget_ht)}` }],
       ["Nom du projet", nomProjetImpose, { aide: "Imposé à tous les projets du dossier. Laisser vide pour que chaque projet choisisse le sien." }],
       ["Mettre en commun les composants", partage, { aide: AIDE_PARTAGE }],
     ],
     "Enregistrer",
     async (champs) => {
-      const budget = lireNombre(champs.budget_ht.value);
+      const budget = lireNombre(champs[cle].value);
       if (Number.isNaN(budget)) throw new Error("Enveloppe budgétaire illisible.");
       await api.patchDossier(dossier.code, {
-        budget_ht: budget,
+        [cle]: budget,
         nom: champs.nom.value.trim(),
         nom_projet: champs.nom_projet.value.trim() || null,
         partage_composants: champs.partage_composants.checked,
@@ -258,15 +269,19 @@ function panneauDossier(dossier, rafraichir) {
 
 // Enveloppe du dossier, ce que ses projets en ont déjà reçu et ce qui reste à répartir.
 function panneauBudget(dossier) {
-  const reste = dossier.budget_reste_ht;
+  const ttc = dossier.saisie_budget === "TTC";
+  const suffixe = ttc ? "TTC" : "HT";
+  const m = (base) => dossier[`${base}_${ttc ? "ttc" : "ht"}`];
+  const reste = m("budget_reste");
   const ligne = (libelle, valeur, classe = "") => el("div", { class: "ligne-budget" }, el("span", {}, libelle), el("strong", { class: classe }, valeur));
   return el(
     "section",
     { class: "panneau" },
     el("h2", {}, "Budget"),
-    ligne("Enveloppe HT", formatMontant(dossier.budget_ht) || "non fixée"),
-    ligne("Réparti entre les projets", formatMontant(dossier.budget_reparti_ht) || formatMontant(0)),
+    ligne(`Enveloppe ${suffixe}`, formatMontant(m("budget")) || "non fixée"),
+    ligne("Réparti entre les projets", formatMontant(m("budget_reparti")) || formatMontant(0)),
     reste == null ? null : ligne(reste < 0 ? "Dépassement" : "Reste à répartir", formatMontant(Math.abs(reste)), reste < 0 ? "texte-alerte" : ""),
+    ttc ? el("p", { class: "texte-doux texte-petit" }, `Montants TTC au taux de ${formatPourcent(dossier.taux_tva * 100, 1)} ; calculés en HT.`) : null,
   );
 }
 
@@ -288,7 +303,7 @@ function sectionProjets(dossier, rafraichir) {
                 "tr",
                 {},
                 ["Projet", "Votre accès"].map((t) => el("th", {}, t)),
-                ["Appro.", "Budget HT", "Engagé HT"].map((t) => el("th", { class: "nombre" }, t)),
+                ["Appro.", `Budget ${unite(dossier).suffixe}`, "Engagé HT"].map((t) => el("th", { class: "nombre" }, t)),
                 dossier.gestion ? el("th", {}, "Réglages communs") : null,
                 el("th", {}),
               ),
