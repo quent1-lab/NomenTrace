@@ -35,6 +35,11 @@ export function reglagesImposes() {
   return courante?.imposes ?? null;
 }
 
+// Le projet choisit-il son nom ? Oui hors dossier ou quand le dossier n'en donne pas.
+export function nomLibre() {
+  return courante?.nom_libre ?? true;
+}
+
 // Nom du dossier dont cette page règle les paramètres communs, ou null (projet ordinaire).
 export function dossierReference() {
   return courante?.reference ?? null;

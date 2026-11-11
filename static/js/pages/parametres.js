@@ -11,7 +11,7 @@ import { afficherOngletAttributs } from "./parametres_attributs.js";
 import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
-import { aPermission, dossierReference, estAdmin, modeLocal, reglagesImposes, typeReference } from "../session.js";
+import { aPermission, dossierReference, estAdmin, modeLocal, nomLibre, reglagesImposes, typeReference } from "../session.js";
 
 // [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur,
 // sauf Attributs, ouvert aussi aux contributeurs qui ont la permission.
@@ -202,10 +202,12 @@ async function afficherOngletProjet(cible) {
   });
   const retour = el("div");
   const reference = Boolean(dossierReference());
+  // Projet rangé qui choisit son nom : le nom a son propre panneau, hors du cadre verrouillé.
+  const nomAPart = Boolean(reglagesImposes()) && nomLibre();
   const formulaire = el(
     "form",
     { class: "formulaire formulaire--reglages", novalidate: true },
-    reference ? null : ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true }),
+    reference || nomAPart ? null : ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? ""), { requis: true }),
     reference
       ? null
       : ligneChamp("Préfixe des identifiants", prefixe, {
@@ -235,7 +237,7 @@ async function afficherOngletProjet(cible) {
     e.preventDefault();
     const lu = lireFormulaire(formulaire, reference ? DESCRIPTION_REFERENCE : DESCRIPTION_PROJET, LIBELLES_PROJET);
     if (lu.erreur) return afficherErreur(lu.erreur);
-    if (!reference && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
+    if (!reference && !nomAPart && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
     if (!reference && !lu.valeurs.prefixe_id) return afficherErreur("Le préfixe des identifiants est obligatoire.");
     const taille = lu.valeurs.taille_max_document_mo;
     if (taille !== undefined && (taille === null || taille < 1 || taille > plafondMo)) {
@@ -281,7 +283,40 @@ async function afficherOngletProjet(cible) {
   );
   // Tout cet onglet vient du dossier dans un projet rangé : nom, préfixe figé, budget, TVA,
   // établissement, logo. Le cadre désactivé couvre aussi ce qui s'affiche ensuite (logo).
-  cible.replaceChildren(reglagesImposes() ? el("fieldset", { class: "verrou", disabled: true }, grille) : grille);
+  // Seul le nom reste au projet quand le dossier n'en donne pas.
+  if (!reglagesImposes()) return cible.replaceChildren(grille);
+  cible.replaceChildren(
+    ...[nomLibre() ? sectionNomLibre(parametres, cible) : null, el("fieldset", { class: "verrou", disabled: true }, grille)].filter(Boolean),
+  );
+}
+
+// Projet rangé dans un dossier qui ne donne pas de nom : le projet choisit le sien.
+function sectionNomLibre(parametres, cible) {
+  const champ = champTexte("nom_projet", parametres.nom_projet ?? "", { maxlength: "80" });
+  const formulaire = el(
+    "form",
+    { class: "formulaire formulaire--reglages", novalidate: true },
+    ligneChamp("Nom du projet", champ, { requis: true, aide: `Le dossier « ${reglagesImposes()} » laisse chaque projet choisir son nom.` }),
+    el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
+  );
+  suivreModifications(formulaire);
+  if (!estAdmin()) formulaire.querySelectorAll("input, button").forEach((c) => { c.disabled = true; });
+  formulaire.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nom = champ.value.trim();
+    if (!nom) return afficherErreur("Le nom du projet est obligatoire.");
+    if (nom === parametres.nom_projet) return;
+    try {
+      await api.patchParametres({ nom_projet: nom });
+      masquerErreur();
+      signalerProjetModifie();
+      await afficherOngletProjet(cible);
+      cible.querySelector("form").append(message("Nom enregistré.", "message-ok"));
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  return el("section", { class: "panneau" }, el("h2", {}, "Nom du projet"), formulaire);
 }
 
 // --- Export et sauvegardes --------------------------------------------------------------------
@@ -536,7 +571,7 @@ export async function afficherParametres(conteneur, parametres) {
     el("a", { class: "bouton bouton--discret si-admin", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
   );
   const bandeau = reglagesImposes()
-    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, taille des documents, nom et budget sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
+    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, taille des documents, ${nomLibre() ? "" : "nom et "}budget sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
     : typeReference() === "organisme"
     ? message(`Liste des fournisseurs de l'organisme « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
     : dossierReference()

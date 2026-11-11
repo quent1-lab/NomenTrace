@@ -309,7 +309,8 @@ def situation(conn: sqlite3.Connection, conn_projet: sqlite3.Connection, code: s
     """Pour l'interface : la page est-elle une référence, ses réglages sont-ils imposés ?
 
     `reference` et `imposes` portent le nom du dossier (ou de l'organisme) concerné, ou None ;
-    `type_reference` vaut « dossier » ou « organisme ».
+    `type_reference` vaut « dossier » ou « organisme ». `nom_libre` : le projet choisit son
+    nom (hors dossier, ou dossier qui n'en donne pas).
     """
     ligne = conn.execute(
         "SELECT p.reference, p.dossier, d.nom, p.organisme, o.nom AS nom_organisme FROM projet p"
@@ -317,7 +318,13 @@ def situation(conn: sqlite3.Connection, conn_projet: sqlite3.Connection, code: s
         " LEFT JOIN organisme o ON o.code = p.organisme WHERE p.code = ?",
         (code,),
     ).fetchone()
-    vide = {"reference": None, "imposes": None, "dossier": None, "organisme": None}
+    vide = {
+        "reference": None,
+        "imposes": None,
+        "dossier": None,
+        "organisme": None,
+        "nom_libre": True,
+    }
     if ligne is None:
         return {**vide, "type_reference": None}
     if ligne["organisme"] is not None:
@@ -329,9 +336,11 @@ def situation(conn: sqlite3.Connection, conn_projet: sqlite3.Connection, code: s
         }
     if ligne["dossier"] is None:
         return {**vide, "type_reference": None}
-    impose = bool(propagation.etat(conn_projet).get("actif"))
+    verrou = propagation.etat(conn_projet)
+    impose = bool(verrou.get("actif"))
     return {
         **vide,
+        "nom_libre": not (impose and verrou.get("nom_impose")),
         "reference": ligne["nom"] if ligne["reference"] else None,
         "imposes": ligne["nom"] if impose else None,
         "dossier": ligne["dossier"],

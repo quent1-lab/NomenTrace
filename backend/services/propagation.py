@@ -28,7 +28,8 @@ from backend.services import journal, sauvegardes
 journal_log = logging.getLogger(__name__)
 
 LISTES_IMPOSEES: tuple[str, ...] = ("mode_appro", "criticite", "type_mouvement", "type_frais")
-# Paramètres recopiés de la référence ; le nom du projet vient du dossier.
+# Paramètres recopiés de la référence ; le nom du projet vient du dossier quand il en donne
+# un (reglages_imposes.nom_impose), sinon chaque projet choisit le sien.
 CLES_IMPOSEES: tuple[str, ...] = (
     "taux_tva_defaut",
     "champs_obligatoires",
@@ -320,10 +321,12 @@ def synchroniser(
     conn = db.connect(projet, f"paramètres communs · {dossier}", creer=False)
     try:
         courant = etat(conn)
+        nom_impose = int(nom_projet is not None)
         if (
             courant.get("empreinte") == voulue
             and courant.get("actif")
             and courant.get("dossier") == dossier
+            and courant.get("nom_impose") == nom_impose
         ):
             return Rapport()
         if sauvegardes_projet is not None:
@@ -341,8 +344,8 @@ def synchroniser(
                 fournisseurs_communs.synchroniser(conn, rapport)
             conn.execute(
                 "UPDATE main.reglages_imposes SET actif = 1, propagation = 0, dossier = ?,"
-                " empreinte = ? WHERE id = 1",
-                (dossier, voulue),
+                " empreinte = ?, nom_impose = ? WHERE id = 1",
+                (dossier, voulue, nom_impose),
             )
         conn.execute("DETACH DATABASE ref")
         if organisme is not None:

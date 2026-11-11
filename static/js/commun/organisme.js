@@ -19,7 +19,7 @@ function nouveauDossier(organisme, rafraichir) {
     [
       ["Nom", nom, { requis: true }],
       ["Code d'adresse", code, { requis: true, aide: "Figé après la création." }],
-      ["Nom du projet", champTexte("nom_projet", "", { maxlength: "80" }), { aide: "Donné aux projets créés dans ce dossier, par exemple le nom de l'épreuve." }],
+      ["Nom du projet", champTexte("nom_projet", "", { maxlength: "80" }), { aide: "Imposé aux projets du dossier, par exemple le nom de l'épreuve. Vide : chaque projet choisit le sien." }],
     ],
     "Créer le dossier",
     async (champs) => {

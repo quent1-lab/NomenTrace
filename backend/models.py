@@ -609,6 +609,8 @@ class ProjetCreation(Modele):
     code: str = Field(pattern=CODE_ADRESSE)
     nom_equipe: str = Field(min_length=1, max_length=80)
     prefixe_id: str = Field(pattern=r"^[A-Z0-9]{1,10}$")
+    # Pris seulement si le dossier ne donne pas de nom à ses projets.
+    nom_projet: str | None = Field(default=None, max_length=80)
     admin_identifiant: str | None = Field(default=None, min_length=3, max_length=254)
     admin_nom: str | None = Field(default=None, min_length=1, max_length=60)
     # Projet du même dossier dont on reprend les réglages propres (listes locales, ensembles).

@@ -523,3 +523,58 @@ def test_modele_d_un_autre_dossier_refuse(
     assert not (dossier_data / "projets" / "gamma").exists()
     corps["modele"] = "inconnu"
     assert range_.post("/api/dossiers/autre/projets", json=corps).status_code == 404
+
+
+# --- 10. Nom du projet libre quand le dossier n'en donne pas -----------------------------------
+
+
+def nom_de(app: FastAPI, code: str) -> list[tuple]:
+    return lire(app, code, "SELECT valeur FROM parametre WHERE cle = 'nom_projet'")
+
+
+@pytest.fixture
+def perso(app: FastAPI, range_: TestClient) -> TestClient:
+    """Dossier sans nom de projet et un projet « solo » créé dedans."""
+    creer_dossier(app, "meca", {"code": "perso", "nom": "Projets personnels"})
+    creer_projet(range_, "solo", "perso")
+    return range_
+
+
+def test_nom_libre_si_le_dossier_n_en_donne_pas(app: FastAPI, perso: TestClient) -> None:
+    reponse = perso.patch("/p/solo/api/parametres", json={"nom_projet": "Robot maison"})
+    assert reponse.status_code == 200, reponse.text
+    assert nom_de(app, "solo") == [("Robot maison",)]
+    assert perso.get("/p/solo/api/session").json()["nom_libre"] is True
+    # Le reste reste imposé.
+    reponse = perso.patch("/p/solo/api/parametres", json={"taux_tva_defaut": 0.1})
+    assert reponse.status_code >= 400
+
+
+def test_nom_impose_si_le_dossier_en_donne_un(app: FastAPI, perso: TestClient) -> None:
+    reponse = perso.patch(f"/p/{PROJET}/api/parametres", json={"nom_projet": "Autre"})
+    assert reponse.status_code >= 400
+    assert nom_de(app, PROJET) == [("Projet d'essai",)]
+    assert perso.get(f"/p/{PROJET}/api/session").json()["nom_libre"] is False
+
+
+def test_nom_repris_puis_rendu_par_le_dossier(app: FastAPI, perso: TestClient) -> None:
+    perso.patch("/p/solo/api/parametres", json={"nom_projet": "Robot maison"})
+    assert perso.patch("/api/dossiers/perso", json={"nom_projet": "Atelier"}).status_code == 200
+    assert nom_de(app, "solo") == [("Atelier",)]
+    assert perso.patch("/p/solo/api/parametres", json={"nom_projet": "X"}).status_code >= 400
+    # Le dossier ne donne plus de nom : le projet garde le dernier et redevient libre.
+    assert perso.patch("/api/dossiers/perso", json={"nom_projet": None}).status_code == 200
+    assert nom_de(app, "solo") == [("Atelier",)]
+    assert perso.patch("/p/solo/api/parametres", json={"nom_projet": "X"}).status_code == 200
+
+
+def test_nom_choisi_a_la_creation_si_le_dossier_n_en_donne_pas(
+    app: FastAPI, perso: TestClient
+) -> None:
+    corps = {"code": "duo", "nom_equipe": "Duo", "prefixe_id": "DUO", "nom_projet": "Drone"}
+    assert perso.post("/api/dossiers/perso/projets", json=corps).status_code == 201
+    assert nom_de(app, "duo") == [("Drone",)]
+    # Un dossier qui donne un nom l'emporte sur la saisie.
+    corps = {"code": "trio", "nom_equipe": "Trio", "prefixe_id": "TRI", "nom_projet": "Drone"}
+    assert perso.post("/api/dossiers/epreuve/projets", json=corps).status_code == 201
+    assert nom_de(app, "trio") == [("Projet d'essai",)]

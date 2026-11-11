@@ -25,7 +25,9 @@ function nouveauProjet(dossier, rafraichir) {
   });
   const formulaire = formulairePanneau(
     [
-      ["Nom du projet", champTexte("nom_projet", dossier.nom_projet ?? "", { disabled: true }), { aide: "Imposé par le dossier." }],
+      dossier.nom_projet
+        ? ["Nom du projet", champTexte("nom_projet", dossier.nom_projet, { disabled: true }), { aide: "Imposé par le dossier." }]
+        : ["Nom du projet", champTexte("nom_projet", "", { maxlength: "80" }), { aide: "Le dossier n'en impose pas : modifiable ensuite dans les paramètres du projet." }],
       ["Nom d'équipe", equipe, { requis: true }],
       ["Code d'adresse", code, { requis: true, aide: "Figé après la création." }],
       ["Préfixe d'identifiant", prefixe, { requis: true, aide: "Majuscules et chiffres, figé après la création." }],
@@ -43,6 +45,7 @@ function nouveauProjet(dossier, rafraichir) {
         nom_equipe: champs.nom_equipe.value.trim(),
         code: champs.code.value.trim(),
         prefixe_id: champs.prefixe_id.value.trim(),
+        nom_projet: dossier.nom_projet ? null : champs.nom_projet.value.trim() || null,
         admin_identifiant: admin || null,
         modele: champs.modele.value || null,
       });
@@ -178,7 +181,7 @@ function panneauDossier(dossier, rafraichir) {
   const formulaire = formulairePanneau(
     [
       ["Nom du dossier", nom, { requis: true }],
-      ["Nom du projet", nomProjetImpose, { aide: "Donné aux projets créés dans ce dossier." }],
+      ["Nom du projet", nomProjetImpose, { aide: "Imposé à tous les projets du dossier. Laisser vide pour que chaque projet choisisse le sien." }],
       ["Mettre en commun les composants", partage, { aide: AIDE_PARTAGE }],
     ],
     "Enregistrer",

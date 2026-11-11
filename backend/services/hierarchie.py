@@ -447,7 +447,7 @@ def create_projet(
     """Crée un projet dans un dossier ; invite au besoin son administrateur.
 
     `dossiers` : dossier des données et dossier d'échange de l'instance. Le nom du projet
-    vient du dossier, le préfixe de la saisie ; tous deux sont figés ici pour le projet.
+    vient du dossier s'il en donne un, sinon de la saisie ; le préfixe vient de la saisie.
     """
     dossier = get_dossier(conn, code_dossier)
     exiger_gestion(conn, compte, dossier["organisme"])
@@ -458,8 +458,9 @@ def create_projet(
     if modele is not None and get_projet(conn, modele)["dossier"] != code_dossier:
         raise ErreurMetier("Le projet modèle doit appartenir au même dossier.")
     reglages = {"prefixe_id": valeurs["prefixe_id"]}
-    if dossier["nom_projet"]:
-        reglages["nom_projet"] = dossier["nom_projet"]
+    nom_projet = dossier["nom_projet"] or (valeurs.get("nom_projet") or "").strip()
+    if nom_projet:
+        reglages["nom_projet"] = nom_projet
     emp = projets.creer_projet(
         conn,
         *dossiers,
