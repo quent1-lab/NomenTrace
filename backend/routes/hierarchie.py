@@ -150,6 +150,28 @@ def update_projet(
 
 
 @router.delete("/projets/{code}")
-def delete_projet(code: str, request: Request, compte: Compte, conn: ConnComptes) -> dict:
+def delete_projet(
+    code: str,
+    request: Request,
+    compte: Compte,
+    conn: ConnComptes,
+    confirmation: str | None = None,
+) -> dict:
     etat = request.app.state
-    return retrait_projet.delete_projet(conn, compte, code, etat.registre, etat.exports)
+    return retrait_projet.delete_projet(
+        conn, compte, code, etat.registre, etat.exports, confirmation
+    )
+
+
+@router.delete("/dossiers/{code}")
+def delete_dossier(
+    code: str, request: Request, compte: Compte, conn: ConnComptes, confirmation: str = ""
+) -> dict:
+    return retrait_projet.delete_dossier(conn, compte, code, request.app.state, confirmation)
+
+
+@router.delete("/organismes/{code}")
+def delete_organisme(
+    code: str, request: Request, compte: Compte, conn: ConnComptes, confirmation: str = ""
+) -> dict:
+    return retrait_projet.delete_organisme(conn, compte, code, request.app.state, confirmation)

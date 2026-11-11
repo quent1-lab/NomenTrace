@@ -119,3 +119,29 @@ export function codeDepuis(nom) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
 }
+
+// Suppression réservée à l'administrateur du serveur : tout part à la corbeille du serveur,
+// même non vide. On confirme en tapant le code ; le serveur le vérifie aussi.
+export function zoneSuppression(titre, code, explication, supprimer) {
+  const bouton = el("button", { type: "button", class: "bouton bouton--danger" }, titre);
+  bouton.addEventListener("click", async () => {
+    const saisi = prompt(`${explication}
+
+Pour confirmer, taper le code : ${code}`);
+    if (saisi === null) return;
+    if (saisi.trim() !== code) return afficherErreur(`Code différent de « ${code} » : rien n'est supprimé.`);
+    try {
+      await supprimer(saisi.trim());
+      masquerErreur();
+    } catch (erreur) {
+      afficherErreur(erreur);
+    }
+  });
+  return el(
+    "section",
+    { class: "zone-retrait" },
+    el("h3", {}, titre),
+    el("p", { class: "texte-doux texte-petit" }, "Administrateur du serveur. Rien n'est effacé du disque : une sauvegarde est prise et les fichiers partent à la corbeille du serveur."),
+    bouton,
+  );
+}

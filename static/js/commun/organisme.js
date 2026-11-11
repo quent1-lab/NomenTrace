@@ -7,7 +7,7 @@ import { champChoix, champTexte, suivreModifications } from "../formulaire.js";
 import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, masquerErreur } from "../ui.js";
-import { PROFILS, afficherCompte, codeDepuis, formulairePanneau } from "./elements.js";
+import { PROFILS, afficherCompte, codeDepuis, formulairePanneau, zoneSuppression } from "./elements.js";
 
 function nouveauDossier(organisme, rafraichir) {
   const nom = champTexte("nom", "", { maxlength: "80" });
@@ -117,7 +117,13 @@ function panneauNom(organisme, rafraichir) {
   );
   formulaire.querySelector(".bouton--discret").remove();
   suivreModifications(formulaire);
-  return el("section", { class: "panneau" }, el("h2", {}, "Organisme"), formulaire);
+  const suppression = organisme.compte?.admin_serveur
+    ? zoneSuppression("Supprimer l'organisme", organisme.code, `Supprimer l'organisme « ${organisme.nom} », ses ${organisme.dossiers.length} dossier(s), tous leurs projets et sa liste de fournisseurs ?`, async (confirmation) => {
+        await api.supprimerOrganisme(organisme.code, confirmation);
+        window.location.assign("/");
+      })
+    : null;
+  return el("section", { class: "panneau" }, el("h2", {}, "Organisme"), formulaire, suppression);
 }
 
 export async function afficherOrganisme(code, { contenu, fil }) {

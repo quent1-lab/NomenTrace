@@ -203,6 +203,10 @@ export const api = {
   retirerResponsable: (dossier, id) => requete("DELETE", `/api/dossiers/${dossier}/responsables/${id}`),
   patchProjet: (code, modifs) => requete("PATCH", `/api/projets/${code}`, modifs),
   retirerProjet: (code) => requete("DELETE", `/api/projets/${code}`),
+  // Administrateur du serveur : suppression confirmée par le code tapé, même non vide.
+  supprimerProjet: (code, confirmation) => requete("DELETE", avecParametres(`/api/projets/${code}`, { confirmation })),
+  supprimerDossier: (code, confirmation) => requete("DELETE", avecParametres(`/api/dossiers/${code}`, { confirmation })),
+  supprimerOrganisme: (code, confirmation) => requete("DELETE", avecParametres(`/api/organismes/${code}`, { confirmation })),
   getCommunes: (dossier) => requete("GET", `/api/dossiers/${dossier}/communes`),
   createCommune: (dossier, valeurs) => requete("POST", `/api/dossiers/${dossier}/communes`, valeurs),
   getFournisseursCommune: (dossier) => requete("GET", `/api/dossiers/${dossier}/communes/fournisseurs`),

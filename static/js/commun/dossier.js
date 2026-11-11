@@ -9,7 +9,7 @@ import { encartInvitation } from "../invitation.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, afficherInformation, el, masquerErreur } from "../ui.js";
 import { panneauCommunes } from "./communes.js";
-import { afficherCompte, codeDepuis, formulairePanneau, libelleAcces, montantSuivi, nomProjet } from "./elements.js";
+import { afficherCompte, codeDepuis, formulairePanneau, libelleAcces, montantSuivi, nomProjet, zoneSuppression } from "./elements.js";
 
 function prefixeDepuis(nom) {
   return codeDepuis(nom).replace(/-/g, "").toUpperCase().slice(0, 10);
@@ -92,7 +92,7 @@ function fixerBudget(dossier, carte, rafraichir) {
 }
 
 // Nom d'équipe et retrait d'un projet, pour qui gère l'organisme.
-function modifierProjet(carte, rafraichir) {
+function modifierProjet(dossier, carte, rafraichir) {
   const equipe = champTexte("nom_equipe", carte.nom_equipe ?? "", { maxlength: "80" });
   const formulaire = formulairePanneau(
     [["Nom d'équipe", equipe, { aide: `Affiché après le nom du projet. Le code d'adresse (${carte.code}) ne change pas.` }]],
@@ -126,7 +126,18 @@ function modifierProjet(carte, rafraichir) {
       afficherErreur(erreur);
     }
   });
-  ouvrirPanneau(`Projet ${nomProjet(carte)}`, el("div", {}, formulaire, el("section", { class: "zone-retrait" }, el("h3", {}, "Retirer le projet"), el("p", { class: "texte-doux texte-petit" }, "Supprimé s'il est vide, archivé sinon."), retirer)));
+  const definitif = dossier.compte?.admin_serveur
+    ? zoneSuppression("Supprimer définitivement", carte.code, `Supprimer le projet « ${nomProjet(carte)} » et tout son contenu ?`, async (confirmation) => {
+        await api.supprimerProjet(carte.code, confirmation);
+        fermerPanneau({ silencieux: true });
+        await rafraichir();
+        afficherInformation("Projet supprimé : ses fichiers sont dans la corbeille du serveur.");
+      })
+    : null;
+  ouvrirPanneau(
+    `Projet ${nomProjet(carte)}`,
+    el("div", {}, formulaire, el("section", { class: "zone-retrait" }, el("h3", {}, "Retirer le projet"), el("p", { class: "texte-doux texte-petit" }, "Supprimé s'il est vide, archivé sinon."), retirer), definitif),
+  );
   equipe.focus();
 }
 
@@ -157,7 +168,7 @@ function ligneProjet(dossier, carte, rafraichir) {
       "td",
       {},
       dossier.gestion && !carte.hors_ligne
-        ? el("button", { type: "button", class: "bouton-lien", title: "Nom d'équipe, retrait du projet", onclick: () => modifierProjet(carte, rafraichir) }, el("strong", {}, nomProjet(carte)))
+        ? el("button", { type: "button", class: "bouton-lien", title: "Nom d'équipe, retrait du projet", onclick: () => modifierProjet(dossier, carte, rafraichir) }, el("strong", {}, nomProjet(carte)))
         : el("strong", {}, nomProjet(carte)),
     ),
     el("td", {}, libelleAcces(carte.acces)),
@@ -264,7 +275,13 @@ function panneauDossier(dossier, rafraichir) {
   );
   formulaire.querySelector(".bouton--discret").remove();
   suivreModifications(formulaire);
-  return el("section", { class: "panneau" }, el("h2", {}, "Dossier"), formulaire);
+  const suppression = dossier.compte?.admin_serveur
+    ? zoneSuppression("Supprimer le dossier", dossier.code, `Supprimer le dossier « ${dossier.nom} », ses ${dossier.projets.length} projet(s) et ses paramètres communs ?`, async (confirmation) => {
+        await api.supprimerDossier(dossier.code, confirmation);
+        window.location.assign(`/o/${dossier.organisme.code}/`);
+      })
+    : null;
+  return el("section", { class: "panneau" }, el("h2", {}, "Dossier"), formulaire, suppression);
 }
 
 // Enveloppe du dossier, ce que ses projets en ont déjà reçu et ce qui reste à répartir.
