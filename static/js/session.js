@@ -40,6 +40,11 @@ export function nomLibre() {
   return courante?.nom_libre ?? true;
 }
 
+// Le projet fixe-t-il son budget ? Oui hors dossier ou quand le dossier n'en a pas fixé.
+export function budgetLibre() {
+  return courante?.budget_libre ?? true;
+}
+
 // Nom du dossier dont cette page règle les paramètres communs, ou null (projet ordinaire).
 export function dossierReference() {
   return courante?.reference ?? null;

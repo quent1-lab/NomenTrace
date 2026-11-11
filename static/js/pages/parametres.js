@@ -12,7 +12,7 @@ import { afficherOngletHistorique } from "./parametres_historique.js";
 import { afficherOngletIa } from "./parametres_ia.js";
 import { afficherListes } from "./parametres_listes.js";
 import { afficherOngletUtilisateurs } from "./parametres_utilisateurs.js";
-import { aPermission, dossierReference, estAdmin, modeLocal, nomLibre, reglagesImposes, typeReference } from "../session.js";
+import { aPermission, budgetLibre, dossierReference, estAdmin, modeLocal, nomLibre, reglagesImposes, typeReference } from "../session.js";
 
 // [code, titre, affichage, visible ?] : les onglets de réglage sont réservés à l'administrateur,
 // sauf Attributs, ouvert aussi aux contributeurs qui ont la permission.
@@ -218,7 +218,7 @@ async function afficherOngletProjet(cible) {
             "Lettres majuscules et chiffres. Il ne s'applique qu'aux composants créés ensuite : " +
             "les identifiants existants ne sont jamais renommés, car tout l'historique y est rattaché.",
         }),
-    reference ? null : ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2)),
+    reference || (reglagesImposes() && budgetLibre()) ? null : ligneChamp("Budget HT", champNombre("budget_ht", nombre(parametres.budget_ht), 2)),
     ligneChamp("TVA par défaut (%)", champNombre("taux_tva_defaut", tva === null ? null : tva * 100, 1), {
       aide: "Sert à convertir en HT un prix relevé TTC quand le composant n'a pas de taux propre.",
     }),
@@ -285,40 +285,54 @@ async function afficherOngletProjet(cible) {
   );
   // Tout cet onglet vient du dossier dans un projet rangé : nom, préfixe figé, budget, TVA,
   // établissement, logo. Le cadre désactivé couvre aussi ce qui s'affiche ensuite (logo).
-  // Seul le nom reste au projet quand le dossier n'en donne pas.
+  // Le nom et le budget restent au projet quand le dossier ne les fixe pas.
   if (!reglagesImposes()) return cible.replaceChildren(grille);
   cible.replaceChildren(
-    ...[nomLibre() ? sectionNomLibre(parametres, cible) : null, el("fieldset", { class: "verrou", disabled: true }, grille)].filter(Boolean),
+    ...[nomLibre() || budgetLibre() ? sectionLibre(parametres, cible) : null, el("fieldset", { class: "verrou", disabled: true }, grille)].filter(Boolean),
   );
 }
 
-// Projet rangé dans un dossier qui ne donne pas de nom : le projet choisit le sien.
-function sectionNomLibre(parametres, cible) {
-  const champ = champTexte("nom_projet", parametres.nom_projet ?? "", { maxlength: "80" });
+// Projet rangé dont le dossier ne fixe pas le nom ou le budget : le projet règle les siens.
+function sectionLibre(parametres, cible) {
+  const dossier = reglagesImposes();
+  const description = {};
+  if (nomLibre()) description.nom_projet = "texte";
+  if (budgetLibre()) description.budget_ht = "montant";
+  const montant = parametres.budget_ht == null ? null : Number(parametres.budget_ht);
   const formulaire = el(
     "form",
     { class: "formulaire formulaire--reglages", novalidate: true },
-    ligneChamp("Nom du projet", champ, { requis: true, aide: `Le dossier « ${reglagesImposes()} » laisse chaque projet choisir son nom.` }),
+    nomLibre()
+      ? ligneChamp("Nom du projet", champTexte("nom_projet", parametres.nom_projet ?? "", { maxlength: "80" }), { requis: true, aide: `Le dossier « ${dossier} » laisse chaque projet choisir son nom.` })
+      : null,
+    budgetLibre()
+      ? ligneChamp("Budget HT", champNombre("budget_ht", montant, 2), { aide: `Le dossier « ${dossier} » n'a pas fixé de budget à ce projet. S'il en fixe un, il s'imposera.` })
+      : null,
     el("div", { class: "actions-formulaire" }, el("button", { type: "submit", class: "bouton" }, "Enregistrer")),
   );
   suivreModifications(formulaire);
   if (!estAdmin()) formulaire.querySelectorAll("input, button").forEach((c) => { c.disabled = true; });
   formulaire.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const nom = champ.value.trim();
-    if (!nom) return afficherErreur("Le nom du projet est obligatoire.");
-    if (nom === parametres.nom_projet) return;
+    const lu = lireFormulaire(formulaire, description, LIBELLES_PROJET);
+    if (lu.erreur) return afficherErreur(lu.erreur);
+    if (nomLibre() && !lu.valeurs.nom_projet) return afficherErreur("Le nom du projet est obligatoire.");
+    const modifs = {};
+    if (nomLibre() && lu.valeurs.nom_projet !== parametres.nom_projet) modifs.nom_projet = lu.valeurs.nom_projet;
+    const budget = lu.valeurs.budget_ht;
+    if (budgetLibre() && !(budget === montant || (budget != null && montant != null && Math.abs(budget - montant) < 0.005))) modifs.budget_ht = budget;
+    if (!Object.keys(modifs).length) return;
     try {
-      await api.patchParametres({ nom_projet: nom });
+      await api.patchParametres(modifs);
       masquerErreur();
       signalerProjetModifie();
       await afficherOngletProjet(cible);
-      cible.querySelector("form").append(message("Nom enregistré.", "message-ok"));
+      cible.querySelector("form").append(message("Enregistré.", "message-ok"));
     } catch (erreur) {
       afficherErreur(erreur);
     }
   });
-  return el("section", { class: "panneau" }, el("h2", {}, "Nom du projet"), formulaire);
+  return el("section", { class: "panneau" }, el("h2", {}, "Réglages propres au projet"), formulaire);
 }
 
 // --- Export et sauvegardes --------------------------------------------------------------------
@@ -573,7 +587,7 @@ export async function afficherParametres(conteneur, parametres) {
     el("a", { class: "bouton bouton--discret si-admin", href: lienRoute("/nettoyage"), title: "Composants mal remplis, suppressions, journal" }, "Nettoyage de la base"),
   );
   const bandeau = reglagesImposes()
-    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, taille des documents, ${nomLibre() ? "" : "nom et "}budget sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
+    ? message(`Blocs, listes imposées, attributs, fournisseurs, établissement, logo, TVA, taille des documents${nomLibre() ? "" : ", nom"}${budgetLibre() ? "" : ", budget"} sont fixés par le dossier « ${reglagesImposes()} » et son organisme.`)
     : typeReference() === "organisme"
     ? message(`Liste des fournisseurs de l'organisme « ${dossierReference()} » : chaque modification est recopiée dans tous ses projets.`)
     : dossierReference()

@@ -435,10 +435,17 @@ def est_initialisee(reference: Path) -> bool:
 
 
 def ecrire_budget(projet: Path, budget: float | None, auteur: str) -> None:
-    """Budget global d'un projet rangé, fixé depuis la page du dossier (verrou levé un instant)."""
+    """Budget global d'un projet rangé, fixé depuis la page du dossier (verrou levé un instant).
+
+    Fixé, il s'impose au projet ; None le rend au projet, qui garde le dernier montant.
+    """
     conn = db.connect(projet, auteur, creer=False)
     try:
         with db.transaction(conn):
+            if budget is None:
+                conn.execute("UPDATE reglages_imposes SET budget_impose = 0 WHERE id = 1")
+                return
+            conn.execute("UPDATE reglages_imposes SET budget_impose = 1 WHERE id = 1")
             _sous_verrou_leve(conn)
             ancien = conn.execute("SELECT valeur FROM parametre WHERE cle = 'budget_ht'").fetchone()
             texte = None if budget is None else str(budget)

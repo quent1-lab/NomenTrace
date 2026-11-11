@@ -62,9 +62,11 @@ function nouveauProjet(dossier, rafraichir) {
 }
 
 function fixerBudget(carte, rafraichir) {
-  const budget = champNombre("budget_ht", carte.resume?.budget_ht ?? null, 2);
+  const impose = Boolean(carte.resume?.budget_impose);
+  const budget = champNombre("budget_ht", impose ? (carte.resume?.budget_ht ?? null) : null, 2);
+  const actuel = !impose && carte.resume?.budget_ht != null ? ` Le projet a fixé le sien : ${formatMontant(carte.resume.budget_ht)}.` : "";
   const formulaire = formulairePanneau(
-    [["Budget HT", budget, { aide: "Fixé par le dossier : le projet ne peut pas le changer." }]],
+    [["Budget HT", budget, { aide: `Fixé ici, il s'impose au projet. Laisser vide pour le rendre au projet, qui garde le dernier montant.${actuel}` }]],
     "Enregistrer",
     async (champs) => {
       const valeur = lireNombre(champs.budget_ht.value);
@@ -118,6 +120,11 @@ function modifierProjet(carte, rafraichir) {
   equipe.focus();
 }
 
+// Budget réglé par le projet lui-même (le dossier n'en a pas fixé).
+function origineBudget(resume) {
+  return resume.budget_ht != null && !resume.budget_impose ? el("span", { class: "texte-doux texte-petit" }, " (projet)") : null;
+}
+
 function montantEngage(resume) {
   const { estime, montant } = montantSuivi(resume);
   if (!estime) return formatMontant(montant);
@@ -149,8 +156,8 @@ function ligneProjet(dossier, carte, rafraichir) {
       "td",
       { class: "nombre" },
       dossier.gestion && !carte.hors_ligne
-        ? el("button", { type: "button", class: "bouton-lien", title: "Fixer le budget", onclick: () => fixerBudget(carte, rafraichir) }, formatMontant(r.budget_ht) || "à fixer")
-        : formatMontant(r.budget_ht),
+        ? el("button", { type: "button", class: "bouton-lien", title: "Fixer le budget", onclick: () => fixerBudget(carte, rafraichir) }, formatMontant(r.budget_ht) || "à fixer", origineBudget(r))
+        : [formatMontant(r.budget_ht), origineBudget(r)],
     ),
     el("td", { class: "nombre" }, montantEngage(carte.resume)),
     dossier.gestion ? el("td", {}, etatReglages(dossier, carte)) : null,

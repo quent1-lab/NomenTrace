@@ -309,8 +309,8 @@ def situation(conn: sqlite3.Connection, conn_projet: sqlite3.Connection, code: s
     """Pour l'interface : la page est-elle une référence, ses réglages sont-ils imposés ?
 
     `reference` et `imposes` portent le nom du dossier (ou de l'organisme) concerné, ou None ;
-    `type_reference` vaut « dossier » ou « organisme ». `nom_libre` : le projet choisit son
-    nom (hors dossier, ou dossier qui n'en donne pas).
+    `type_reference` vaut « dossier » ou « organisme ». `nom_libre`, `budget_libre` : le
+    projet choisit son nom, son budget (hors dossier, ou dossier qui ne les fixe pas).
     """
     ligne = conn.execute(
         "SELECT p.reference, p.dossier, d.nom, p.organisme, o.nom AS nom_organisme FROM projet p"
@@ -324,6 +324,7 @@ def situation(conn: sqlite3.Connection, conn_projet: sqlite3.Connection, code: s
         "dossier": None,
         "organisme": None,
         "nom_libre": True,
+        "budget_libre": True,
     }
     if ligne is None:
         return {**vide, "type_reference": None}
@@ -341,6 +342,7 @@ def situation(conn: sqlite3.Connection, conn_projet: sqlite3.Connection, code: s
     return {
         **vide,
         "nom_libre": not (impose and verrou.get("nom_impose")),
+        "budget_libre": not (impose and verrou.get("budget_impose")),
         "reference": ligne["nom"] if ligne["reference"] else None,
         "imposes": ligne["nom"] if impose else None,
         "dossier": ligne["dossier"],

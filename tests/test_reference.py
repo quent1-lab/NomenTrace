@@ -261,7 +261,6 @@ IMPOSEES = [
     ("POST", "/api/attributs", {"libelle": "Couleur", "type": "texte"}),
     ("PATCH", "/api/parametres", {"taux_tva_defaut": 0.1}),
     ("PATCH", "/api/parametres", {"etablissement_nom": "Autre"}),
-    ("PATCH", "/api/parametres", {"budget_ht": 1}),
     ("PATCH", "/api/parametres", {"prefixe_id": "AUTRE"}),
     ("DELETE", "/api/parametres/logo", None),
 ]
@@ -578,3 +577,47 @@ def test_nom_choisi_a_la_creation_si_le_dossier_n_en_donne_pas(
     corps = {"code": "trio", "nom_equipe": "Trio", "prefixe_id": "TRI", "nom_projet": "Drone"}
     assert perso.post("/api/dossiers/epreuve/projets", json=corps).status_code == 201
     assert nom_de(app, "trio") == [("Projet d'essai",)]
+
+
+# --- 11. Budget du projet libre tant que le dossier n'en fixe pas -------------------------------
+
+
+def budget_de(app: FastAPI, code: str) -> list[tuple]:
+    return lire(app, code, "SELECT valeur FROM parametre WHERE cle = 'budget_ht'")
+
+
+def test_budget_libre_puis_fixe_puis_rendu(app: FastAPI, perso: TestClient) -> None:
+    assert perso.get("/p/solo/api/session").json()["budget_libre"] is True
+    assert perso.patch("/p/solo/api/parametres", json={"budget_ht": 500}).status_code == 200
+    assert budget_de(app, "solo") == [("500.0",)]
+    # Le dossier le fixe : il s'impose.
+    assert perso.patch("/api/projets/solo", json={"budget_ht": 800}).status_code == 200
+    assert budget_de(app, "solo") == [("800.0",)]
+    assert perso.patch("/p/solo/api/parametres", json={"budget_ht": 1}).status_code >= 400
+    assert perso.get("/p/solo/api/session").json()["budget_libre"] is False
+    # Le dossier l'efface : le projet garde le dernier montant et redevient libre.
+    assert perso.patch("/api/projets/solo", json={"budget_ht": None}).status_code == 200
+    assert budget_de(app, "solo") == [("800.0",)]
+    assert perso.patch("/p/solo/api/parametres", json={"budget_ht": 900}).status_code == 200
+    assert budget_de(app, "solo") == [("900.0",)]
+
+
+def test_budget_du_projet_range_reste_le_sien(app: FastAPI, range_: TestClient) -> None:
+    """Un projet rangé avec son budget le garde, modifiable, tant que le dossier n'en fixe pas."""
+    avant = budget_de(app, PROJET)
+    creer_compte(app, "admin@ecole.test", "administrateur")
+    admin = connecter(app, "admin@ecole.test")
+    assert admin.patch(f"/p/{PROJET}/api/parametres", json={"budget_ht": 4321}).status_code == 200
+    assert budget_de(app, PROJET) == [("4321.0",)] != avant
+
+
+def resume_solo(client: TestClient) -> dict:
+    projets = client.get("/api/dossiers/perso").json()["projets"]
+    return next(c for c in projets if c["code"] == "solo")["resume"]
+
+
+def test_carte_dit_si_le_budget_vient_du_dossier(app: FastAPI, perso: TestClient) -> None:
+    perso.patch("/p/solo/api/parametres", json={"budget_ht": 500})
+    assert resume_solo(perso)["budget_impose"] is False
+    perso.patch("/api/projets/solo", json={"budget_ht": 800})
+    assert resume_solo(perso)["budget_impose"] is True

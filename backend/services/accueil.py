@@ -41,12 +41,18 @@ def _resume(registre: Registre, code: str) -> tuple[dict | None, str | None]:
         try:
             ligne = db.fetch_one(conn, "SELECT * FROM v_pilotage") or {}
             nom = parametres.get_parametre(conn, "nom_projet")
+            verrou = (
+                db.fetch_one(conn, "SELECT actif, budget_impose FROM reglages_imposes WHERE id = 1")
+                or {}
+            )
         finally:
             conn.close()
     except sqlite3.Error as erreur:
         journal_log.error("Résumé du projet « %s » illisible : %s", code, erreur)
         return None, None
-    return {champ: ligne.get(champ) for champ in CHAMPS_RESUME}, nom
+    resume = {champ: ligne.get(champ) for champ in CHAMPS_RESUME}
+    resume["budget_impose"] = bool(verrou.get("actif") and verrou.get("budget_impose"))
+    return resume, nom
 
 
 def _role(conn: sqlite3.Connection, compte: Utilisateur, code: str) -> str | None:
