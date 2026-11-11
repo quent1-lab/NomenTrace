@@ -610,6 +610,8 @@ class DossierCreation(Modele):
 class DossierModif(Modele):
     nom: str | None = Field(default=None, min_length=1, max_length=80)
     nom_projet: str | None = Field(default=None, max_length=80)
+    # Enveloppe du dossier, HT ; None l'efface.
+    budget_ht: float | None = Field(default=None, ge=0)
     partage_composants: bool | None = None
 
 

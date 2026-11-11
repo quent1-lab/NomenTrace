@@ -637,6 +637,14 @@ a.bouton {
   font-weight: 600;
 }
 
+/* Enveloppe du dossier : libellé à gauche, montant à droite. */
+.ligne-budget {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-1) 0;
+}
+
 /* Retrait d'un projet, à l'écart du formulaire dans son panneau. */
 .zone-retrait {
   margin-top: var(--espace-5);

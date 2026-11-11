@@ -621,3 +621,22 @@ def test_carte_dit_si_le_budget_vient_du_dossier(app: FastAPI, perso: TestClient
     assert resume_solo(perso)["budget_impose"] is False
     perso.patch("/api/projets/solo", json={"budget_ht": 800})
     assert resume_solo(perso)["budget_impose"] is True
+
+
+# --- 12. Enveloppe budgétaire du dossier --------------------------------------------------------
+
+
+def test_enveloppe_du_dossier_repartie_et_reste(app: FastAPI, perso: TestClient) -> None:
+    creer_projet(perso, "duo", "perso")
+    perso.patch("/api/projets/solo", json={"budget_ht": 1200.5})
+    perso.patch("/p/duo/api/parametres", json={"budget_ht": 300})
+    vue = perso.get("/api/dossiers/perso").json()
+    assert vue["budget_ht"] is None and vue["budget_reste_ht"] is None
+    assert vue["budget_reparti_ht"] == pytest.approx(1500.5, abs=0.01)
+    assert perso.patch("/api/dossiers/perso", json={"budget_ht": 1000}).status_code == 200
+    vue = perso.get("/api/dossiers/perso").json()
+    assert vue["budget_ht"] == pytest.approx(1000)
+    assert vue["budget_reste_ht"] == pytest.approx(-500.5, abs=0.01)
+    dossiers = perso.get("/api/organismes/meca").json()["dossiers"]
+    assert next(d for d in dossiers if d["code"] == "perso")["enveloppe_ht"] == pytest.approx(1000)
+    assert perso.patch("/api/dossiers/perso", json={"budget_ht": -1}).status_code == 422

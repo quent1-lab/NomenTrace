@@ -230,15 +230,20 @@ function panneauDossier(dossier, rafraichir) {
   const nom = champTexte("nom", dossier.nom, { maxlength: "80" });
   const nomProjetImpose = champTexte("nom_projet", dossier.nom_projet ?? "", { maxlength: "80" });
   const partage = el("input", { type: "checkbox", name: "partage_composants", checked: Boolean(dossier.partage_composants) });
+  const enveloppe = champNombre("budget_ht", dossier.budget_ht ?? null, 2);
   const formulaire = formulairePanneau(
     [
       ["Nom du dossier", nom, { requis: true }],
+      ["Enveloppe budgétaire HT", enveloppe, { aide: "Budget global du dossier, à répartir entre ses projets. Vide : pas d'enveloppe." }],
       ["Nom du projet", nomProjetImpose, { aide: "Imposé à tous les projets du dossier. Laisser vide pour que chaque projet choisisse le sien." }],
       ["Mettre en commun les composants", partage, { aide: AIDE_PARTAGE }],
     ],
     "Enregistrer",
     async (champs) => {
+      const budget = lireNombre(champs.budget_ht.value);
+      if (Number.isNaN(budget)) throw new Error("Enveloppe budgétaire illisible.");
       await api.patchDossier(dossier.code, {
+        budget_ht: budget,
         nom: champs.nom.value.trim(),
         nom_projet: champs.nom_projet.value.trim() || null,
         partage_composants: champs.partage_composants.checked,
@@ -249,6 +254,20 @@ function panneauDossier(dossier, rafraichir) {
   formulaire.querySelector(".bouton--discret").remove();
   suivreModifications(formulaire);
   return el("section", { class: "panneau" }, el("h2", {}, "Dossier"), formulaire);
+}
+
+// Enveloppe du dossier, ce que ses projets en ont déjà reçu et ce qui reste à répartir.
+function panneauBudget(dossier) {
+  const reste = dossier.budget_reste_ht;
+  const ligne = (libelle, valeur, classe = "") => el("div", { class: "ligne-budget" }, el("span", {}, libelle), el("strong", { class: classe }, valeur));
+  return el(
+    "section",
+    { class: "panneau" },
+    el("h2", {}, "Budget"),
+    ligne("Enveloppe HT", formatMontant(dossier.budget_ht) || "non fixée"),
+    ligne("Réparti entre les projets", formatMontant(dossier.budget_reparti_ht) || formatMontant(0)),
+    reste == null ? null : ligne(reste < 0 ? "Dépassement" : "Reste à répartir", formatMontant(Math.abs(reste)), reste < 0 ? "texte-alerte" : ""),
+  );
 }
 
 function sectionProjets(dossier, rafraichir) {
@@ -306,7 +325,7 @@ export async function afficherDossier(code, { contenu, fil }) {
         sectionProjets(dossier, rafraichir),
         panneauCommunes(code),
       ),
-      el("aside", { class: "commun__cote" }, panneauResponsables(dossier, rafraichir), panneauDossier(dossier, rafraichir)),
+      el("aside", { class: "commun__cote" }, panneauBudget(dossier), panneauResponsables(dossier, rafraichir), panneauDossier(dossier, rafraichir)),
     ),
   );
 }

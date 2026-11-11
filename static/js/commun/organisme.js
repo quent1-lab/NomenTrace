@@ -127,6 +127,7 @@ export async function afficherOrganisme(code, { contenu, fil }) {
       {},
       el("td", {}, el("a", { href: `/d/${d.code}/` }, el("strong", {}, d.nom))),
       el("td", { class: "nombre" }, String(d.nb_projets)),
+      el("td", { class: "nombre" }, formatMontant(d.enveloppe_ht) || "—"),
       el("td", { class: "nombre" }, formatMontant(d.budget_ht)),
     ),
   );
@@ -153,7 +154,7 @@ export async function afficherOrganisme(code, { contenu, fil }) {
           ? el(
               "table",
               { class: "table" },
-              el("thead", {}, el("tr", {}, el("th", {}, "Dossier"), el("th", { class: "nombre" }, "Projets"), el("th", { class: "nombre" }, "Budget HT cumulé"))),
+              el("thead", {}, el("tr", {}, el("th", {}, "Dossier"), el("th", { class: "nombre" }, "Projets"), el("th", { class: "nombre" }, "Enveloppe HT"), el("th", { class: "nombre" }, "Budgets des projets HT"))),
               el("tbody", {}, lignes),
             )
           : el("p", { class: "texte-doux" }, "Aucun dossier."),

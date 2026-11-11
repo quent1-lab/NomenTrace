@@ -170,6 +170,19 @@ def get_accueil(conn: sqlite3.Connection, registre: Registre, compte: Utilisateu
     }
 
 
+def enveloppe(budget_ht: float | None, cartes: list[dict]) -> dict:
+    """Enveloppe d'un dossier : budgets connus de ses projets (réparti) et reste à répartir.
+
+    Le reste peut être négatif (répartition au-delà de l'enveloppe) ; sans enveloppe, None.
+    """
+    budgets = [(c["resume"] or {}).get("budget_ht") for c in cartes]
+    reparti = sum(b for b in budgets if b is not None)
+    return {
+        "budget_reparti_ht": reparti,
+        "budget_reste_ht": None if budget_ht is None else budget_ht - reparti,
+    }
+
+
 def get_vue_dossier(
     conn: sqlite3.Connection, registre: Registre, compte: Utilisateur, code: str
 ) -> dict:
@@ -183,14 +196,16 @@ def get_vue_dossier(
         " WHERE a.dossier = ? ORDER BY u.nom",
         (code,),
     )
+    cartes = [carte(conn, registre, compte, p) for p in projets]
     return {
         **dossier,
+        **enveloppe(dossier["budget_ht"], cartes),
         "organisme": hierarchie.get_organisme(conn, dossier["organisme"]),
         "compte": resume_compte(compte),
         "gestion": gestion,
         "reference": reference.code_reference(code) if gestion else None,
         "a_jour": reference.etat_des_projets(conn, registre, code) if gestion else {},
-        "projets": [carte(conn, registre, compte, p) for p in projets],
+        "projets": cartes,
         "responsables": responsables,
         "candidats": hierarchie.list_candidats(conn, code) if gestion else [],
     }
@@ -206,7 +221,8 @@ def get_vue_organisme(
     dossiers = []
     for dos in db.fetch_all(
         conn,
-        "SELECT code, nom, nom_projet FROM dossier WHERE organisme = ? AND archive = 0"
+        "SELECT code, nom, nom_projet, budget_ht AS enveloppe_ht FROM dossier"
+        " WHERE organisme = ? AND archive = 0"
         " ORDER BY nom",
         (code,),
     ):
