@@ -339,12 +339,12 @@ rangé est verrouillée par déclencheurs comme les autres réglages imposés.
 
 Dans chaque base de projet, la table `reglages_imposes` (une ligne) porte le verrou des
 réglages imposés : `actif` (projet rangé dans un dossier), `propagation` (synchronisation en
-cours, posé et retiré dans la même transaction), `dossier`, `nom_impose` (1 quand le dossier donne un nom à ses projets, 0 sinon ; migration 029), `empreinte` (empreinte SHA-256
+cours, posé et retiré dans la même transaction), `dossier`, `nom_impose` (1 quand le dossier donne un nom à ses projets, 0 sinon ; migration 029), `budget_impose` (1 quand le dossier a fixé le budget du projet, 0 quand le projet règle le sien ; migration 030), `empreinte` (empreinte SHA-256
 du contenu imposé de la référence appliqué au projet) et, dans une référence,
 `initialisee`. Des déclencheurs refusent toute écriture d'un réglage imposé quand le verrou
 est posé hors synchronisation : blocs (code, nom, ordre, description, archive), valeurs des
 listes `mode_appro`, `criticite`, `type_mouvement`, `type_frais`, attributs et leurs
-valeurs, paramètres de l'établissement, TVA, champs obligatoires, nom du projet (seulement quand `nom_impose` vaut 1), budget,
+valeurs, paramètres de l'établissement, TVA, champs obligatoires, nom du projet (seulement quand `nom_impose` vaut 1), budget (seulement quand `budget_impose` vaut 1),
 préfixe, logo. Un projet est à jour quand son empreinte égale celle de la référence, relue à
 chaque contrôle.
 
@@ -405,7 +405,11 @@ Historique lit le journal entier, filtré et paginé, exportable en Excel.
 ## Conventions
 
 - Montants en euros, REAL ; budgets et prix de référence en HT, le TTC est toujours
-  calculé. Taux de TVA en fraction (0.2 pour 20 %).
+  calculé. Un budget saisi en TTC (selon `organisme.saisie_budget`, `HT` ou `TTC`) est converti
+  en HT au taux de TVA par défaut et seul le HT est stocké (`services/budgets.py`).
+  Le budget d'un dossier est `dossier.budget_ht` (base commune) ; sa vue en tire
+  `budget_reparti_ht`, somme des budgets connus de ses projets, et `budget_reste_ht`, l'enveloppe
+  moins le réparti (négatif : dépassement). Taux de TVA en fraction (0.2 pour 20 %).
 - Dates en texte ISO `AAAA-MM-JJ` ; horodatages ISO à la seconde, heure locale.
 - Valeurs énumérées stockées sans accents (`Recu`, `Non lance`) ; l'interface affiche le
   libellé accentué.

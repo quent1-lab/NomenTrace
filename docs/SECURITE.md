@@ -40,6 +40,8 @@ dossier ne sert que ses réglages, et seuls l'administrateur du serveur et les
 administrateurs de l'organisme y écrivent. La liste des fournisseurs d'un organisme ne se
 modifie que dans sa référence, par ses profils « gestion » et « achats et stock ».
 
+La suppression d'un projet non vide, d'un dossier ou d'un organisme entier est réservée à l'administrateur du serveur. Le serveur exige une confirmation égale au code visé (400 sinon) et refuse tout autre compte (403) ; l'écran ne fait que demander de taper ce code. Rien n'est effacé du disque : les dossiers partent à la corbeille, après une sauvegarde.
+
 Le mode local, sans compte, n'accepte que les requêtes émises depuis le poste et adressées
 à `127.0.0.1` ou `localhost`.
 

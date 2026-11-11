@@ -97,16 +97,18 @@ périmètre.
 |---|---|---|
 | GET | `/api/accueil` | Projets visibles, rangés par organisme et dossier, avec accès et résumé ; `destination` quand le compte n'a qu'un projet |
 | POST | `/api/organismes` | Nouvel organisme (`code`, `nom`) ; administrateur du serveur |
-| GET, PATCH | `/api/organismes/{code}` | Dossiers, budget cumulé, administrateurs (pour la gestion) ; changement de nom |
+| GET, PATCH | `/api/organismes/{code}` | Dossiers, budget cumulé, administrateurs (pour la gestion) ; `enveloppe_ht` de chaque dossier ; PATCH : `nom` et `saisie_budget` (`HT` ou `TTC`, unité de saisie des budgets) |
+| DELETE | `/api/organismes/{code}?confirmation=<code>` | Suppression de l'organisme entier : ses dossiers, leurs projets et sa liste de fournisseurs `org-<code>` ; administrateur du serveur seul (403 sinon), `confirmation` égale au code (400 sinon) ; tout part à la corbeille |
 | POST | `/api/organismes/{code}/dossiers` | Nouveau dossier (`code`, `nom`, `nom_projet`) ; gestion de l'organisme |
 | POST | `/api/organismes/{code}/membres` | Profil d'organisme (`identifiant`, `nom`, `profil`) ; compte créé au besoin, avec son jeton d'invitation |
 | PATCH, DELETE | `/api/organismes/{code}/membres/{id}` | Changement de profil ; retrait |
-| GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé, responsables achats, candidats ; nom, nom du projet et `partage_composants` |
+| GET, PATCH | `/api/dossiers/{code}` | Projets du dossier avec leur résumé (`budget_impose`, `budget_ttc`), responsables achats, candidats, `budget_ht` (enveloppe), `budget_reparti_ht` (somme des budgets connus de ses projets), `budget_reste_ht` (négatif : dépassement) et leurs équivalents `*_ttc` avec `taux_tva` ; PATCH : nom, nom du projet, `partage_composants`, `budget_ht` ou `budget_ttc` (enveloppe, `null` pour l'effacer ; les deux ensemble sont refusés) |
+| DELETE | `/api/dossiers/{code}?confirmation=<code>` | Suppression du dossier, de tous ses projets archivés compris et de ses paramètres communs `ref-<code>` ; mêmes règles de droit et de confirmation |
 | POST | `/api/dossiers/{code}/projets` | Nouveau projet (`code`, `nom_equipe`, `prefixe_id`, `nom_projet`, `admin_identifiant`, `modele`) : base créée et en ligne sans redémarrage ; `nom_projet`, facultatif, n'est pris que si le dossier ne donne pas de nom à ses projets ; `modele`, un projet du même dossier dont il reprend les listes locales et les ensembles |
 | POST | `/api/dossiers/{code}/responsables` | Responsable achats (`utilisateur_id`), choisi parmi les membres des projets du dossier |
 | DELETE | `/api/dossiers/{code}/responsables/{id}` | Retrait d'un responsable achats |
-| PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur), avec le rapport de la synchronisation ; nom d'équipe ; `budget_ht` (administrateur de l'organisme) |
-| DELETE | `/api/projets/{code}` | Retrait d'un projet : gestion de l'organisme du dossier, administrateur du serveur pour un projet hors dossier ; une référence ne se retire pas (403), un projet hors ligne répond 503. Sans composant, commande, mouvement de stock ni document, le projet est supprimé (sauvegarde, dossiers à la corbeille, lignes de la base commune effacées) ; sinon il est archivé. Réponse `{code, action, traces}` : `action` vaut `supprime` ou `archive`, `traces` liste ce que le projet contient (vide si supprimé) |
+| PATCH | `/api/projets/{code}` | Rangement dans un dossier (administrateur du serveur), avec le rapport de la synchronisation ; nom d'équipe ; `budget_ht` ou `budget_ttc` (administrateur de l'organisme ; les deux ensemble sont refusés ; `null` rend le budget au projet, qui garde le dernier montant) |
+| DELETE | `/api/projets/{code}` | Retrait d'un projet : gestion de l'organisme du dossier, administrateur du serveur pour un projet hors dossier ; une référence ne se retire pas (403), un projet hors ligne répond 503. Sans composant, commande, mouvement de stock ni document, le projet est supprimé (sauvegarde, dossiers à la corbeille, lignes de la base commune effacées) ; sinon il est archivé. Avec `?confirmation=<code>`, réservé à l'administrateur du serveur (403 sinon, 400 si la confirmation n'est pas le code), le projet est supprimé même non vide. Réponse `{code, action, traces}` : `action` vaut `supprime` ou `archive`, `traces` liste ce que le projet contient (vide si supprimé) |
 
 Les réglages communs d'un dossier se règlent par les routes ordinaires des blocs, listes,
 attributs et paramètres, sous l'adresse de sa référence, `/p/ref-<dossier>/`. Toute
@@ -163,7 +165,7 @@ lignes des communes. L'analyse d'un classeur de suivi donne aussi
 |---|---|---|
 | GET | `/api/sante` | État du serveur, nom du projet, export en attente |
 | GET | `/api/pilotage` | Indicateurs du tableau de bord (vue `v_pilotage`) |
-| GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget, TVA par défaut, champs obligatoires et leur portée, taille maximale d'un document (`taille_max_document_mo`, entier de 1 au plafond d'envoi) |
+| GET, PATCH | `/api/parametres` | Paramètres du projet : nom, préfixe, budget (`budget_ht` ; `budget_ttc` accepté en saisie, converti en HT au taux par défaut, refusé avec `budget_ht`, et renvoyé en lecture), TVA par défaut, champs obligatoires et leur portée, taille maximale d'un document (`taille_max_document_mo`, entier de 1 au plafond d'envoi) |
 | GET | `/api/envoi` | Limites d'un envoi, que l'interface vérifie avant d'envoyer : `envoi_max_octets` (plafond du serveur, tous fichiers compris), `document_max_octets` (réglage du projet), `extensions` acceptées pour un document |
 | GET, POST, DELETE | `/api/parametres/logo` | Logo de l'établissement : l'image ; envoi (`fichier`, PNG ou JPEG, 2 Mo au plus) ; retrait |
 | GET | `/api/parametres/logo/infos` | Présence du logo, dimensions en pixels, date de modification |

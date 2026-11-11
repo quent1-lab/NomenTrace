@@ -83,7 +83,13 @@ enfin un fil d'export Excel par projet.
 mouvements de stock, documents), met le projet hors ligne, puis le supprime s'il est vide
 (dossiers déplacés dans `_corbeille/`, lignes `jeton_api`, `acces` et `projet` effacées) ou
 l'archive sinon. Si l'opération échoue, les dossiers sont remis en place et le projet remis
-en ligne.
+en ligne. Le même module porte les suppressions de l'administrateur du serveur : projet non
+vide, dossier ou organisme entiers, en une transaction après le déplacement de tous les
+dossiers concernés.
+
+`services/budgets.py` convertit un budget saisi en TTC (organisme en `saisie_budget = 'TTC'`)
+en HT au taux de TVA par défaut, celui des paramètres communs pour un dossier et ses projets,
+et calcule les équivalents TTC renvoyés à l'écran. Rien n'est stocké en TTC.
 
 S'assurer du projet de l'instance suit une règle écrite en tête de `services/projets.py`.
 L'ancienne base unique d'avant la version 1.10 (`NOMENTRACE_BASE`), si elle n'est pas

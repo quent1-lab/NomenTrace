@@ -113,8 +113,8 @@ serveur, indiqué sous le champ. Le préfixe est obligatoire avant de créer le 
 composant ; le changer plus tard ne renomme pas les composants existants. La section
 Établissement reçoit le nom de l'établissement, les adresses de livraison et de facturation
 et le contact achats, repris dans les demandes de devis envoyées aux fournisseurs. Dans un projet rangé
-dont le dossier ne donne pas de nom à ses projets, le nom reste modifiable dans un panneau à part, au-dessus
-des réglages imposés. Un logo,
+dont le dossier ne donne pas de nom ou de budget à ses projets, ces réglages restent modifiables dans le panneau « Réglages propres au projet », au-dessus
+des réglages imposés. Si l'organisme fait saisir les budgets en TTC, le champ s'appelle « Budget TTC » : le montant est converti en HT au taux de TVA par défaut. Un logo,
 image PNG ou JPEG de 2 Mo au plus, s'y ajoute : il se place en haut à droite du PDF et du
 classeur Excel de chaque demande.
 
@@ -593,6 +593,8 @@ de trois profils, valables dans tous les projets de l'organisme : « Gestion com
 Un profil ne remplace pas le rôle qu'on a déjà dans un projet : le plus fort des deux
 s'applique.
 
+Le panneau « Budget » de la page d'un dossier montre son enveloppe budgétaire HT, la somme des budgets déjà connus de ses projets (« Réparti entre les projets ») et ce qui reste à répartir, ou le dépassement, en rouge. L'enveloppe se règle dans le panneau Dossier et peut rester vide. La page de l'organisme en reprend deux colonnes, « Enveloppe HT » et « Budgets des projets HT ». Quand l'organisme saisit en TTC, la page du dossier affiche ses budgets en TTC (enveloppe, réparti, reste, budget de chaque projet), avec le taux employé. Sur la page de l'organisme, le champ « Budgets saisis en » choisit l'unité de saisie des budgets des dossiers et des projets, HT ou TTC : ils restent stockés et calculés en HT, et un montant saisi en TTC est converti au taux de TVA par défaut (celui des paramètres communs du dossier).
+
 La page d'un dossier présente ses projets en tableau, avec leur avancement, leur budget et
 leur engagé (le coût estimé, marqué comme tel, tant que rien n'est engagé). « Nouveau projet » demande le nom d'équipe, le code d'adresse et le préfixe
 des identifiants (proposés à partir du nom d'équipe, figés ensuite) et, si l'on veut,
@@ -610,7 +612,7 @@ libre. Un projet qui porte l'une de ces traces est seulement archivé : il dispa
 page et se met hors ligne, mais sa base reste intacte, et aucun écran ne permet de le
 désarchiver. Le message qui suit dit lequel des deux s'est produit et, pour un archivage,
 ce que le projet contient encore. Une référence de dossier ne se retire pas, et un projet
-hors ligne ne peut pas l'être tant qu'il n'est pas revenu en ligne. Les responsables achats du dossier se
+hors ligne ne peut pas l'être tant qu'il n'est pas revenu en ligne. L'administrateur du serveur trouve en plus, dans le panneau du projet, une zone « Supprimer définitivement » qui supprime même un projet non vide ; il confirme en tapant le code du projet. Il dispose de la même zone, « Supprimer le dossier » dans le panneau Dossier (le dossier, tous ses projets archivés compris et ses paramètres communs) et « Supprimer l'organisme » sur la page de l'organisme (ses dossiers, leurs projets et sa liste de fournisseurs). Tout part à la corbeille du serveur. Les responsables achats du dossier se
 choisissent parmi les membres de ses projets : ils voient le résumé de tous les projets du
 dossier, sans pouvoir ouvrir ceux dont ils ne sont pas membres.
 
@@ -621,8 +623,12 @@ la TVA par défaut, la taille maximale d'un document, l'établissement, ses adre
 du projet. Ces réglages communs se modifient depuis la page du dossier, bouton
 « Paramètres communs », dans les mêmes écrans que ceux d'un projet ; chaque modification est
 aussitôt recopiée dans tous les projets du dossier. Dans un projet rangé, ils restent
-visibles mais ne se modifient plus. Le budget global de chaque projet se fixe sur la page du
-dossier, en cliquant sur son montant. Restent propres à chaque projet : le budget cible et
+visibles mais ne se modifient plus. Le budget global de chaque projet est un cas à part : tant que le dossier n'en
+a pas fixé, le projet règle le sien dans Paramètres › Projet, panneau « Réglages propres au
+projet » (avec le nom, quand le dossier le laisse libre), et la page du dossier ajoute
+« (projet) » après son montant. Fixé depuis la page du dossier, en cliquant sur son montant,
+le budget s'impose au projet. Effacé de la page du dossier, il est rendu au projet, qui garde
+le dernier montant. Restent propres à chaque projet : le budget cible et
 le responsable de chaque bloc, les statuts d'appro et de choix, les ensembles, les
 fournisseurs et le préfixe des identifiants, choisi à la création.
 
