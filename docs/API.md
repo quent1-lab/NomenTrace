@@ -233,6 +233,8 @@ tri `tri=attr:tension` trie sur un attribut. Un code d'attribut inconnu est refu
 | POST | `/api/ensembles/{code}/copie` | Duplication, avec ou sans affectations et sous-ensembles |
 | GET | `/api/ensembles/{code}/composants` | Composants affectés directement |
 | POST | `/api/ensembles/{code}/affectations` | Affecter un composant avec une quantité |
+| POST | `/api/ensembles/{code}/montage` | Monter des pièces (corps `composant_id`, `qte`) : crée une sortie de montage. Droit d'écriture, comme `POST /api/mouvements`. Refus en 400 si le composant n'est pas affecté à l'ensemble, ou si `qte` dépasse le reste à monter ou le stock |
+| POST | `/api/ensembles/{code}/demontage` | Annuler un montage (même corps) : crée un retour de montage. Refus en 400 si `qte` dépasse les pièces montées ou si le composant n'est pas affecté |
 | PATCH, DELETE | `/api/affectations/{id}` | Modifier la quantité, retirer l'affectation |
 | GET | `/api/ensembles/{code}/modele` | Modèle Excel de l'ensemble pour l'équipe |
 
@@ -259,7 +261,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock |
 | GET, POST | `/api/demandes-devis` | Composants à commander par fournisseur ; création des demandes |
 | GET | `/api/stock` | État du stock |
-| GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement (le type « Stock initial », tenu par la base, est refusé en 400) |
+| GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement (le type « Stock initial », tenu par la base, est refusé en 400) ; un mouvement de montage remet à jour le statut de montage de son ensemble |
 
 ## Fournisseurs
 

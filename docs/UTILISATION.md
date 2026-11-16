@@ -317,6 +317,10 @@ dessus ; la croix retire le composant. La liste de montage, en bas, montre ce qu
 monter avec l'état du stock : prêt à monter, en partie en stock, en attente de livraison,
 pas encore commandé.
 
+Le bouton « Monter », en tête de page, ouvre la page de montage de l'ensemble (voir plus bas) ;
+le même accès existe sous la liste de montage (« Ouvrir la page de montage ») et sur chaque
+sous-ensemble.
+
 « + Affecter un composant » ouvre un sélecteur avec recherche. Pour chaque composant, il
 montre son besoin, la quantité déjà affectée ailleurs et celle affectée ici, ce qui fait
 voir tout de suite une sur-affectation. Les composants déjà présents dans l'ensemble sont
@@ -335,6 +339,33 @@ verrouillé. Si un seul des codes est déjà pris, rien n'est créé.
 L'encadré Cohérence, en bas de l'écran Ensembles, liste sans dramatiser les composants
 affectés au-delà de leur besoin, ceux qui sont affectés mais pas encore commandés, et les
 montages qui dépassent l'affectation ou qui n'ont pas d'affectation.
+
+### La page de montage
+
+La page `#/ensembles/CODE/montage` sert à monter les pièces d'un ensemble au fur et à mesure.
+Elle ne traite que les composants affectés directement à l'ensemble, rangés en quatre groupes.
+« Prêt à monter » réunit ceux dont le stock couvre tout le reste à monter. « Partiel » réunit
+ceux dont le stock n'en couvre qu'une part. « En attente » réunit ceux qui n'ont rien en stock,
+avec la raison : pas encore commandé, en attente de livraison, ou pas en stock. « Monté »
+réunit ceux dont toutes les pièces sont montées ; ce groupe est replié, un lien l'affiche.
+Chaque ligne donne le reste à monter, le stock et, quand il est renseigné, l'emplacement du
+stock.
+
+Sur une ligne prête ou partielle, on règle la quantité (au plus le reste à monter et le stock),
+puis « Monter » enregistre une sortie de montage vers l'ensemble. Un bandeau « Annuler » reste
+affiché pendant 10 secondes et défait ce montage par un retour de montage. Dans le groupe
+« Monté », « Démonter » remet des pièces au stock, par un retour de montage également.
+
+Le serveur refuse de monter une pièce qui n'est pas en stock, de monter plus que le reste à
+monter, ou de monter un composant qui n'est pas affecté à l'ensemble ; il refuse aussi de
+démonter plus de pièces qu'il n'en a été montées. La saisie libre de l'écran Stock, elle, ne
+refuse pas un montage faute de stock : elle avertit seulement que le stock devient négatif.
+
+Le statut de montage de l'ensemble suit ces mouvements, qu'ils viennent de la page de montage
+ou de l'écran Stock. Il passe à « En cours » dès la première pièce montée, à « Monté » quand
+toutes les pièces affectées directement le sont, et revient à « Non commencé » quand il n'en
+reste aucune. « Validé » se pose à la main et tient tant que tout est monté : démonter une pièce d'un
+ensemble validé le repasse « En cours ».
 
 ### Les budgets d'ensemble
 
@@ -475,7 +506,8 @@ filtrable par type et par ensemble. « + Nouveau mouvement » enregistre à la m
 inventaire, un prêt, une sortie ou un retour de montage. Le type « Stock initial » n'y est
 pas proposé : il se règle par la quantité déjà disponible, sur la fiche du composant. Une sortie de montage vers un
 ensemble compte comme une pièce montée dans cet ensemble ; c'est elle qui fait avancer la
-barre de montage.
+barre de montage et le statut de montage de l'ensemble. Pour monter pièce par pièce, la page de
+montage de l'ensemble est plus commode et plus stricte (voir « La page de montage »).
 
 ## Analyser les caractéristiques
 
