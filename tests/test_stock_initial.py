@@ -138,6 +138,37 @@ def test_migration_reprend_les_quantites_existantes(tmp_path: Path) -> None:
     conn.close()
 
 
+def test_migration_dans_un_projet_aux_listes_imposees(tmp_path: Path) -> None:
+    """Un projet rangé dans un dossier refuse d'écrire ses listes imposées : la migration
+    ajoute pourtant le type système « Stock initial » (constaté en mise à jour, v1.19)."""
+    from tests.jeu_essai import charger_jeu_essai
+
+    anciennes = tmp_path / "migrations"
+    anciennes.mkdir()
+    for numero, fichier in db.list_migrations():
+        if numero <= 30:
+            (anciennes / fichier.name).write_bytes(fichier.read_bytes())
+    conn = db.connect(tmp_path / "base.db")
+    db.apply_migrations(conn, anciennes)
+    charger_jeu_essai(conn)
+    conn.execute("UPDATE composant SET qte_disponible = 2 WHERE id = 'ESSAI-ALI-006'")
+    conn.execute("UPDATE reglages_imposes SET actif = 1, dossier = 'D1' WHERE id = 1")
+    conn.commit()
+
+    db.apply_migrations(conn)
+
+    assert db.get_version_schema(conn) >= 31
+    ligne = db.fetch_one(
+        conn,
+        "SELECT systeme, sens FROM valeur_liste WHERE liste = 'type_mouvement'"
+        " AND code = 'Stock initial'",
+    )
+    assert ligne == {"systeme": 1, "sens": "Entree"}
+    verrou = db.fetch_one(conn, "SELECT actif, propagation FROM reglages_imposes")
+    assert verrou == {"actif": 1, "propagation": 0}
+    conn.close()
+
+
 def test_un_seul_mouvement_initial_par_composant(conn_essai: sqlite3.Connection) -> None:
     """Même écrit directement en base (import, reclassement), le mouvement reste unique."""
     conn_essai.execute("UPDATE composant SET qte_disponible = 3 WHERE id = 'ESSAI-ALI-006'")

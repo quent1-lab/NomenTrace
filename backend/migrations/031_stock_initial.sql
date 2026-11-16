@@ -5,11 +5,19 @@
 -- ou que le composant est supprimé. Le calcul de qte_a_acheter ne change pas. Ce mouvement ne
 -- compte pas comme une trace qui interdit la suppression : il part avec le composant.
 
+-- Un projet rangé dans un dossier refuse d'écrire ses listes imposées (023) : la valeur
+-- système s'écrit comme une synchronisation, verrou levé le temps de l'écriture. La base de
+-- référence du dossier reçoit la même valeur par cette migration : les synchronisations
+-- suivantes la retrouvent des deux côtés.
+UPDATE reglages_imposes SET propagation = 1 WHERE id = 1;
+
 INSERT OR IGNORE INTO valeur_liste (liste, code, libelle, ordre, systeme, sens)
 VALUES ('type_mouvement', 'Stock initial', 'Stock initial', 4, 1, 'Entree');
 
 UPDATE valeur_liste SET systeme = 1, actif = 1, sens = 'Entree'
 WHERE liste = 'type_mouvement' AND code = 'Stock initial';
+
+UPDATE reglages_imposes SET propagation = 0 WHERE id = 1;
 
 -- Reprise de l'existant : archivés compris, comme le ferait le déclencheur.
 INSERT INTO mouvement_stock (date, composant_id, sens, type_mouvement, qte, commentaire)
