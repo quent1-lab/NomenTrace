@@ -101,7 +101,8 @@ async function rechargerMouvements() {
 // --- Saisie manuelle ------------------------------------------------------------------------
 
 function ouvrirSaisie() {
-  const types = valeursListe("type_mouvement").filter(([code]) => code !== "Reception achat");
+  // Réception : par la commande ; stock initial : par la quantité déjà disponible du composant.
+  const types = valeursListe("type_mouvement").filter(([code]) => code !== "Reception achat" && code !== "Stock initial");
   const type = champChoix("type_mouvement", types, types[0]?.[0] ?? null);
   const sens = champChoix("sens", [["Entree", "Entrée"], ["Sortie", "Sortie"]], "Entree");
   const texteSens = el("span", { class: "texte-doux" });

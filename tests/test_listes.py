@@ -19,6 +19,7 @@ def test_base_neuve_sans_vocabulaire_de_projet(conn_vide: sqlite3.Connection) ->
         "Reception achat",
         "Sortie montage",
         "Retour montage",
+        "Stock initial",
         "Perte ou casse",
         "Inventaire",
     }

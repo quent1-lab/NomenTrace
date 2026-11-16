@@ -9,6 +9,8 @@ from backend.services import composants, listes
 
 # Types système : leur code est figé dans valeur_liste et dans les vues.
 TYPES_MONTAGE: frozenset[str] = frozenset({"Sortie montage", "Retour montage"})
+# Tenu par la base depuis composant.qte_disponible (migration 031), jamais saisi à la main.
+STOCK_INITIAL = "Stock initial"
 
 
 def list_mouvements(
@@ -82,6 +84,10 @@ def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> list[
 
 def create_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     """Enregistre un mouvement de stock. Un stock négatif est autorisé et signalé."""
+    if valeurs["type_mouvement"] == STOCK_INITIAL:
+        raise ErreurMetier(
+            "Le stock initial se règle par la quantité déjà disponible, sur la fiche du composant."
+        )
     sens = deduce_sens(conn, valeurs["type_mouvement"], valeurs.get("sens"))
     valeurs = {**valeurs, "sens": sens}
     with db.transaction(conn):

@@ -338,7 +338,7 @@ function formulaireModif(c, valeursAttributs, fournisseurs, { surEnregistre, sur
     ligneChamp("Lien produit", champTexte("lien_produit", c.lien_produit, { type: "url" }), requis("lien_produit")),
     ligneChamp("Qté besoin", champNombre("qte_besoin", c.qte_besoin), { requis: true }),
     ligneChamp("Qté rechange", champNombre("qte_rechange", c.qte_rechange)),
-    ligneChamp("Qté déjà disponible", champNombre("qte_disponible", c.qte_disponible)),
+    ligneChamp("Qté déjà disponible", champNombre("qte_disponible", c.qte_disponible), { aide: "Pièces déjà en main : elles entrent au stock (mouvement « Stock initial »)." }),
     ligneChamp("Qté par lot", champNombre("qte_par_lot", c.qte_par_lot), { aide: "1 si le composant se vend à l'unité. Changer le lot demande de revoir le prix relevé." }),
     ligneChamp("PU relevé", champNombre("pu_releve", c.pu_releve, 2), { ...requis("pu_releve"), aide: "Prix du lot, ou de la pièce si le lot vaut 1." }),
     ligneChamp("Base du prix", base),
