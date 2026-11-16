@@ -83,7 +83,7 @@ def _check_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> list[
 
 
 def create_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
-    """Enregistre un mouvement de stock. Un stock négatif est autorisé et signalé."""
+    """Enregistre un mouvement de stock ; une sortie au-delà du stock est refusée."""
     if valeurs["type_mouvement"] == STOCK_INITIAL:
         raise ErreurMetier(
             "Le stock initial se règle par la quantité déjà disponible, sur la fiche du composant."
@@ -92,7 +92,17 @@ def create_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     valeurs = {**valeurs, "sens": sens}
     with db.transaction(conn):
         identifiant, avertissements = insert_mouvement(conn, valeurs)
-    return resultat_mouvement(conn, identifiant, valeurs["composant_id"], avertissements)
+    return resultat_mouvement(conn, identifiant, avertissements)
+
+
+def _check_stock(conn: sqlite3.Connection, composant: str, qte: int) -> None:
+    """Une sortie ne fait jamais passer le stock sous zéro (la base le refuse aussi, 032)."""
+    stock = composants.get_composant(conn, composant)["stock_actuel"]
+    if qte > stock:
+        raise ErreurMetier(
+            f"Pas assez de {composant} en stock : {max(stock, 0)} pièce(s) pour {qte} à sortir. "
+            "Enregistrer d'abord l'entrée qui manque (réception, inventaire)."
+        )
 
 
 def insert_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> tuple[int, list[str]]:
@@ -101,6 +111,8 @@ def insert_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> tuple
     Un mouvement de montage remet à jour le statut de montage de son ensemble.
     """
     avertissements = _check_mouvement(conn, valeurs)
+    if valeurs["sens"] == "Sortie":
+        _check_stock(conn, valeurs["composant_id"], valeurs["qte"])
     identifiant = db.insert_row(conn, "mouvement_stock", valeurs)
     if valeurs["type_mouvement"] in TYPES_MONTAGE:
         ensembles.update_statut_montage(conn, valeurs["ensemble_code"])
@@ -108,14 +120,8 @@ def insert_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> tuple
 
 
 def resultat_mouvement(
-    conn: sqlite3.Connection, identifiant: int, composant: str, avertissements: list[str]
+    conn: sqlite3.Connection, identifiant: int, avertissements: list[str]
 ) -> dict:
-    """Le mouvement enregistré et ses avertissements, dont un stock devenu négatif."""
-    stock = composants.get_composant(conn, composant)["stock_actuel"]
-    if stock < 0:
-        avertissements.append(
-            f"Le stock de {composant} devient négatif ({stock}) : une entrée a "
-            "probablement été oubliée."
-        )
+    """Le mouvement enregistré et ses avertissements."""
     mouvement = db.fetch_one(conn, "SELECT * FROM mouvement_stock WHERE id = ?", (identifiant,))
     return {"mouvement": mouvement, "avertissements": avertissements}

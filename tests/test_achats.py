@@ -122,21 +122,29 @@ def test_inventaire_exige_un_sens(client_essai: TestClient) -> None:
     assert client_essai.post("/api/mouvements", json=mouvement).status_code == 400
 
 
-def test_stock_negatif_autorise_et_signale(client_essai: TestClient) -> None:
+def test_stock_negatif_refuse(client_essai: TestClient) -> None:
     mouvement = {
         "date": "2026-10-05",
         "composant_id": "ESSAI-TR-002",
         "type_mouvement": "Perte ou casse",
         "qte": 1,
     }
-    resultat = client_essai.post("/api/mouvements", json=mouvement).json()
-    assert "négatif" in resultat["avertissements"][0]
-    stock = client_essai.get("/api/stock").json()
-    assert [(s["id"], s["stock_actuel"]) for s in stock] == [("ESSAI-TR-002", -1)]
+    reponse = client_essai.post("/api/mouvements", json=mouvement)
+    assert reponse.status_code == 400
+    assert "Pas assez de ESSAI-TR-002 en stock" in reponse.json()["erreur"]
+    assert client_essai.get("/api/stock").json() == []
 
 
 def test_montage_sans_affectation_signale(client_essai: TestClient) -> None:
     client_essai.post("/api/ensembles", json={"code": "MAT", "nom": "Mât"})
+    entree = {
+        "date": "2026-10-05",
+        "composant_id": "ESSAI-BMP-001",
+        "type_mouvement": "Inventaire",
+        "sens": "Entree",
+        "qte": 1,
+    }
+    client_essai.post("/api/mouvements", json=entree)
     mouvement = {
         "date": "2026-10-05",
         "composant_id": "ESSAI-BMP-001",

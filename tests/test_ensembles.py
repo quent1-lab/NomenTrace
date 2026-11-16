@@ -18,6 +18,15 @@ def _affecter(client: TestClient, code: str, composant_id: str, qte: int) -> dic
 
 
 def _montage(client: TestClient, composant_id: str, ensemble: str, qte: int) -> None:
+    # Le stock ne devient jamais négatif : les pièces entrent avant d'être montées.
+    entree = {
+        "date": "2026-10-01",
+        "composant_id": composant_id,
+        "sens": "Entree",
+        "type_mouvement": "Inventaire",
+        "qte": qte,
+    }
+    assert client.post("/api/mouvements", json=entree).status_code == 201
     mouvement = {
         "date": "2026-10-01",
         "composant_id": composant_id,

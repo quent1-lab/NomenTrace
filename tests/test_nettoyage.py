@@ -251,6 +251,7 @@ def test_ensemble_regles_de_suppression(client_essai: TestClient) -> None:
     client_essai.post(
         f"/api/ensembles/{affecte}/affectations", json={"composant_id": COMPOSANT_LIBRE, "qte": 1}
     )
+    _mouvement(client_essai, "ESSAI-ALI-001")  # une pièce en stock, pour la monter
     _mouvement(
         client_essai,
         "ESSAI-ALI-001",

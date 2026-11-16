@@ -1,9 +1,9 @@
 """Montage d'un ensemble depuis sa page de montage : monter des pièces, annuler un montage.
 
 Monter crée une « Sortie montage », annuler un « Retour montage » ; le statut de montage de
-l'ensemble suit (`ensembles.update_statut_montage`). Contrairement à la saisie libre du
-journal de stock, la page de montage refuse ce qui n'est pas possible : une pièce absente du
-stock, plus que le reste à monter, ou un composant non affecté à l'ensemble.
+l'ensemble suit (`ensembles.update_statut_montage`). Comme tout mouvement, une pièce
+absente du stock est refusée (`mouvements.insert_mouvement`) ; la page refuse en plus de monter
+plus que le reste à monter, ou un composant non affecté à l'ensemble.
 """
 
 import sqlite3
@@ -59,13 +59,8 @@ def monter(
                 f"Il reste {max(ligne['reste_a_monter'], 0)} pièce(s) de {composant} à monter "
                 f"dans {code}, pas {qte}."
             )
-        if qte > ligne["stock_actuel"]:
-            raise ErreurMetier(
-                f"Pas assez de {composant} en stock : {max(ligne['stock_actuel'], 0)} pièce(s) "
-                f"pour {qte} à monter."
-            )
         identifiant = _enregistrer(conn, code, composant, qte, "Sortie montage", auteur)
-    return mouvements.resultat_mouvement(conn, identifiant, composant, [])
+    return mouvements.resultat_mouvement(conn, identifiant, [])
 
 
 def demonter(
@@ -80,4 +75,4 @@ def demonter(
                 f"impossible d'en retirer {qte}."
             )
         identifiant = _enregistrer(conn, code, composant, qte, "Retour montage", auteur)
-    return mouvements.resultat_mouvement(conn, identifiant, composant, [])
+    return mouvements.resultat_mouvement(conn, identifiant, [])

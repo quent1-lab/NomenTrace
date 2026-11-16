@@ -316,6 +316,24 @@ def create_composant(
     return get_composant(conn, identifiant)
 
 
+def check_disponible(actuel: dict, modifications: dict[str, Any]) -> None:
+    """La quantité déjà disponible ne descend pas sous ce que le stock en a déjà consommé.
+
+    Elle tient le mouvement « Stock initial » (migration 031) : la baisser retire autant de
+    pièces du stock, qui ne devient jamais négatif (migration 032).
+    """
+    nouveau = modifications.get("qte_disponible")
+    if nouveau is None or nouveau >= actuel["qte_disponible"]:
+        return
+    stock = actuel["stock_actuel"] - (actuel["qte_disponible"] - nouveau)
+    if stock < 0:
+        minimum = actuel["qte_disponible"] - actuel["stock_actuel"]
+        raise ErreurMetier(
+            f"Le stock de {actuel['id']} deviendrait négatif ({stock}) : des pièces déjà "
+            f"disponibles ont servi. La quantité déjà disponible ne descend pas sous {minimum}."
+        )
+
+
 def check_lot(actuel: dict, modifications: dict[str, Any]) -> None:
     """Le prix relevé est celui du lot : changer le lot d'un composant chiffré sans revoir
     son prix dans la même requête fausserait le total à acheter."""
@@ -392,6 +410,7 @@ def patch_composant(
         )
         saisie.verifier(modifications, modifications.keys())
         check_lot(actuel, modifications)
+        check_disponible(actuel, modifications)
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
         changes = journal.update_with_journal(
