@@ -202,7 +202,7 @@ lignes des communes. L'analyse d'un classeur de suivi donne aussi
 | GET | `/api/composants/catalogue/reprise` | Ce qu'une reprise recopie du composant `id` du projet `source` : `composant` (champs repris), `attributs`, `date_prix`, `fiches` ; 403 si le dossier ne partage pas |
 | POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque. `reprise` (`projet`, `id`) copie en plus les fiches techniques du composant repris, dans la même transaction |
 | GET | `/api/composants/{id}` | Fiche complète : composant, attributs, visa, actions à faire (`code`, `texte`, `onglet`), affectations, lignes de commande, mouvements, historique |
-| PATCH | `/api/composants/{id}` | Modification ; `attributs` ({code: valeur}) enregistre les caractéristiques dans la même transaction, `modifie_le` refuse en 409 si le composant a changé |
+| PATCH | `/api/composants/{id}` | Modification ; 400 si `qte_disponible` descend sous ce que le stock en a déjà consommé ; `attributs` ({code: valeur}) enregistre les caractéristiques dans la même transaction, `modifie_le` refuse en 409 si le composant a changé |
 | DELETE | `/api/composants/{id}` | Archivage |
 | POST | `/api/composants/{id}/reclasser` | Reclassement dans un autre bloc (`bloc_code`) |
 | PUT | `/api/composants/{id}/attributs` | Valeurs des caractéristiques, `null` efface |
@@ -261,7 +261,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock |
 | GET, POST | `/api/demandes-devis` | Composants à commander par fournisseur ; création des demandes |
 | GET | `/api/stock` | État du stock |
-| GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement (le type « Stock initial », tenu par la base, est refusé en 400) ; un mouvement de montage remet à jour le statut de montage de son ensemble |
+| GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement (le type « Stock initial », tenu par la base, est refusé en 400, de même qu'une sortie au-delà du stock du composant) ; un mouvement de montage remet à jour le statut de montage de son ensemble |
 
 ## Fournisseurs
 

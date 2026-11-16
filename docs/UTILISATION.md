@@ -202,7 +202,9 @@ Le prix se saisit tel qu'on l'a relevé, en HT ou en TTC. L'outil en déduit le 
 taux de TVA du composant. Les quantités se lisent ainsi : on achète le besoin plus la
 rechange, moins ce qui est déjà disponible sans achat (un stock existant, un prêt). Cette
 quantité déjà disponible entre aussi au stock : l'écran Stock la montre comme un mouvement
-« Stock initial », qui suit la fiche quand on la modifie et disparaît quand on la remet à 0. Un
+« Stock initial », qui suit la fiche quand on la modifie et disparaît quand on la remet à 0. Comme ce mouvement fait partie du stock, la quantité déjà
+disponible ne peut pas descendre sous ce que le stock en a déjà consommé : le serveur refuse
+et indique le minimum. Un
 composant en mode Achat sans prix apparaît « à chiffrer » ; son coût manque au total, et
 le tableau de bord le compte.
 
@@ -358,8 +360,8 @@ affiché pendant 10 secondes et défait ce montage par un retour de montage. Dan
 
 Le serveur refuse de monter une pièce qui n'est pas en stock, de monter plus que le reste à
 monter, ou de monter un composant qui n'est pas affecté à l'ensemble ; il refuse aussi de
-démonter plus de pièces qu'il n'en a été montées. La saisie libre de l'écran Stock, elle, ne
-refuse pas un montage faute de stock : elle avertit seulement que le stock devient négatif.
+démonter plus de pièces qu'il n'en a été montées. La saisie libre de l'écran Stock refuse elle
+aussi toute sortie au-delà du stock du composant : le stock ne devient jamais négatif.
 
 Le statut de montage de l'ensemble suit ces mouvements, qu'ils viennent de la page de montage
 ou de l'écran Stock. Il passe à « En cours » dès la première pièce montée, à « Monté » quand
@@ -504,10 +506,13 @@ besoin.
 L'écran Stock montre l'état du stock de chaque composant et le journal des mouvements,
 filtrable par type et par ensemble. « + Nouveau mouvement » enregistre à la main un
 inventaire, un prêt, une sortie ou un retour de montage. Le type « Stock initial » n'y est
-pas proposé : il se règle par la quantité déjà disponible, sur la fiche du composant. Une sortie de montage vers un
+pas proposé : il se règle par la quantité déjà disponible, sur la fiche du composant. Une sortie (montage, perte, casse,
+inventaire en sortie) qui dépasse le stock du composant est refusée, avec le stock restant
+dans le message : il faut d'abord enregistrer l'entrée qui manque, réception ou inventaire.
+Une entrée est toujours permise. Une sortie de montage vers un
 ensemble compte comme une pièce montée dans cet ensemble ; c'est elle qui fait avancer la
 barre de montage et le statut de montage de l'ensemble. Pour monter pièce par pièce, la page de
-montage de l'ensemble est plus commode et plus stricte (voir « La page de montage »).
+montage de l'ensemble est plus commode, et elle borne en plus au reste à monter (voir « La page de montage »).
 
 ## Analyser les caractéristiques
 

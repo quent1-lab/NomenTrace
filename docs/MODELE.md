@@ -156,6 +156,15 @@ jour de la migration. Ce mouvement ne compte pas parmi les traces qui interdisen
 suppression d'un composant (`nb_mouvements` de `v_qualite_composant` l'exclut). Le calcul de
 `qte_a_acheter` ne change pas : la quantité déjà disponible reste retranchée du besoin.
 
+Un stock ne devient jamais négatif (migration 032). Le serveur refuse en 400 toute sortie
+au-delà du stock du composant (`mouvements.insert_mouvement`), et la baisse de la quantité
+déjà disponible qui le ferait passer sous zéro (`composants.check_disponible`). En dernier
+recours, trois déclencheurs de `mouvement_stock` refusent l'écriture : l'insertion d'une
+sortie, la réduction d'une entrée et la suppression d'une entrée, quand la somme des
+mouvements du composant deviendrait négative. Une écriture qui fait monter le stock reste
+permise, même sur une base ancienne qui porte déjà un stock négatif : c'est elle qui le
+corrige.
+
 Aucune valeur propre à un projet n'est écrite dans le code : le vocabulaire d'une instance
 est une donnée, saisie dans l'écran Paramètres.
 
