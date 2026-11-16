@@ -200,7 +200,9 @@ champs du composant.
 
 Le prix se saisit tel qu'on l'a relevé, en HT ou en TTC. L'outil en déduit le PU HT avec le
 taux de TVA du composant. Les quantités se lisent ainsi : on achète le besoin plus la
-rechange, moins ce qui est déjà disponible sans achat (un stock existant, un prêt). Un
+rechange, moins ce qui est déjà disponible sans achat (un stock existant, un prêt). Cette
+quantité déjà disponible entre aussi au stock : l'écran Stock la montre comme un mouvement
+« Stock initial », qui suit la fiche quand on la modifie et disparaît quand on la remet à 0. Un
 composant en mode Achat sans prix apparaît « à chiffrer » ; son coût manque au total, et
 le tableau de bord le compte.
 
@@ -470,7 +472,8 @@ besoin.
 
 L'écran Stock montre l'état du stock de chaque composant et le journal des mouvements,
 filtrable par type et par ensemble. « + Nouveau mouvement » enregistre à la main un
-inventaire, un prêt, une sortie ou un retour de montage. Une sortie de montage vers un
+inventaire, un prêt, une sortie ou un retour de montage. Le type « Stock initial » n'y est
+pas proposé : il se règle par la quantité déjà disponible, sur la fiche du composant. Une sortie de montage vers un
 ensemble compte comme une pièce montée dans cet ensemble ; c'est elle qui fait avancer la
 barre de montage.
 

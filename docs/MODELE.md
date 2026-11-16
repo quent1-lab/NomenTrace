@@ -141,8 +141,20 @@ mode_appro        Achat
 statut_appro      Non lance (valeur par défaut)
 criticite         Bloquant
 type_mouvement    Reception achat (Entree) | Sortie montage (Sortie) |
-                  Retour montage (Entree) | Inventaire (sens libre)
+                  Retour montage (Entree) | Inventaire (sens libre) |
+                  Stock initial (Entree)
 ```
+
+Le mouvement « Stock initial » (migration 031) n'est jamais saisi à la main : la base le tient
+depuis `composant.qte_disponible`, par des déclencheurs, quel que soit le chemin d'écriture
+(fiche, import, reclassement, assistant). Il y a au plus un mouvement de ce type par composant.
+Il est créé quand la quantité déjà disponible devient positive, sa quantité suit celle du
+composant quand elle change, il est retiré quand elle revient à 0, et il part avec le
+composant quand celui-ci est supprimé. La migration reprend l'existant : chaque composant,
+archivé compris, dont la quantité déjà disponible est positive reçoit son mouvement, daté du
+jour de la migration. Ce mouvement ne compte pas parmi les traces qui interdisent la
+suppression d'un composant (`nb_mouvements` de `v_qualite_composant` l'exclut). Le calcul de
+`qte_a_acheter` ne change pas : la quantité déjà disponible reste retranchée du besoin.
 
 Aucune valeur propre à un projet n'est écrite dans le code : le vocabulaire d'une instance
 est une donnée, saisie dans l'écran Paramètres.

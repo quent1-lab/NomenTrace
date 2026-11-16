@@ -259,7 +259,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock |
 | GET, POST | `/api/demandes-devis` | Composants à commander par fournisseur ; création des demandes |
 | GET | `/api/stock` | État du stock |
-| GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement |
+| GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement (le type « Stock initial », tenu par la base, est refusé en 400) |
 
 ## Fournisseurs
 
