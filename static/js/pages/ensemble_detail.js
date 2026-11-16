@@ -257,7 +257,8 @@ function rendre() {
       el(
         "div",
         { class: "actions" },
-        el("button", { type: "button", class: "bouton si-ecriture", onclick: ouvrirSelecteur }, "+ Affecter un composant"),
+        el("a", { class: "bouton", href: `#/ensembles/${encodeURIComponent(e.code)}/montage` }, "Monter"),
+        el("button", { type: "button", class: "bouton bouton--discret si-ecriture", onclick: ouvrirSelecteur }, "+ Affecter un composant"),
         el("button", { type: "button", class: "bouton bouton--discret si-ensembles", onclick: creerSousEnsemble }, "+ Sous-ensemble"),
         el("button", { type: "button", class: "bouton bouton--discret si-ensembles", onclick: () => ouvrirFormulaireEnsemble({ ensemble: e, surEnregistre: recharger }) }, "Modifier"),
         el("button", { type: "button", class: "bouton bouton--discret si-ensembles", onclick: () => ouvrirDuplication(e, (copie) => naviguer(`/ensembles/${copie.code}`)) }, "Dupliquer"),
@@ -274,7 +275,7 @@ function rendre() {
         ? tableComposants()
         : el("p", { class: "texte-doux" }, "Aucun composant affecté."),
     ),
-    el("section", { class: "panneau" }, el("h2", {}, "Liste de montage"), el("p", { class: "texte-doux texte-petit" }, "Le stock est celui du composant, tous ensembles confondus."), listeMontage()),
+    el("section", { class: "panneau" }, el("div", { class: "titre-section" }, el("h2", {}, "Liste de montage"), el("a", { class: "bouton bouton--discret", href: `#/ensembles/${encodeURIComponent(e.code)}/montage` }, "Ouvrir la page de montage")), el("p", { class: "texte-doux texte-petit" }, "Le stock est celui du composant, tous ensembles confondus."), listeMontage()),
   );
 }
 

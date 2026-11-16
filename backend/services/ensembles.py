@@ -132,6 +132,33 @@ def archive_ensemble(conn: sqlite3.Connection, code: str) -> None:
         journal.update_with_journal(conn, "ensemble", code, {"archive": 1}, frozenset({"archive"}))
 
 
+def update_statut_montage(conn: sqlite3.Connection, code: str) -> None:
+    """Statut de montage tiré des pièces montées, dans la transaction de l'appelant.
+
+    « En cours » dès la première pièce, « Monté » quand toutes les pièces affectées
+    directement le sont, « Non commencé » s'il n'en reste aucune. « Validé » se pose à la main
+    et tient tant que tout est monté.
+    """
+    pieces = db.fetch_one(
+        conn,
+        "SELECT TOTAL(qte_affectee) AS total,"
+        " TOTAL(MIN(MAX(qte_montee, 0), qte_affectee)) AS montees"
+        " FROM v_ensemble_composant WHERE ensemble_code = ?",
+        (code,),
+    )
+    total, montees = (pieces["total"], pieces["montees"]) if pieces else (0, 0)
+    if total > 0 and montees >= total:
+        nouveau = "Monte"
+    else:
+        nouveau = "En cours" if montees > 0 else "Non commence"
+    actuel = db.fetch_one(conn, "SELECT statut_montage FROM ensemble WHERE code = ?", (code,))
+    if actuel is None or (actuel["statut_montage"] == "Valide" and nouveau == "Monte"):
+        return
+    journal.update_with_journal(
+        conn, "ensemble", code, {"statut_montage": nouveau}, frozenset({"statut_montage"})
+    )
+
+
 def list_composants_ensemble(conn: sqlite3.Connection, code: str) -> list[dict]:
     """Renvoie les composants affectés à un ensemble."""
     verifier_ensemble(conn, code)

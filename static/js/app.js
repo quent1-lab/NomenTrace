@@ -11,6 +11,7 @@ import { afficherBlocs } from "./pages/blocs.js";
 import { afficherDetailCommande } from "./pages/commande_detail.js";
 import { afficherComposants } from "./pages/composants.js";
 import { afficherDetailEnsemble } from "./pages/ensemble_detail.js";
+import { afficherMontageEnsemble } from "./pages/ensemble_montage.js";
 import { afficherEnsembles } from "./pages/ensembles.js";
 import { afficherRevueImport } from "./pages/import_revue.js";
 import { afficherImports } from "./pages/imports.js";
@@ -48,8 +49,13 @@ const ROUTES = {
   "/nettoyage": afficherNettoyage,
 };
 
-// Routes à paramètre : #/ensembles/CODE et #/achats/NUMERO.
+// Routes à paramètre : #/ensembles/CODE, #/ensembles/CODE/montage et #/achats/NUMERO.
 function routeParametree(chemin) {
+  const montage = chemin.match(/^\/ensembles\/([^/]+)\/montage$/);
+  if (montage) {
+    const code = decodeURIComponent(montage[1]);
+    return (conteneur, parametres) => afficherMontageEnsemble(conteneur, parametres, code);
+  }
   const detail = chemin.match(/^\/ensembles\/([^/]+)$/);
   if (detail) {
     const code = decodeURIComponent(detail[1]);

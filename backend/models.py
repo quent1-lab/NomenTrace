@@ -179,6 +179,13 @@ class EnsembleDuplication(Modele):
     codes: dict[str, str] = Field(default_factory=dict)
 
 
+class Montage(Modele):
+    """Pièces montées dans un ensemble, ou dont le montage est annulé."""
+
+    composant_id: str = Field(min_length=1)
+    qte: int = Field(gt=0)
+
+
 class AffectationCreation(Modele):
     composant_id: str = Field(min_length=1)
     qte: int = Field(gt=0)

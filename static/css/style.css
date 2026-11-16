@@ -3865,3 +3865,243 @@ fieldset.verrou {
     padding: 8px;
   }
 }
+
+/* --- Page de montage d'un ensemble (#/ensembles/CODE/montage) ------------------------------ */
+
+.statut-montage {
+  align-self: center;
+  padding: 2px var(--espace-2);
+  border-radius: 10px;
+  font-size: var(--taille-petit);
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+  white-space: nowrap;
+}
+
+.statut-montage--en-cours {
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+}
+
+.statut-montage--monte,
+.statut-montage--valide {
+  background: var(--couleur-conforme-fond);
+  color: var(--couleur-conforme);
+}
+
+.montage-progression {
+  margin-bottom: var(--espace-4);
+}
+
+.montage-groupe {
+  margin-bottom: var(--espace-4);
+}
+
+.montage-groupe__titre {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: center;
+  margin: 0 0 var(--espace-2);
+  font-size: var(--taille-texte);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.montage-groupe__titre .bouton-lien {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--taille-petit);
+  font-weight: normal;
+}
+
+.pastille-etat {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--couleur-neutre);
+}
+
+.pastille-etat--pret,
+.pastille-etat--monte {
+  background: var(--couleur-conforme);
+}
+
+.pastille-etat--partiel {
+  background: var(--couleur-surveiller);
+}
+
+.montage-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+}
+
+.montage-liste > li + li {
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.montage-ligne {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto auto auto;
+  gap: var(--espace-3);
+  align-items: center;
+  padding: var(--espace-2) var(--espace-3);
+}
+
+.montage-ligne__designation {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.montage-ligne--monte .montage-ligne__designation {
+  color: var(--couleur-texte-doux);
+}
+
+.montage-ligne__infos {
+  display: flex;
+  gap: var(--espace-2);
+  justify-content: flex-end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.montage-ligne__actions {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.montage-ligne__actions .bouton {
+  min-height: 34px;
+}
+
+.emplacement {
+  padding: 1px 6px;
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise-clair);
+  color: var(--couleur-ardoise-fonce);
+  font-size: var(--taille-petit);
+  white-space: nowrap;
+}
+
+.montage-qte {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+}
+
+.montage-qte button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--couleur-ardoise);
+  font: inherit;
+  cursor: pointer;
+}
+
+.montage-qte__champ {
+  width: 3.5em;
+  border: 0;
+  text-align: center;
+  font: inherit;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.montage-qte__champ::-webkit-inner-spin-button,
+.montage-qte__champ::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.montage-sous {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 260px) auto;
+  gap: var(--espace-3);
+  align-items: center;
+  padding: var(--espace-2) var(--espace-3);
+}
+
+.montage-annulation {
+  position: sticky;
+  bottom: var(--espace-3);
+  display: flex;
+  gap: var(--espace-3);
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--espace-3);
+  padding: var(--espace-3);
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise-fonce);
+  color: #ffffff;
+}
+
+.montage-annulation .bouton-lien {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+@media (max-width: 800px) {
+  .montage-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "id actions"
+      "designation designation"
+      "infos emplacement";
+    row-gap: var(--espace-1);
+  }
+
+  .montage-ligne__id {
+    grid-area: id;
+  }
+
+  .montage-ligne__designation {
+    grid-area: designation;
+    white-space: normal;
+  }
+
+  .montage-ligne__emplacement {
+    grid-area: emplacement;
+    justify-self: end;
+  }
+
+  .montage-ligne__infos {
+    grid-area: infos;
+    justify-content: flex-start;
+  }
+
+  .montage-ligne__actions {
+    grid-area: actions;
+  }
+
+  .montage-ligne__actions .bouton,
+  .montage-qte button {
+    min-height: 44px;
+  }
+
+  .montage-qte button {
+    width: 40px;
+    height: 44px;
+  }
+
+  .montage-sous {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .montage-sous .progression {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .titre-page a.montage-fiche {
+    display: none;
+  }
+}

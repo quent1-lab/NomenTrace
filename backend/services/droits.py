@@ -381,6 +381,9 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("GET", "/api/ensembles/{code}/composants"): LECTURE,
     ("GET", "/api/ensembles/{code}/modele"): LECTURE,
     ("POST", "/api/ensembles/{code}/affectations"): ECRITURE,
+    # Montage : des mouvements de stock, comme POST /api/mouvements
+    ("POST", "/api/ensembles/{code}/montage"): ECRITURE,
+    ("POST", "/api/ensembles/{code}/demontage"): ECRITURE,
     ("PATCH", "/api/affectations/{identifiant}"): Regle("affectation", parametre="identifiant"),
     ("DELETE", "/api/affectations/{identifiant}"): Regle("affectation", parametre="identifiant"),
     # Fournisseurs : tout contributeur en propose (« à valider »), la permission achats les

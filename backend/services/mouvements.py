@@ -5,7 +5,7 @@ from typing import Any
 
 from backend import db
 from backend.erreurs import ErreurMetier, Introuvable
-from backend.services import composants, listes
+from backend.services import composants, ensembles, listes
 
 # Types système : leur code est figé dans valeur_liste et dans les vues.
 TYPES_MONTAGE: frozenset[str] = frozenset({"Sortie montage", "Retour montage"})
@@ -91,12 +91,30 @@ def create_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     sens = deduce_sens(conn, valeurs["type_mouvement"], valeurs.get("sens"))
     valeurs = {**valeurs, "sens": sens}
     with db.transaction(conn):
-        avertissements = _check_mouvement(conn, valeurs)
-        identifiant = db.insert_row(conn, "mouvement_stock", valeurs)
-    stock = composants.get_composant(conn, valeurs["composant_id"])["stock_actuel"]
+        identifiant, avertissements = insert_mouvement(conn, valeurs)
+    return resultat_mouvement(conn, identifiant, valeurs["composant_id"], avertissements)
+
+
+def insert_mouvement(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> tuple[int, list[str]]:
+    """Contrôle et insère un mouvement au sens déjà fixé, dans la transaction de l'appelant.
+
+    Un mouvement de montage remet à jour le statut de montage de son ensemble.
+    """
+    avertissements = _check_mouvement(conn, valeurs)
+    identifiant = db.insert_row(conn, "mouvement_stock", valeurs)
+    if valeurs["type_mouvement"] in TYPES_MONTAGE:
+        ensembles.update_statut_montage(conn, valeurs["ensemble_code"])
+    return identifiant, avertissements
+
+
+def resultat_mouvement(
+    conn: sqlite3.Connection, identifiant: int, composant: str, avertissements: list[str]
+) -> dict:
+    """Le mouvement enregistré et ses avertissements, dont un stock devenu négatif."""
+    stock = composants.get_composant(conn, composant)["stock_actuel"]
     if stock < 0:
         avertissements.append(
-            f"Le stock de {valeurs['composant_id']} devient négatif ({stock}) : une entrée a "
+            f"Le stock de {composant} devient négatif ({stock}) : une entrée a "
             "probablement été oubliée."
         )
     mouvement = db.fetch_one(conn, "SELECT * FROM mouvement_stock WHERE id = ?", (identifiant,))

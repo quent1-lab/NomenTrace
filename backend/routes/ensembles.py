@@ -6,15 +6,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from backend.arrondi import round_output
-from backend.deps import Connecte, get_conn
+from backend.deps import Auteur, Connecte, get_conn
 from backend.models import (
     AffectationCreation,
     AffectationModif,
     EnsembleCreation,
     EnsembleDuplication,
     EnsembleModif,
+    Montage,
 )
-from backend.services import droits, ensembles, ensembles_arbre, ensembles_copie
+from backend.services import droits, ensembles, ensembles_arbre, ensembles_copie, montage
 
 router = APIRouter(prefix="/api", tags=["ensembles"])
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
@@ -81,6 +82,16 @@ def create_copie(code: str, corps: EnsembleDuplication, conn: Conn) -> dict:
 @router.get("/ensembles/{code}/composants")
 def read_composants_ensemble(code: str, conn: Conn) -> list[dict]:
     return round_output(ensembles.list_composants_ensemble(conn, code))
+
+
+@router.post("/ensembles/{code}/montage", status_code=201)
+def create_montage(code: str, corps: Montage, conn: Conn, auteur: Auteur) -> dict:
+    return montage.monter(conn, code, corps.composant_id, corps.qte, auteur)
+
+
+@router.post("/ensembles/{code}/demontage", status_code=201)
+def create_demontage(code: str, corps: Montage, conn: Conn, auteur: Auteur) -> dict:
+    return montage.demonter(conn, code, corps.composant_id, corps.qte, auteur)
 
 
 @router.post("/ensembles/{code}/affectations", status_code=201)
