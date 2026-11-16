@@ -198,6 +198,9 @@ lignes des communes. L'analyse d'un classeur de suivi donne aussi
 |---|---|---|
 | GET | `/api/composants` | Liste filtrée et triée (voir ci-dessous) |
 | GET | `/api/composants/export` | Classeur Excel de la liste filtrée, colonnes choisies par `cols` |
+| GET | `/api/composants/createurs` | Personnes qui ont créé des composants : `{createurs: [{nom, nb}], inconnus}` (`inconnus` : composants sans auteur connu, créés avant les comptes) |
+| POST | `/api/composants/lot/modification` | Modification en masse : `{ids, modifications, attributs, simuler}`. `modifications` n'accepte que `mode_appro`, `statut_appro`, `statut_choix`, `criticite`, `fournisseur_nom`, `taux_tva`, `base_prix_releve` (`null` efface un champ facultatif, un champ absent ne change pas) ; `attributs` ({code: valeur}). Réponse : `changent`, `a_jour`, `refuses` ([{id, raison}]), `detail` ([{id, champ, avant, apres}]), `applique`. 400 si une valeur de liste est inconnue ou désactivée, 422 pour un champ hors liste |
+| POST | `/api/composants/lot/affectation` | Affectation en masse à un ensemble : `{ids, ensemble_code, qte, simuler}` (`qte` à `null` : le besoin de chaque composant). Réponse : `nouvelles`, `deja`, `refuses` ([{id, raison}]), `applique` |
 | GET | `/api/composants/catalogue` | Catalogue du dossier pour la saisie en cours (`designation`, `ref_fabricant`, `fonction`, 3 caractères au moins) : `actif` (le dossier met ses composants en commun), `propositions` des autres projets (trois au plus : `projet`, `id`, `equipe`, désignation, référence, fabricant, fournisseur, `recu`, `nb_fiches`, `motif`), `dans_le_projet` (doublons sûrs du projet) |
 | GET | `/api/composants/catalogue/reprise` | Ce qu'une reprise recopie du composant `id` du projet `source` : `composant` (champs repris), `attributs`, `date_prix`, `fiches` ; 403 si le dossier ne partage pas |
 | POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque. `reprise` (`projet`, `id`) copie en plus les fiches techniques du composant repris, dans la même transaction |
@@ -212,10 +215,18 @@ lignes des communes. L'analyse d'un classeur de suivi donne aussi
 La liste accepte les filtres `q` (texte), `bloc`, `ensemble` (avec ses sous-ensembles,
 sauf si `ensemble_seul=true`), `mode_appro`, `statut_appro`, `statut_choix`,
 `criticite`, `fournisseur`, `a_chiffrer`, `non_affecte`, `ecart_affectation`, `a_voir`
-(sans visa valable), et le tri `tri` avec `ordre` (`asc` ou `desc`). Le paramètre `attr`, répétable, filtre sur un
+(sans visa valable), `cree_par` (nom du créateur) et `cree_par_inconnu` (composants sans
+auteur connu), filtres que l'export accepte aussi, et le tri `tri` avec `ordre` (`asc` ou `desc`). Le paramètre `attr`, répétable, filtre sur un
 attribut : `attr=tension:egal:24`, `attr=materiau:vide`, `attr=materiau:renseigne`,
 `attr=tension:entre:12:48`. Le
 tri `tri=attr:tension` trie sur un attribut. Un code d'attribut inconnu est refusé.
+Chaque composant de la liste porte `cree_par`, et l'export une colonne du même code.
+
+Les deux routes `lot` exigent le droit d'écriture, puis le droit par bloc est vérifié
+composant par composant : un composant d'un bloc non autorisé est refusé sans empêcher
+l'aperçu des autres. Avec `simuler` à vrai (valeur par défaut), rien n'est écrit. Avec
+`simuler` à faux, tout est écrit en une transaction, sauf si un seul composant est refusé,
+auquel cas rien ne l'est et `applique` vaut faux.
 
 ## Ensembles et affectations
 

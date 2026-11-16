@@ -216,8 +216,40 @@ caractéristiques ajoute des filtres sur les attributs (égal à, vide, renseign
 pour un nombre) et le choix des colonnes d'attributs à afficher. Un clic sur un en-tête
 trie la colonne. La ligne de total en pied de table suit les filtres.
 
+Le filtre « Créé par » liste les personnes qui ont créé des composants, chacune avec leur
+nombre, et « Auteur inconnu » pour les composants d'avant les comptes. L'auteur est celui de
+la ligne de création du journal : un import compte pour la personne qui l'a appliqué, et le
+nom est celui qui s'affichait au moment de la création. La colonne « Créé par » se coche dans
+le bouton « Colonnes » ; elle est masquée par défaut et figure dans l'export par défaut.
+
 Le bouton « Exporter » produit un classeur Excel de la liste exactement telle qu'elle est
 affichée : mêmes filtres, même tri, mêmes colonnes, avec le total.
+
+#### Modifier plusieurs composants à la fois
+
+Chaque ligne a une case, et la case en tête de colonne prend tous les composants filtrés.
+Dès qu'une sélection existe, une barre (en bas de l'écran au téléphone) propose « prendre les
+N » composants filtrés, « Modifier… », « Affecter à un ensemble… » et « Tout désélectionner ».
+Quand le filtre change, la sélection ne garde que les composants encore affichés.
+
+« Modifier… » ouvre un panneau latéral où chaque champ est à « Ne pas changer ». On peut
+poser le mode d'approvisionnement, le statut d'approvisionnement, le statut de choix, la
+criticité, le fournisseur, la base du prix (HT ou TTC), le taux de TVA en pourcentage et les
+caractéristiques (une valeur, ou la case « effacer »). « Effacer » vide un champ facultatif.
+Les quantités, les prix et le bloc ne se modifient pas en masse : ils restent propres à
+chaque composant.
+
+« Voir l'aperçu » ne change rien. Il compte ce qui changerait, ce qui est déjà à jour et ce
+qui est refusé avec sa raison (bloc d'un autre contributeur, champ obligatoire manquant
+…) ; « voir le détail » montre l'avant et l'après de chaque champ. « Appliquer »
+écrit tout ou rien et n'est possible que s'il n'y a aucun refus. Changer un champ après
+l'aperçu oblige à le relancer.
+
+« Affecter à un ensemble… » demande l'ensemble et la quantité : le besoin de chaque
+composant, ou une quantité fixe pour tous. Un composant déjà affecté à cet ensemble garde son
+affectation, et un composant au besoin nul est refusé tant qu'aucune quantité fixe n'est
+donnée. L'aperçu et l'application fonctionnent comme pour « Modifier… ». Chaque modification
+est journalisée comme une modification faite sur la fiche.
 
 ### La fiche d'un composant
 

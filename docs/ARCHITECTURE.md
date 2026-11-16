@@ -52,11 +52,11 @@ python-multipart ; Chart.js est livré dans `static/vendor/`.
 | `backend/arrondi.py` | Arrondi des montants à la sortie de l'API |
 | `backend/erreurs.py` | Exceptions métier (`ErreurMetier`, `Introuvable`, `Conflit`) |
 | `backend/routes/` | Une route par fichier de domaine, sans logique ni SQL |
-| `backend/services/` | La logique métier, un fichier par domaine. `montage.py` monte et démonte des pièces depuis la page de montage (refus sans stock, au-delà du reste à monter, hors affectation) ; `mouvements.insert_mouvement` insère un mouvement dans la transaction de l'appelant et, pour un montage, appelle `ensembles.update_statut_montage`, qui tient le statut de l'ensemble |
+| `backend/services/` | La logique métier, un fichier par domaine. `montage.py` monte et démonte des pièces depuis la page de montage (refus sans stock, au-delà du reste à monter, hors affectation) ; `mouvements.insert_mouvement` insère un mouvement dans la transaction de l'appelant et, pour un montage, appelle `ensembles.update_statut_montage`, qui tient le statut de l'ensemble. `composants_lot.py` traite les modifications et affectations en masse : l'aperçu est la vraie exécution dans une transaction annulée à la fin, avec un point de reprise par composant pour qu'un refus n'entraîne pas les autres ; `composants.modifier_composant` et `ensembles.insert_affectation` s'exécutent dans la transaction de l'appelant |
 | `backend/migrations/` | Le schéma, en fichiers SQL numérotés |
 | `backend/migrations_comptes/` | Le schéma de la base commune (comptes, registre des projets) |
 | `static/js/` | Modules partagés (API, format, routeur, édition, panneau…) |
-| `static/js/pages/` | Un module par écran (la page de montage d'un ensemble est `ensemble_montage.js`, route `#/ensembles/CODE/montage`) |
+| `static/js/pages/` | Un module par écran (la page de montage d'un ensemble est `ensemble_montage.js`, route `#/ensembles/CODE/montage` ; la sélection et les modifications en masse de la liste des composants sont dans `composants_lot.js`) |
 | `static/css/style.css` | Toute la feuille de style, écrite à la main |
 | `tests/` | Tests pytest et jeu d'essai fictif |
 | `lancer.bat` | Lancement Windows en double-clic |
