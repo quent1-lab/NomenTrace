@@ -87,12 +87,52 @@ class FiltresComposants:
     ecart_affectation: bool = False
     # Composants sans visa valable d'un responsable.
     a_voir: bool = False
+    # Auteur de la création (journal) ; « inconnu » : créés avant les comptes, sans auteur.
+    cree_par: str | None = None
+    cree_par_inconnu: bool = False
     q: str | None = None
     tri: str = "id"
     ordre: str = "asc"
     # Filtres d'attribut « code:operation[:valeur] », renseignés par la route (paramètre
     # répété ?attr=…) : hors du constructeur pour que FastAPI ne les lise pas comme un corps.
     attr: list[str] = field(default_factory=list, init=False)
+
+
+# Composants créés par une personne : l'auteur de leur ligne « creation » du journal.
+_CREES_PAR = (
+    "id IN (SELECT cle_cible FROM journal WHERE table_cible = 'composant'"
+    " AND champ = 'creation' AND utilisateur = ?)"
+)
+# Composants sans auteur connu : créés avant les comptes (journal sans utilisateur).
+_CREES_INCONNU = (
+    "id NOT IN (SELECT cle_cible FROM journal WHERE table_cible = 'composant'"
+    " AND champ = 'creation' AND utilisateur IS NOT NULL)"
+)
+
+
+def createurs_par_composant(conn: sqlite3.Connection) -> dict[str, str]:
+    """Auteur de la création de chaque composant qui en a un : {id: nom}."""
+    lignes = conn.execute(
+        "SELECT cle_cible, utilisateur FROM journal WHERE table_cible = 'composant'"
+        " AND champ = 'creation' AND utilisateur IS NOT NULL ORDER BY id"
+    ).fetchall()
+    return {ligne[0]: ligne[1] for ligne in lignes}
+
+
+def list_createurs(conn: sqlite3.Connection) -> dict:
+    """Personnes qui ont créé les composants en cours, et nombre de composants sans auteur."""
+    createurs = createurs_par_composant(conn)
+    ids = [ligne[0] for ligne in conn.execute("SELECT id FROM composant WHERE archive = 0")]
+    compte: dict[str, int] = {}
+    for identifiant in ids:
+        nom = createurs.get(identifiant)
+        if nom is not None:
+            compte[nom] = compte.get(nom, 0) + 1
+    connus = sum(compte.values())
+    return {
+        "createurs": [{"nom": n, "nb": compte[n]} for n in sorted(compte, key=str.casefold)],
+        "inconnus": len(ids) - connus,
+    }
 
 
 def _where(conn: sqlite3.Connection, filtres: FiltresComposants) -> tuple[str, list[Any]]:
@@ -128,6 +168,11 @@ def _where(conn: sqlite3.Connection, filtres: FiltresComposants) -> tuple[str, l
         clauses.append("nb_ensembles > 0 AND ecart_affectation <> 0")
     if filtres.a_voir:
         clauses.append(visas.CLAUSE_A_VOIR)
+    if filtres.cree_par is not None:
+        clauses.append(_CREES_PAR)
+        params.append(filtres.cree_par)
+    if filtres.cree_par_inconnu:
+        clauses.append(_CREES_INCONNU)
     if filtres.q:
         clauses.append(
             "(id LIKE ? OR fonction LIKE ? OR designation LIKE ? OR ref_fabricant LIKE ?"
@@ -163,10 +208,12 @@ def list_composants(conn: sqlite3.Connection, filtres: FiltresComposants) -> lis
     lignes = db.fetch_all(conn, sql, (*params_source, *params))
     valeurs = attributs.valeurs_par_composant(conn)
     vises = visas.ids_vises(conn)
+    createurs = createurs_par_composant(conn)
     for ligne in lignes:
         ligne.pop("_tri", None)
         ligne["attributs"] = valeurs.get(ligne["id"], {})
         ligne["vise"] = ligne["id"] in vises
+        ligne["cree_par"] = createurs.get(ligne["id"])
     return lignes
 
 
@@ -252,7 +299,7 @@ def next_id(conn: sqlite3.Connection, bloc_code: str) -> str:
 CHAMPS_LISTES: tuple[str, ...] = ("mode_appro", "statut_appro", "statut_choix", "criticite")
 
 
-def _check_listes(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
+def check_listes_saisies(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> None:
     """Chaque valeur de liste saisie doit exister et être active."""
     for champ in CHAMPS_LISTES:
         if champ in valeurs:
@@ -283,7 +330,7 @@ def insert_composant(
     """Insère un composant avec un identifiant généré. À appeler dans une transaction."""
     ensure_bloc_ouvert(conn, valeurs["bloc_code"])
     saisie.verifier(valeurs)
-    _check_listes(conn, valeurs)
+    check_listes_saisies(conn, valeurs)
     fournisseurs.ensure_fournisseur(conn, valeurs.get("fournisseur_nom"))
     if valeurs.get("taux_tva") is None:
         valeurs = {**valeurs, "taux_tva": parametres.get_taux_tva_defaut(conn)}
@@ -404,28 +451,43 @@ def patch_composant(
         actuel = get_composant(conn, identifiant)
         if lu is not None and lu != actuel["modifie_le"]:
             raise Conflit(_message_conflit(conn, identifiant))
-        # Une valeur désactivée déjà portée par le composant reste acceptée telle quelle.
-        _check_listes(
-            conn, {k: v for k, v in modifications.items() if k in CHAMPS_LISTES and v != actuel[k]}
-        )
-        saisie.verifier(modifications, modifications.keys())
-        check_lot(actuel, modifications)
-        check_disponible(actuel, modifications)
-        if "fournisseur_nom" in modifications:
-            fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
-        changes = journal.update_with_journal(
-            conn, "composant", identifiant, modifications, CHAMPS_MODIFIABLES
-        )
-        report_lot(conn, actuel, modifications)
-        ecrites = attributs.set_valeurs(conn, identifiant, caracteristiques)
-        touches = set(modifications) | {f"{attributs.PREFIXE_CHAMP}{c}" for c in caracteristiques}
-        obligatoires.verifier(conn, identifiant, touches)
-        if changes or ecrites:
-            conn.execute(
-                "UPDATE composant SET modifie_le = ? WHERE id = ?",
-                (datetime.now().isoformat(timespec="seconds"), identifiant),
-            )
+        modifier_composant(conn, actuel, modifications, caracteristiques)
     return get_composant(conn, identifiant)
+
+
+def modifier_composant(
+    conn: sqlite3.Connection,
+    actuel: dict,
+    modifications: dict[str, Any],
+    caracteristiques: dict[str, Any],
+) -> bool:
+    """Applique champs et caractéristiques à un composant lu, dans la transaction de l'appelant.
+
+    Renvoie vrai si quelque chose a changé. Sert à la fiche et à la modification en masse.
+    """
+    identifiant = actuel["id"]
+    # Une valeur désactivée déjà portée par le composant reste acceptée telle quelle.
+    check_listes_saisies(
+        conn, {k: v for k, v in modifications.items() if k in CHAMPS_LISTES and v != actuel[k]}
+    )
+    saisie.verifier(modifications, modifications.keys())
+    check_lot(actuel, modifications)
+    check_disponible(actuel, modifications)
+    if "fournisseur_nom" in modifications:
+        fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
+    changes = journal.update_with_journal(
+        conn, "composant", identifiant, modifications, CHAMPS_MODIFIABLES
+    )
+    report_lot(conn, actuel, modifications)
+    ecrites = attributs.set_valeurs(conn, identifiant, caracteristiques)
+    touches = set(modifications) | {f"{attributs.PREFIXE_CHAMP}{c}" for c in caracteristiques}
+    obligatoires.verifier(conn, identifiant, touches)
+    if changes or ecrites:
+        conn.execute(
+            "UPDATE composant SET modifie_le = ? WHERE id = ?",
+            (datetime.now().isoformat(timespec="seconds"), identifiant),
+        )
+    return bool(changes or ecrites)
 
 
 def _message_conflit(conn: sqlite3.Connection, identifiant: str) -> str:

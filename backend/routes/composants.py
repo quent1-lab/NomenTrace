@@ -7,8 +7,22 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 
 from backend.arrondi import round_output
 from backend.deps import Connecte, Emplacements, Projet, get_conn, get_conn_comptes
-from backend.models import ComposantCreation, ComposantModif, Reclassement, ValeursAttributs
-from backend.services import catalogue, composants, droits, export_composants, reclassement
+from backend.models import (
+    AffectationLot,
+    ComposantCreation,
+    ComposantModif,
+    ModificationLot,
+    Reclassement,
+    ValeursAttributs,
+)
+from backend.services import (
+    catalogue,
+    composants,
+    composants_lot,
+    droits,
+    export_composants,
+    reclassement,
+)
 from backend.services.composants import FiltresComposants
 
 router = APIRouter(prefix="/api/composants", tags=["composants"])
@@ -72,6 +86,26 @@ def read_reprise(
 ) -> dict:
     registre = request.app.state.registre
     return round_output(catalogue.get_reprise(conn, comptes, registre, projet, source, id))
+
+
+@router.get("/createurs")
+def read_createurs(conn: Conn) -> dict:
+    return composants.list_createurs(conn)
+
+
+@router.post("/lot/modification")
+def modify_lot(corps: ModificationLot, conn: Conn, utilisateur: Connecte) -> dict:
+    modifications = corps.modifications.model_dump(exclude_unset=True)
+    return composants_lot.modifier_lot(
+        conn, utilisateur, corps.ids, modifications, corps.attributs, corps.simuler
+    )
+
+
+@router.post("/lot/affectation")
+def affect_lot(corps: AffectationLot, conn: Conn, utilisateur: Connecte) -> dict:
+    return composants_lot.affecter_lot(
+        conn, utilisateur, corps.ids, corps.ensemble_code, corps.qte, corps.simuler
+    )
 
 
 @router.get("/{identifiant}")

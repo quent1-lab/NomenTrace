@@ -4105,3 +4105,158 @@ fieldset.verrou {
     display: none;
   }
 }
+
+/* --- Liste des composants : sélection et modifications en masse ---------------------------- */
+
+.table--composants .colonne-case {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  padding-right: 0;
+  background: var(--couleur-surface);
+  text-align: center;
+}
+
+.table--composants thead .colonne-case {
+  z-index: 3;
+}
+
+/* L'identifiant reste figé à côté de la case quand celle-ci est affichée. */
+body.peut-ecrire .table--composants .colonne-fixe {
+  left: 32px;
+}
+
+.ligne--cochee td,
+.table--composants .ligne--cochee .colonne-case,
+.table--composants .ligne--cochee .colonne-fixe {
+  background: var(--couleur-ardoise-clair);
+}
+
+.barre-selection {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  align-items: center;
+  margin-bottom: var(--espace-2);
+  padding: var(--espace-2) var(--espace-3);
+  border-radius: var(--rayon);
+  background: var(--couleur-ardoise-fonce);
+  color: #ffffff;
+}
+
+.barre-selection[hidden] {
+  display: none;
+}
+
+.barre-selection .bouton {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: var(--couleur-ardoise-fonce);
+}
+
+.barre-selection .bouton-lien {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.barre-selection__espace {
+  flex: 1;
+}
+
+.titre-groupe {
+  margin: var(--espace-4) 0 var(--espace-1);
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-petit);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.choix-quantite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+}
+
+.choix-quantite .champ--nombre {
+  width: 5em;
+}
+
+.apercu-lot {
+  margin-top: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+}
+
+.apercu-lot__ligne {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--espace-2) var(--espace-3);
+}
+
+.apercu-lot__ligne + .apercu-lot__ligne {
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.apercu-lot__nombre {
+  min-width: 2em;
+  padding: 0 var(--espace-2);
+  border-radius: 10px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-texte-doux);
+}
+
+.apercu-lot__nombre--ok {
+  background: var(--couleur-conforme-fond);
+  color: var(--couleur-conforme);
+}
+
+.apercu-lot__nombre--alerte {
+  background: var(--couleur-alerte-fond);
+  color: var(--couleur-alerte);
+}
+
+.apercu-lot__refus {
+  margin: 0;
+  padding: var(--espace-2) var(--espace-3) var(--espace-2) var(--espace-5);
+  border-top: 1px solid var(--couleur-bordure);
+  color: var(--couleur-alerte);
+  font-size: var(--taille-petit);
+}
+
+.apercu-lot__detail {
+  padding: var(--espace-2) var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.apercu-lot__avant {
+  color: var(--couleur-texte-doux);
+  text-decoration: line-through;
+}
+
+.apercu-lot__apres {
+  color: var(--couleur-conforme);
+  font-weight: 600;
+}
+
+@media (max-width: 800px) {
+  .barre-selection {
+    position: fixed;
+    top: auto;
+    right: var(--espace-2);
+    bottom: var(--espace-2);
+    left: var(--espace-2);
+    margin: 0;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+  }
+}

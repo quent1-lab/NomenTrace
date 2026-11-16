@@ -295,6 +295,9 @@ export const api = {
   getIncoherences: () => requete("GET", "/api/ensembles/incoherences"),
 
   getComposants: (filtres) => requete("GET", avecParametres("/api/composants", filtres)),
+  getCreateurs: () => requete("GET", "/api/composants/createurs"),
+  modifierLot: (corps) => requete("POST", "/api/composants/lot/modification", corps),
+  affecterLot: (corps) => requete("POST", "/api/composants/lot/affectation", corps),
   exporterComposants: (filtres, colonnes) =>
     requeteFichier(avecParametres("/api/composants/export", { ...filtres, colonnes: colonnes.join(",") })),
   getComposant: (id) => requete("GET", `/api/composants/${encodeURIComponent(id)}`),

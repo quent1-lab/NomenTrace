@@ -7,15 +7,18 @@ import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, libelle, situationBudget } from "../format.js";
 import { fermerPanneau } from "../panneau.js";
 import { remplacerRoute } from "../router.js";
-import { aPermission, ecritBloc } from "../session.js";
+import { aPermission, ecritBloc, peutEcrire } from "../session.js";
 import { afficherErreur, classeBloc, el, enregistrerFichier, lienProduit, masquerErreur, rangsBlocs } from "../ui.js";
 import { valeursListe } from "../valeurs.js";
 import { ouvrirCreation } from "./composants_creation.js";
 import { ouvrirFiche } from "./composants_fiche.js";
+import { ouvrirAffectationLot, ouvrirModificationLot } from "./composants_lot.js";
 import { lienFournisseur, statutsFournisseurs } from "./fournisseurs_commun.js";
 
-const FILTRES_TEXTE = ["q", "bloc", "ensemble", "mode_appro", "statut_appro", "statut_choix", "criticite", "fournisseur"];
-const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation", "ensemble_seul", "a_voir"];
+const FILTRES_TEXTE = ["q", "bloc", "ensemble", "mode_appro", "statut_appro", "statut_choix", "criticite", "fournisseur", "cree_par"];
+const FILTRES_CASES = ["a_chiffrer", "non_affecte", "ecart_affectation", "ensemble_seul", "a_voir", "cree_par_inconnu"];
+// Colonne facultative « Créé par », rangée dans le paramètre cols avec les caractéristiques.
+const COL_CREE_PAR = "_cree_par";
 
 let etat = null;
 
@@ -85,8 +88,13 @@ function colonnesAttributs() {
     }));
 }
 
+function colonnesFacultatives() {
+  if (!etat.filtres.cols.includes(COL_CREE_PAR)) return [];
+  return [{ cle: "cree_par", titre: "Créé par", classe: "tronque", rendu: (c) => c.cree_par ?? el("span", { class: "texte-doux" }, "Inconnu"), infobulle: (c) => c.cree_par }];
+}
+
 function colonnes() {
-  return [...COLONNES, ...colonnesAttributs()];
+  return [...COLONNES, ...colonnesFacultatives(), ...colonnesAttributs()];
 }
 
 // --- URL et filtres -------------------------------------------------------------------------
@@ -148,6 +156,20 @@ function caseFiltre(cle, texte) {
   );
 }
 
+// « Créé par » : une personne, ou « Auteur inconnu » (composants d'avant les comptes).
+function selectCreePar() {
+  const INCONNU = "__inconnu__";
+  const courant = etat.filtres.cree_par_inconnu ? INCONNU : etat.filtres.cree_par;
+  const select = el("select", { class: "filtre", "aria-label": "Créé par" }, el("option", { value: "" }, "Toutes les personnes"));
+  for (const c of etat.createurs.createurs) select.append(el("option", { value: c.nom, selected: courant === c.nom }, `Créés par ${c.nom} (${c.nb})`));
+  if (etat.createurs.inconnus) select.append(el("option", { value: INCONNU, selected: courant === INCONNU }, `Auteur inconnu (${etat.createurs.inconnus})`));
+  select.addEventListener("change", () => {
+    etat.filtres.cree_par_inconnu = select.value === INCONNU;
+    changerFiltre("cree_par", select.value === INCONNU ? "" : select.value);
+  });
+  return select;
+}
+
 // Un ensemble qui a des sous-ensembles les inclut, sauf si l'on décoche la case.
 function caseSousEnsembles() {
   const choisi = etat.ensembles.find((e) => e.code === etat.filtres.ensemble);
@@ -204,6 +226,7 @@ function barreFiltres() {
     selectFiltre("statut_choix", "Tous les statuts de choix", tousLibelles("statut_choix")),
     selectFiltre("criticite", "Toutes les criticités", tousLibelles("criticite")),
     selectFiltre("fournisseur", "Tous les fournisseurs", etat.fournisseurs.map((f) => [f.nom, f.nom])),
+    selectCreePar(),
     caseFiltre("a_chiffrer", "À chiffrer uniquement"),
     caseFiltre("non_affecte", "Non affecté à un ensemble"),
     caseFiltre("a_voir", "À voir (sans visa)"),
@@ -286,20 +309,20 @@ function formulaireFiltreAttribut(actifs) {
 
 function choixColonnes(actifs) {
   const zone = el("div", { class: "choix-colonnes", hidden: true });
-  for (const a of actifs) {
-    const coche = el("input", { type: "checkbox", checked: etat.filtres.cols.includes(a.code) });
+  const ordre = [COL_CREE_PAR, ...actifs.map((a) => a.code)];
+  for (const [code, titre] of [[COL_CREE_PAR, "Créé par"], ...actifs.map((a) => [a.code, titreAttribut(a)])]) {
+    const coche = el("input", { type: "checkbox", checked: etat.filtres.cols.includes(code) });
     coche.addEventListener("change", () => {
-      const cols = coche.checked ? [...etat.filtres.cols, a.code] : etat.filtres.cols.filter((c) => c !== a.code);
-      changerColonnes(actifs.map((x) => x.code).filter((c) => cols.includes(c)));
+      const cols = coche.checked ? [...etat.filtres.cols, code] : etat.filtres.cols.filter((c) => c !== code);
+      changerColonnes(ordre.filter((c) => cols.includes(c)));
     });
-    zone.append(el("label", { class: "filtre-case" }, coche, titreAttribut(a)));
+    zone.append(el("label", { class: "filtre-case" }, coche, titre));
   }
   return zone;
 }
 
 function barreAttributs() {
   const actifs = attributsActifs();
-  if (!actifs.length && !etat.filtres.attr.length) return el("div");
   const pastilles = etat.filtres.attr.map((texte, rang) =>
     el(
       "span",
@@ -311,13 +334,13 @@ function barreAttributs() {
   const colonnesChoisies = choixColonnes(actifs);
   const boutonColonnes = el(
     "button",
-    { type: "button", class: "bouton bouton--discret", title: "Afficher des caractéristiques en colonnes", onclick: () => (colonnesChoisies.hidden = !colonnesChoisies.hidden) },
+    { type: "button", class: "bouton bouton--discret", title: "Afficher des colonnes en plus : créé par, caractéristiques", onclick: () => (colonnesChoisies.hidden = !colonnesChoisies.hidden) },
     `Colonnes (${etat.filtres.cols.length})`,
   );
   return el(
     "div",
     {},
-    el("div", { class: "filtres-attributs" }, el("span", { class: "texte-doux" }, "Caractéristiques :"), actifs.length ? formulaireFiltreAttribut(actifs) : null, pastilles, actifs.length ? boutonColonnes : null),
+    el("div", { class: "filtres-attributs" }, actifs.length ? el("span", { class: "texte-doux" }, "Caractéristiques :") : null, actifs.length ? formulaireFiltreAttribut(actifs) : null, pastilles, boutonColonnes),
     colonnesChoisies,
   );
 }
@@ -344,6 +367,7 @@ function entete() {
     el(
       "tr",
       {},
+      el("th", { class: "colonne-case si-ecriture" }, caseTout()),
       colonnes().map((col) => {
         const actif = col.tri && etat.filtres.tri === col.tri;
         const fleche = actif ? (etat.filtres.ordre === "asc" ? " ▲" : " ▼") : "";
@@ -362,7 +386,15 @@ function entete() {
 }
 
 function ligne(c) {
-  const tr = el("tr", { "data-id": c.id, class: c.id === etat.ficheOuverte ? "ligne--selection" : "", onclick: () => ouvrirFicheComposant(c.id) });
+  const tr = el("tr", { "data-id": c.id, class: [c.id === etat.ficheOuverte ? "ligne--selection" : "", etat.selection.has(c.id) ? "ligne--cochee" : ""].join(" "), onclick: () => ouvrirFicheComposant(c.id) });
+  const coche = el("input", { type: "checkbox", checked: etat.selection.has(c.id), "aria-label": `Sélectionner ${c.id}` });
+  coche.addEventListener("change", () => {
+    if (coche.checked) etat.selection.add(c.id);
+    else etat.selection.delete(c.id);
+    tr.classList.toggle("ligne--cochee", coche.checked);
+    rendreSelection();
+  });
+  tr.append(el("td", { class: "colonne-case si-ecriture", onclick: (e) => e.stopPropagation() }, coche));
   // Cellules modifiables seulement dans les blocs de l'utilisateur.
   const modifiable = ecritBloc(c.bloc_code);
   for (const col of colonnes()) {
@@ -392,6 +424,51 @@ function rendreLigne(id) {
 function rendreCorps() {
   etat.corps.replaceChildren(...etat.composants.map(ligne));
   rendrePied();
+  rendreSelection();
+}
+
+// --- Sélection et modifications en masse ------------------------------------------------------
+
+// Case de tête : prend ou laisse tous les composants filtrés, même hors de l'écran.
+function caseTout() {
+  const coche = el("input", { type: "checkbox", class: "case-tout", "aria-label": "Sélectionner tous les composants filtrés" });
+  coche.addEventListener("change", () => {
+    etat.selection = coche.checked ? new Set(etat.composants.map((c) => c.id)) : new Set();
+    rendreCorps();
+  });
+  return coche;
+}
+
+function rendreSelection() {
+  const n = etat.selection.size;
+  const total = etat.composants.length;
+  const tete = etat.table.querySelector(".case-tout");
+  if (tete) {
+    tete.checked = n > 0 && n === total;
+    tete.indeterminate = n > 0 && n < total;
+  }
+  etat.barreSelection.hidden = n === 0;
+  if (!n) return;
+  const ids = () => etat.composants.map((c) => c.id).filter((id) => etat.selection.has(id));
+  const apres = async () => {
+    etat.selection = new Set();
+    await apresChangement();
+  };
+  etat.barreSelection.replaceChildren(
+    el("strong", {}, `${formatNombre(n)} sélectionné${n > 1 ? "s" : ""}`),
+    n < total
+      ? el("span", { class: "texte-petit" }, `sur ${formatNombre(total)} · `, el("button", { type: "button", class: "bouton-lien", onclick: () => choisirTout(true) }, `prendre les ${formatNombre(total)}`))
+      : "",
+    el("span", { class: "barre-selection__espace" }),
+    el("button", { type: "button", class: "bouton", onclick: () => ouvrirModificationLot({ ids: ids(), fournisseurs: etat.fournisseurs, surApplique: apres }) }, "Modifier…"),
+    el("button", { type: "button", class: "bouton", onclick: () => ouvrirAffectationLot({ ids: ids(), ensembles: etat.ensembles, surApplique: apres }) }, "Affecter à un ensemble…"),
+    el("button", { type: "button", class: "bouton-lien", onclick: () => choisirTout(false) }, "Tout désélectionner"),
+  );
+}
+
+function choisirTout(prendre) {
+  etat.selection = prendre ? new Set(etat.composants.map((c) => c.id)) : new Set();
+  rendreCorps();
 }
 
 function rendrePied() {
@@ -400,10 +477,10 @@ function rendrePied() {
     el(
       "tr",
       {},
-      el("td", { colspan: COLONNES.length - 6, class: "texte-doux" }, `${etat.composants.length} composant(s) affiché(s)`),
+      el("td", { colspan: COLONNES.length - 6 + (peutEcrire() ? 1 : 0), class: "texte-doux" }, `${etat.composants.length} composant(s) affiché(s)`),
       el("td", { class: "nombre" }, "Total HT"),
       el("td", { class: "nombre fort" }, formatMontant(total)),
-      el("td", { colspan: 4 + colonnesAttributs().length }),
+      el("td", { colspan: 4 + colonnesFacultatives().length + colonnesAttributs().length }),
     ),
   );
   etat.compteur.textContent = `${etat.composants.length} résultat(s)`;
@@ -452,6 +529,8 @@ async function rechargerListe() {
   if (numero !== numeroRequete) return;
   etat.parId = new Map(composants.map((c) => [c.id, c]));
   etat.composants = composants;
+  // On ne modifie jamais en masse un composant qu'on ne voit plus.
+  etat.selection = new Set([...etat.selection].filter((id) => etat.parId.has(id)));
   rendreCorps();
 }
 
@@ -518,13 +597,16 @@ function ouvrirCreationComposant(modele = null) {
 
 export async function afficherComposants(conteneur, parametres) {
   fermerPanneau({ silencieux: true });
-  const [blocs, fournisseurs, ensembles] = await Promise.all([api.getBlocs(), api.getFournisseurs(), api.getEnsembles(), chargerAttributs()]);
+  const [blocs, fournisseurs, ensembles, , createurs] = await Promise.all([api.getBlocs(), api.getFournisseurs(), api.getEnsembles(), chargerAttributs(), api.getCreateurs()]);
   etat = {
     filtres: lireFiltres(parametres),
     blocs,
     fournisseurs,
     statutsFournisseurs: statutsFournisseurs(fournisseurs),
     ensembles,
+    createurs,
+    selection: new Set(),
+    barreSelection: el("div", { class: "barre-selection si-ecriture", hidden: true }),
     rangs: rangsBlocs(blocs),
     composants: [],
     parId: new Map(),
@@ -554,6 +636,7 @@ export async function afficherComposants(conteneur, parametres) {
     etat.zoneFiltres,
     etat.zoneAttributs,
     el("div", { class: "barre-resultats" }, etat.compteur, etat.boutonViser, el("span", { class: "texte-doux" }, "Les colonnes soulignées se modifient sur place.")),
+    etat.barreSelection,
     el("div", { class: "table-defilante" }, etat.table),
   );
   await Promise.all([rechargerListe(), rendreIndicateurs()]);

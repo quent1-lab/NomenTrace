@@ -310,6 +310,35 @@ class ComposantModif(Modele):
     modifie_le: str | None = None
 
 
+class ChampsLot(Modele):
+    """Champs modifiables en masse : listes, fournisseur, TVA, base du prix. Null efface un
+    champ facultatif ; un champ absent ne change pas. Quantités, prix et bloc restent propres
+    à chaque composant."""
+
+    mode_appro: ModeAppro | None = None
+    statut_appro: StatutAppro | None = None
+    statut_choix: StatutChoix | None = None
+    criticite: Criticite | None = None
+    fournisseur_nom: str | None = None
+    taux_tva: float | None = Field(default=None, ge=0, lt=1)
+    base_prix_releve: BasePrix | None = None
+
+
+class ModificationLot(Modele):
+    ids: list[str] = Field(min_length=1, max_length=5000)
+    modifications: ChampsLot = Field(default_factory=ChampsLot)
+    attributs: dict[str, str | float | bool | None] = Field(default_factory=dict)
+    simuler: bool = True
+
+
+class AffectationLot(Modele):
+    ids: list[str] = Field(min_length=1, max_length=5000)
+    ensemble_code: str = Field(min_length=1)
+    # Vide : le besoin de chaque composant.
+    qte: int | None = Field(default=None, gt=0)
+    simuler: bool = True
+
+
 class CommandeCreation(Modele):
     type: TypeCommande = "Commande"
     statut: StatutCommande = "A demander"

@@ -400,6 +400,10 @@ REGLES: dict[tuple[str, str], Regle] = {
     ("GET", "/api/composants/export"): LECTURE,
     ("GET", "/api/composants/catalogue"): ECRITURE,
     ("GET", "/api/composants/catalogue/reprise"): ECRITURE,
+    ("GET", "/api/composants/createurs"): LECTURE,
+    # En masse : écriture, puis droit par bloc vérifié composant par composant (composants_lot)
+    ("POST", "/api/composants/lot/modification"): ECRITURE,
+    ("POST", "/api/composants/lot/affectation"): ECRITURE,
     ("GET", "/api/composants/{identifiant}"): LECTURE,
     ("POST", "/api/composants"): ECRITURE,
     ("PATCH", "/api/composants/{identifiant}"): COMPOSANT,

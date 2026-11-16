@@ -177,24 +177,30 @@ def _cle_affectation(ensemble_code: str, composant_id: str) -> str:
 
 def create_affectation(conn: sqlite3.Connection, code: str, valeurs: dict[str, Any]) -> dict:
     """Affecte un composant à un ensemble ; une seule affectation par couple."""
-    composant_id = valeurs["composant_id"]
     with db.transaction(conn):
         verifier_ensemble(conn, code)
-        composants.get_composant(conn, composant_id)
-        if db.fetch_one(
-            conn,
-            "SELECT 1 FROM affectation WHERE ensemble_code = ? AND composant_id = ?",
-            (code, composant_id),
-        ):
-            raise Conflit(
-                f"{composant_id} est déjà affecté à l'ensemble {code} : modifiez la quantité "
-                "de l'affectation existante plutôt que d'en créer une seconde."
-            )
-        identifiant = db.insert_row(conn, "affectation", {"ensemble_code": code, **valeurs})
-        journal.write_journal(
-            conn, "affectation", _cle_affectation(code, composant_id), "qte", None, valeurs["qte"]
-        )
+        identifiant = insert_affectation(conn, code, valeurs)
     return get_affectation(conn, identifiant)
+
+
+def insert_affectation(conn: sqlite3.Connection, code: str, valeurs: dict[str, Any]) -> int:
+    """Insère l'affectation, ensemble déjà vérifié, dans la transaction de l'appelant."""
+    composant_id = valeurs["composant_id"]
+    composants.get_composant(conn, composant_id)
+    if db.fetch_one(
+        conn,
+        "SELECT 1 FROM affectation WHERE ensemble_code = ? AND composant_id = ?",
+        (code, composant_id),
+    ):
+        raise Conflit(
+            f"{composant_id} est déjà affecté à l'ensemble {code} : modifiez la quantité "
+            "de l'affectation existante plutôt que d'en créer une seconde."
+        )
+    identifiant = db.insert_row(conn, "affectation", {"ensemble_code": code, **valeurs})
+    journal.write_journal(
+        conn, "affectation", _cle_affectation(code, composant_id), "qte", None, valeurs["qte"]
+    )
+    return identifiant
 
 
 def get_affectation(conn: sqlite3.Connection, identifiant: int) -> dict:

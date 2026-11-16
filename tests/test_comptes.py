@@ -556,6 +556,31 @@ def test_contributeur_cree_seulement_dans_ses_blocs(contributeur: TestClient) ->
     assert cree.status_code == 201
 
 
+def test_modification_en_masse_limitee_aux_blocs(contributeur: TestClient) -> None:
+    corps = {
+        "ids": ["ESSAI-IHM-001", "ESSAI-ALI-003"],
+        "modifications": {"statut_appro": "Devis demande"},
+        "simuler": False,
+    }
+    recap = contributeur.post("/api/composants/lot/modification", json=corps).json()
+    assert recap["applique"] is False
+    assert recap["changent"] == ["ESSAI-IHM-001"]
+    assert [r["id"] for r in recap["refuses"]] == ["ESSAI-ALI-003"]
+    assert "ALI" in recap["refuses"][0]["raison"]
+    fiche = contributeur.get("/api/composants/ESSAI-IHM-001").json()["composant"]
+    assert fiche["statut_appro"] == "Non lance"
+
+    corps["ids"] = ["ESSAI-IHM-001"]
+    assert contributeur.post("/api/composants/lot/modification", json=corps).json()["applique"]
+    fiche = contributeur.get("/api/composants/ESSAI-IHM-001").json()["composant"]
+    assert fiche["statut_appro"] == "Devis demande"
+
+
+def test_lecteur_ne_modifie_pas_en_masse(lecteur: TestClient) -> None:
+    corps = {"ids": ["ESSAI-IHM-001"], "modifications": {"statut_appro": "Devis demande"}}
+    assert lecteur.post("/api/composants/lot/modification", json=corps).status_code == 403
+
+
 def test_permission_achats(app: FastAPI) -> None:
     creer_compte(app, "achats@ecole.test", "contributeur", blocs=("IHM",), permissions=("achats",))
     client = connecter(app, "achats@ecole.test")

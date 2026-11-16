@@ -51,6 +51,7 @@ COLONNES: dict[str, ColonneExport] = {
     "statut_appro": ColonneExport("Statut appro", "liste"),
     "criticite": ColonneExport("Criticité", "liste"),
     "avancement": ColonneExport("Avancement", "avancement"),
+    "cree_par": ColonneExport("Créé par", "texte"),
 }
 
 # L'avancement est calculé par v_composant : liste figée, libellés de format.js.
