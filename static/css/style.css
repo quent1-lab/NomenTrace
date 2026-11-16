@@ -1919,6 +1919,55 @@ td.editable:hover {
   white-space: nowrap;
 }
 
+.badge-a-receptionner {
+  padding: 0 var(--espace-2);
+  border-radius: 10px;
+  background: var(--couleur-surveiller-fond);
+  color: var(--couleur-surveiller);
+  font-size: var(--taille-petit);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Bandeau d'une commande livrée dont des lignes attendent la réception. */
+.a-receptionner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2) var(--espace-3);
+  margin-bottom: var(--espace-4);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-surveiller);
+  border-left-width: 4px;
+  border-radius: var(--rayon);
+  background: var(--couleur-surveiller-fond);
+}
+
+/* Récapitulatif d'une réception validée : ce qui est entré en stock, et où. */
+.panneau--recap-stock {
+  border-color: var(--couleur-conforme);
+  border-left: 4px solid var(--couleur-conforme);
+}
+
+.reception-commun {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.reception-commun .champ {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.champ-cellule--emplacement {
+  width: 100%;
+  min-width: 120px;
+}
+
 .infos-commande {
   display: grid;
   grid-template-columns: repeat(4, auto 1fr);
@@ -3342,6 +3391,33 @@ body:not(.peut-ensembles) .si-ensembles {
      la pièce, l'identifiant est masqué. */
   .panneau--reception th:first-child,
   .panneau--reception td:first-child:not([colspan]) {
+    display: none;
+  }
+
+  /* Réception : commandé et déjà reçu cèdent la place à l'emplacement ; la quantité proposée
+     est déjà le reste à recevoir. */
+  .panneau--reception th:nth-child(3),
+  .panneau--reception td:nth-child(3),
+  .panneau--reception th:nth-child(4),
+  .panneau--reception td:nth-child(4) {
+    display: none;
+  }
+
+  .panneau--reception .tronque {
+    max-width: 110px;
+  }
+
+  .panneau--reception th {
+    white-space: normal;
+  }
+
+  .champ-cellule--emplacement {
+    min-width: 90px;
+  }
+
+  /* Récapitulatif : comme la réception, la désignation suffit, l'identifiant est masqué. */
+  .panneau--recap-stock th:first-child,
+  .panneau--recap-stock td:first-child {
     display: none;
   }
 

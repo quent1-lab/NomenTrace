@@ -7,7 +7,8 @@ import { aujourdhui, formatDate, formatLots, uniteLots, formatMontant, formatNom
 import { champComposant, lireComposant } from "../formulaire.js";
 import { lienRoute, naviguer } from "../router.js";
 import { aPermission, codeDossier, nomAuteur, voitDossier } from "../session.js";
-import { afficherAvertissements, afficherErreur, el, enregistrerFichier, idComposantSaisie, lienExterne, lienProduit, masquerErreur } from "../ui.js";
+import { afficherAvertissements, afficherErreur, afficherInformation, el, enregistrerFichier, idComposantSaisie, lienExterne, lienProduit, masquerAvertissements, masquerErreur } from "../ui.js";
+import { badgeAReceptionner } from "../badges.js";
 import { STATUTS_COMMANDE, STATUTS_ENGAGES, STATUTS_LIGNE, valeursListe } from "../valeurs.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { lienFournisseur } from "./fournisseurs_commun.js";
@@ -331,7 +332,9 @@ function modeReception() {
     const reste = Math.max(0, l.qte_commandee - l.qte_recue);
     const unite = uniteLots(l.qte_par_lot);
     const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": unite ? `Reçu pour ${l.composant_id}, en ${unite}` : `Reçu pour ${l.composant_id}` });
-    champs.set(l.id, champ);
+    // Dernier emplacement connu du composant, modifiable : où ranger cette livraison.
+    const lieu = el("input", { class: "champ-cellule champ-cellule--emplacement", type: "text", value: l.emplacement_connu ?? "", placeholder: "Emplacement", "aria-label": `Emplacement de ${l.composant_id}` });
+    champs.set(l.id, { champ, lieu });
     return el(
       "tr",
       {},
@@ -340,26 +343,36 @@ function modeReception() {
       el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)),
       el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)),
       el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null),
+      el("td", {}, lieu),
     );
   });
   const date = el("input", { class: "champ champ--date", type: "date", value: aujourdhui() });
-  const emplacement = el("input", { class: "champ", type: "text", placeholder: "ex. Armoire A - bac 3" });
+  // Emplacement commun : remplit les lignes laissées vides, et vaut pour elles à la validation.
+  const emplacement = el("input", { class: "champ", type: "text", placeholder: "ex. Armoire A - bac 3", "aria-label": "Même emplacement pour tous" });
+  const remplir = () => {
+    const valeur = emplacement.value.trim();
+    if (!valeur) return;
+    for (const { lieu } of champs.values()) if (!lieu.value.trim()) lieu.value = valeur;
+  };
   // Par défaut, la personne connectée ; modifiable si quelqu'un d'autre a reçu le colis.
   const parQui = el("input", { class: "champ", type: "text", value: nomAuteur() });
   const valider = async () => {
     const detail = [];
-    for (const [id, champ] of champs) {
+    for (const [id, { champ, lieu }] of champs) {
       const n = lireNombre(champ.value);
       if (n === null) continue;
       if (Number.isNaN(n) || !Number.isInteger(n) || n < 0) return afficherErreur(`Quantité reçue invalide : « ${champ.value} ».`);
       // La quantité déjà reçue lue ici : une réception passée entre-temps est refusée.
-      detail.push({ id, qte: n, qte_recue_lue: etat.lignes.find((l) => l.id === id).qte_recue });
+      detail.push({ id, qte: n, qte_recue_lue: etat.lignes.find((l) => l.id === id).qte_recue, emplacement: lieu.value.trim() || null });
     }
     try {
       const resultat = await api.receptionner(etat.numero, { date: date.value || null, emplacement: emplacement.value.trim() || null, par_qui: parQui.value.trim() || null, lignes: detail });
       masquerErreur();
+      // La consigne « valider la réception » est remplie : seuls restent les avertissements.
+      masquerAvertissements();
       afficherAvertissements(resultat.avertissements);
       etat.reception = false;
+      etat.recap = { date: date.value || aujourdhui(), entrees: resultat.entrees.filter((e) => e.pieces > 0) };
       await recharger();
     } catch (erreur) {
       afficherErreur(erreur);
@@ -369,13 +382,24 @@ function modeReception() {
     "section",
     { class: "panneau panneau--reception" },
     el("h2", {}, "Réception de la livraison"),
-    el("p", { class: "texte-doux" }, "Saisir la quantité reçue dans cette livraison, en lots pour un composant vendu par lot ; elle s'ajoute aux réceptions précédentes. La validation met à jour les lignes, le stock (en pièces) et le statut de la commande."),
-    el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date), el("label", { class: "ligne-compacte" }, "Emplacement ", emplacement), el("label", { class: "ligne-compacte" }, "Reçu par ", parQui)),
+    el("p", { class: "texte-doux" }, "Saisir la quantité reçue dans cette livraison, en lots pour un composant vendu par lot ; elle s'ajoute aux réceptions précédentes. La validation met à jour les lignes, le stock (en pièces) et le statut de la commande. L'emplacement de chaque ligne propose le dernier connu du composant."),
+    el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date), el("label", { class: "ligne-compacte" }, "Reçu par ", parQui)),
     el(
+      "div",
+      { class: "reception-commun" },
+      el("span", {}, "Même emplacement pour tous"),
+      emplacement,
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: remplir }, "Remplir les lignes vides"),
+    ),
+    el(
+      "div",
+      { class: "table-defilante" },
+      el(
       "table",
       { class: "table table--dense" },
-      el("thead", {}, el("tr", {}, ["Composant", "Désignation", "Commandé", "Déjà reçu", "Reçu cette fois"].map((t, i) => el("th", { class: i >= 2 ? "nombre" : "" }, t)))),
+      el("thead", {}, el("tr", {}, ["Composant", "Désignation", "Commandé", "Déjà reçu", "Reçu cette fois", "Emplacement"].map((t, i) => el("th", { class: i >= 2 && i <= 4 ? "nombre" : "" }, t)))),
       el("tbody", {}, lignes),
+      ),
     ),
     el(
       "div",
@@ -383,6 +407,68 @@ function modeReception() {
       el("button", { type: "button", class: "bouton bouton--discret", onclick: () => { etat.reception = false; rendre(); } }, "Annuler"),
       el("button", { type: "button", class: "bouton", onclick: valider }, "Valider la réception"),
     ),
+  );
+}
+
+// Ce que la dernière réception a ajouté au stock, et où : reste affiché jusqu'à « Fermer ».
+function recapStock() {
+  const recap = etat.recap;
+  if (!recap) return "";
+  const sansLieu = recap.entrees.filter((e) => !e.emplacement).length;
+  const fermer = () => {
+    etat.recap = null;
+    rendre();
+  };
+  return el(
+    "section",
+    { class: "panneau panneau--recap-stock", role: "status" },
+    el("h2", {}, "Ajouté au stock"),
+    el("p", { class: "texte-doux" }, `Réception du ${formatDate(recap.date)} : ${recap.entrees.length} composant(s) entré(s) en stock.`),
+    el(
+      "div",
+      { class: "table-defilante" },
+      el(
+        "table",
+        { class: "table table--dense" },
+        el("thead", {}, el("tr", {}, ["Composant", "Désignation", "Pièces ajoutées", "Stock", "Emplacement"].map((t, i) => el("th", { class: i === 2 || i === 3 ? "nombre" : "" }, t)))),
+        el(
+          "tbody",
+          {},
+          recap.entrees.map((e) =>
+            el(
+              "tr",
+              {},
+              el("td", { class: "code" }, el("a", { href: lienRoute("/composants", { fiche: e.composant_id }) }, e.composant_id)),
+              el("td", { class: "tronque tronque--large", title: e.designation ?? "" }, e.designation ?? ""),
+              el("td", { class: "nombre" }, `+${formatNombre(e.pieces)}`),
+              el("td", { class: "nombre" }, e.stock_actuel === null ? "—" : formatNombre(e.stock_actuel)),
+              el("td", { class: e.emplacement ? "" : "texte-surveiller" }, e.emplacement ?? "non renseigné"),
+            ),
+          ),
+        ),
+      ),
+    ),
+    sansLieu ? el("p", { class: "texte-surveiller texte-petit" }, `${sansLieu} composant(s) sans emplacement : la page Stock ne saura pas dire où ils sont rangés.`) : null,
+    el(
+      "div",
+      { class: "actions-formulaire" },
+      el("a", { class: "bouton bouton--discret", href: lienRoute("/stock") }, "Voir le stock"),
+      el("button", { type: "button", class: "bouton", onclick: fermer }, "Fermer"),
+    ),
+  );
+}
+
+// Livrée (par son statut ou d'après le suivi de l'établissement) avec des lignes non reçues.
+function bandeauAReceptionner(c, receptionnable) {
+  if (!c.a_receptionner || etat.reception) return "";
+  const origine = c.statut === "Livre"
+    ? "Commande au statut « Livrée »"
+    : `Arrivée annoncée par l'établissement le ${formatDate(c.date_reception_annoncee)}`;
+  return el(
+    "div",
+    { class: "a-receptionner" },
+    el("span", {}, `${origine} : ${c.nb_lignes_a_recevoir} ligne(s) attendent leur entrée en stock.`),
+    receptionnable ? el("button", { type: "button", class: "bouton si-achats", onclick: () => { etat.reception = true; rendre(); } }, "Réceptionner le reste") : null,
   );
 }
 
@@ -464,22 +550,25 @@ function infos() {
 
 function rendre() {
   const c = etat.commande;
-  const receptionnable = c.type === "Commande" && ["Commande", "Livre partiel"].includes(c.statut) && etat.lignes.length > 0;
+  const receptionnable = c.type === "Commande" && STATUTS_ENGAGES.includes(c.statut) && c.nb_lignes_a_recevoir > 0;
+  if (!receptionnable) etat.reception = false;
   etat.conteneur.replaceChildren(
     el("p", { class: "fil" }, el("a", { href: "#/achats" }, "← Achats")),
     el(
       "div",
       { class: "titre-page" },
-      el("h1", {}, `${c.numero} `, el("span", { class: "etiquette" }, c.type), " ", badgeStatut(c), c.commune ? el("span", { class: "etiquette etiquette--commune" }, `Commune ${c.commune}`) : null),
+      el("h1", {}, `${c.numero} `, el("span", { class: "etiquette" }, c.type), " ", badgeStatut(c), " ", badgeAReceptionner(c), c.commune ? el("span", { class: "etiquette etiquette--commune" }, `Commune ${c.commune}`) : null),
       el(
         "div",
         { class: "actions" },
         receptionnable && !etat.reception ? el("button", { type: "button", class: "bouton si-achats", onclick: () => { etat.reception = true; rendre(); } }, "Réceptionner") : null,
-        c.commune ? null : el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireCommande({ commande: c, fournisseurs: etat.fournisseurs, surEnregistre: recharger }) }, "Modifier"),
+        c.commune ? null : el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirFormulaireCommande({ commande: c, fournisseurs: etat.fournisseurs, surEnregistre: recharger, surLivraison: ouvrirReceptionLivree }) }, "Modifier"),
         c.commune ? null : el("button", { type: "button", class: "bouton bouton--danger si-achats", onclick: archiver }, "Archiver"),
       ),
     ),
     bandeauCommune(c),
+    bandeauAReceptionner(c, receptionnable),
+    recapStock(),
     infos(),
     etat.lignes.length && !etat.reception && !c.commune ? sectionDemande() : "",
     etat.reception
@@ -522,6 +611,14 @@ async function archiver() {
   }
 }
 
+// « Livrée » choisi dans le formulaire avec des lignes à recevoir : la réception s'ouvre,
+// pré-remplie des quantités restantes ; elle passera la commande à « Livrée ».
+async function ouvrirReceptionLivree() {
+  etat.reception = true;
+  await recharger();
+  afficherInformation("Pour passer la commande à « Livrée », valider la réception des lignes restantes : les pièces entrent au stock et le statut suit.");
+}
+
 async function recharger() {
   const [commande, lignes, frais, composants, documents, candidats] = await Promise.all([
     api.getCommande(etat.numero),
@@ -535,8 +632,10 @@ async function recharger() {
   rendre();
 }
 
-export async function afficherDetailCommande(conteneur, _parametres, numero) {
-  etat = { conteneur, numero, reception: false, candidatsOuverts: true, fournisseurs: await api.getFournisseurs() };
+export async function afficherDetailCommande(conteneur, parametres, numero) {
+  // #/achats/NUMERO?reception=1 : arrivée depuis une liste « à réceptionner », réception ouverte.
+  const reception = parametres?.get("reception") === "1";
+  etat = { conteneur, numero, reception, recap: null, candidatsOuverts: true, fournisseurs: await api.getFournisseurs() };
   try {
     await recharger();
   } catch (erreur) {

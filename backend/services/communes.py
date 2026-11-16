@@ -690,17 +690,25 @@ def receive_commune(
     finally:
         ref.close()
     avertissements: list[str] = []
+    entrees: list[dict] = []
     for projet, lignes in par_projet.items():
         base = db.connect(emp.projets[projet], compte.nom, creer=False)
         try:
             with communes_sync.ouverte(base):
                 recue = {**reception, "lignes": lignes}
-                avertissements += receptions.receive_lignes(base, locaux[projet], recue)
+                messages, ajouts = receptions.receive_lignes(base, locaux[projet], recue)
+                avertissements += messages
+                entrees += [{**ajout, "projet": projet} for ajout in ajouts]
         finally:
             base.close()
     rapport = communes_sync.synchroniser(emp, numero, compte.nom)
     lecture = _lecture(conn, emp, numero, True)
-    return {**lecture, "avertissements": avertissements, "synchronisation": rapport}
+    return {
+        **lecture,
+        "avertissements": avertissements,
+        "entrees": entrees,
+        "synchronisation": rapport,
+    }
 
 
 def _verifier_lues(

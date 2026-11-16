@@ -183,6 +183,8 @@ def test_livre_par_la_couleur_n_entraine_pas_de_reception(client_essai: TestClie
     _appliquer(client_essai, flux.getvalue(), {numero: ["date_reception_annoncee"]})
     commande = client_essai.get(f"/api/commandes/{numero}").json()
     assert commande["statut"] == "Commande" and commande["date_reception_annoncee"]
+    # Arrivée à l'établissement : la commande attend sa réception dans Nomentrace.
+    assert commande["a_receptionner"] == 1
 
 
 def test_classeur_sans_le_modele_refuse(client_essai: TestClient) -> None:

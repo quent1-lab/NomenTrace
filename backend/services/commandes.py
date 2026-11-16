@@ -7,7 +7,7 @@ from datetime import date
 from typing import Any
 
 from backend import db
-from backend.erreurs import Conflit, Introuvable
+from backend.erreurs import Conflit, ErreurMetier, Introuvable
 from backend.services import composants, fournisseurs, journal, parametres
 
 CHAMPS_COMMANDE: frozenset[str] = frozenset(
@@ -78,21 +78,36 @@ def date_devis_au_statut(avant: dict, apres: dict) -> dict[str, str]:
     return {}
 
 
+# Chaque commande porte ce qui attend sa réception (v_reception_attendue, migration 033).
+SQL_COMMANDES = """
+SELECT v.*, COALESCE(r.nb_lignes_a_recevoir, 0) AS nb_lignes_a_recevoir,
+       COALESCE(r.a_receptionner, 0) AS a_receptionner
+FROM v_commande v LEFT JOIN v_reception_attendue r ON r.numero = v.numero
+WHERE (? IS NULL OR v.statut = ?) AND (? IS NULL OR v.fournisseur_nom = ?)
+ORDER BY v.numero DESC
+"""
+SQL_COMMANDE = """
+SELECT v.*, COALESCE(r.nb_lignes_a_recevoir, 0) AS nb_lignes_a_recevoir,
+       COALESCE(r.a_receptionner, 0) AS a_receptionner
+FROM v_commande v LEFT JOIN v_reception_attendue r ON r.numero = v.numero
+WHERE v.numero = ?
+"""
+
+
 def list_commandes(
     conn: sqlite3.Connection, statut: str | None = None, fournisseur: str | None = None
 ) -> list[dict]:
     """Renvoie les commandes non archivées avec leurs totaux."""
     return db.fetch_all(
         conn,
-        "SELECT * FROM v_commande WHERE (? IS NULL OR statut = ?)"
-        " AND (? IS NULL OR fournisseur_nom = ?) ORDER BY numero DESC",
+        SQL_COMMANDES,
         (statut, statut, fournisseur, fournisseur),
     )
 
 
 def get_commande(conn: sqlite3.Connection, numero: str) -> dict:
     """Renvoie une commande non archivée avec ses totaux."""
-    commande = db.fetch_one(conn, "SELECT * FROM v_commande WHERE numero = ?", (numero,))
+    commande = db.fetch_one(conn, SQL_COMMANDE, (numero,))
     if commande is None:
         raise Introuvable(f"Commande « {numero} » introuvable ou archivée.")
     return commande
@@ -121,10 +136,26 @@ def create_commande(conn: sqlite3.Connection, valeurs: dict[str, Any]) -> dict:
     return get_commande(conn, numero)
 
 
+def _check_livraison(avant: dict, apres: dict) -> None:
+    """« Livrée » à la main, avec des lignes encore à recevoir : refusé. Le stock n'entre que
+    par la réception, qui passe d'elle-même la commande à « Livrée » une fois tout reçu."""
+    if (
+        apres.get("statut") == "Livre"
+        and avant["statut"] != "Livre"
+        and avant["nb_lignes_a_recevoir"]
+    ):
+        raise ErreurMetier(
+            f"{avant['nb_lignes_a_recevoir']} ligne(s) de {avant['numero']} restent à recevoir :"
+            " passer par la réception, qui ajoute les pièces au stock et passe la commande à"
+            " « Livrée »."
+        )
+
+
 def patch_commande(conn: sqlite3.Connection, numero: str, modifications: dict[str, Any]) -> dict:
     """Modifie une commande non archivée."""
     with db.transaction(conn):
         avant = get_commande(conn, numero)
+        _check_livraison(avant, {**avant, **modifications})
         if "fournisseur_nom" in modifications:
             fournisseurs.ensure_fournisseur(conn, modifications["fournisseur_nom"])
         apres = {**avant, **modifications}
@@ -154,6 +185,10 @@ def list_lignes(conn: sqlite3.Connection, numero: str) -> list[dict]:
     lignes = db.fetch_all(
         conn,
         "SELECT l.*, c.designation, c.bloc_code, c.lien_produit, c.prix_lot_ht AS pu_ht_estime,"
+        # Dernier emplacement connu du composant : la réception le propose.
+        " (SELECT m.emplacement FROM mouvement_stock m WHERE m.composant_id = l.composant_id"
+        "  AND m.emplacement IS NOT NULL ORDER BY m.date DESC, m.id DESC LIMIT 1)"
+        "  AS emplacement_connu,"
         " l.qte_commandee * l.pu_ht_devis AS montant_ligne_ht,"
         " (SELECT json_group_array(json_object('code', a.ensemble_code, 'qte', a.qte))"
         "  FROM affectation a WHERE a.composant_id = l.composant_id) AS ensembles"

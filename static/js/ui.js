@@ -43,6 +43,10 @@ document.getElementById("bandeau-avertissement-fermer").addEventListener("click"
   bandeauAvertissement.hidden = true;
 });
 
+export function masquerAvertissements() {
+  bandeauAvertissement.hidden = true;
+}
+
 export function afficherAvertissements(messages) {
   if (!messages?.length) return;
   document.getElementById("bandeau-avertissement-liste").replaceChildren(...messages.map((m) => el("li", {}, m)));

@@ -11,3 +11,9 @@ export function badgeStatut(commande) {
 function libelleStatut(statut) {
   return { "Livre partiel": "Livrée partiellement", Livre: "Livrée", Refuse: "Refusée", "A demander": "À demander", "Devis demande": "Devis demandé", "Devis recu": "Devis reçu", "Devis valide": "Devis validé" }[statut] ?? statut;
 }
+
+// Commande livrée (statut ou suivi de l'établissement) dont des lignes attendent la réception.
+export function badgeAReceptionner(commande) {
+  if (!commande.a_receptionner) return null;
+  return el("span", { class: "badge-a-receptionner", title: `${commande.nb_lignes_a_recevoir} ligne(s) à recevoir dans le stock` }, "à réceptionner");
+}

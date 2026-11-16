@@ -5,6 +5,7 @@ import { formatDate, formatMontant, libelle } from "../format.js";
 import { naviguer, remplacerRoute } from "../router.js";
 import { afficherErreur, el } from "../ui.js";
 import { STATUTS_COMMANDE } from "../valeurs.js";
+import { badgeAReceptionner } from "../badges.js";
 import { badgeRetard, badgeStatut, ouvrirFormulaireCommande } from "./achats_commun.js";
 import { ouvrirDemandesDevis } from "./achats_devis.js";
 import { ouvrirSuivi } from "./achats_suivi.js";
@@ -12,12 +13,13 @@ import { ouvrirSuivi } from "./achats_suivi.js";
 let etat = null;
 
 function lignesFiltrees() {
-  const { statut, fournisseur, retard } = etat.filtres;
+  const { statut, fournisseur, retard, recevoir } = etat.filtres;
   return etat.commandes.filter(
     (c) =>
       (!statut || c.statut === statut) &&
       (!fournisseur || c.fournisseur_nom === fournisseur) &&
-      (!retard || c.en_retard),
+      (!retard || c.en_retard) &&
+      (!recevoir || c.a_receptionner),
   );
 }
 
@@ -37,7 +39,7 @@ function rendreTable() {
         { class: "ligne-cliquable", onclick: () => naviguer(`/achats/${c.numero}`) },
         el("td", { class: "code" }, c.numero, c.commune ? el("span", { class: "etiquette etiquette--commune", title: "Commande commune du dossier" }, ` ${c.commune}`) : null),
         el("td", {}, c.type),
-        el("td", {}, badgeStatut(c), " ", badgeRetard(c)),
+        el("td", {}, badgeStatut(c), " ", badgeRetard(c), " ", badgeAReceptionner(c)),
         el("td", {}, c.fournisseur_nom ?? "—"),
         el("td", { class: "nombre" }, String(c.nb_lignes)),
         el("td", { class: "nombre" }, formatMontant(c.total_ht)),
@@ -62,7 +64,9 @@ function filtres() {
   const fournisseursUtilises = [...new Set(etat.commandes.map((c) => c.fournisseur_nom).filter(Boolean))].sort();
   const selectFournisseur = el("select", { class: "filtre", onchange: (e) => changer("fournisseur", e.target.value) }, el("option", { value: "" }, "Tous les fournisseurs"), fournisseursUtilises.map((f) => el("option", { value: f, selected: f === etat.filtres.fournisseur }, f)));
   const caseRetard = el("label", { class: "filtre-case" }, el("input", { type: "checkbox", checked: etat.filtres.retard, onchange: (e) => changer("retard", e.target.checked) }), "En retard uniquement");
-  return el("div", { class: "filtres" }, selectStatut, selectFournisseur, caseRetard);
+  const nbRecevoir = etat.commandes.filter((c) => c.a_receptionner).length;
+  const caseRecevoir = el("label", { class: "filtre-case" }, el("input", { type: "checkbox", checked: etat.filtres.recevoir, onchange: (e) => changer("recevoir", e.target.checked) }), `À réceptionner uniquement (${nbRecevoir})`);
+  return el("div", { class: "filtres" }, selectStatut, selectFournisseur, caseRetard, caseRecevoir);
 }
 
 export async function afficherAchats(conteneur, parametres) {
@@ -73,6 +77,7 @@ export async function afficherAchats(conteneur, parametres) {
       statut: parametres.get("statut") || "",
       fournisseur: parametres.get("fournisseur") || "",
       retard: ["1", "true"].includes(parametres.get("retard")),
+      recevoir: ["1", "true"].includes(parametres.get("recevoir")),
     },
     corps: el("tbody"),
     pied: el("tfoot"),
@@ -87,7 +92,7 @@ export async function afficherAchats(conteneur, parametres) {
       el(
         "div",
         { class: "actions" },
-        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirSuivi(() => afficherAchats(conteneur, parametres)) }, "Suivi de l'établissement"),
+        el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirSuivi(() => afficherAchats(conteneur, parametres), { aReceptionner: api.getCommandes }) }, "Suivi de l'établissement"),
         el("button", { type: "button", class: "bouton bouton--discret si-achats", onclick: () => ouvrirDemandesDevis().catch(afficherErreur) }, "Préparer les demandes de devis"),
         el("button", { type: "button", class: "bouton si-achats", onclick: creer }, "+ Nouvelle commande"),
       ),

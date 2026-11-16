@@ -35,8 +35,10 @@ function champDate(nom, valeur) {
   return el("input", { class: "champ champ--date", type: "date", name: nom, value: valeur ?? "" });
 }
 
-/** Panneau de création (commande absente) ou de modification d'une commande. */
-export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, surEnregistre }) {
+/** Panneau de création (commande absente) ou de modification d'une commande.
+ * `surLivraison` : appelé à la place du passage à « Livrée » quand des lignes restent à
+ * recevoir ; le stock n'entre que par la réception (le serveur refuse le reste). */
+export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, surEnregistre, surLivraison = null }) {
   const creation = commande === null;
   const parametres = creation ? await api.getParametres() : null;
   const tva = creation ? Number(parametres.taux_tva_defaut ?? 0.2) : commande.taux_tva;
@@ -80,11 +82,13 @@ export async function ouvrirFormulaireCommande({ commande = null, fournisseurs, 
     if (lu.erreur) return afficherErreur(lu.erreur);
     const valeurs = lu.valeurs;
     const modifs = creation ? valeurs : Object.fromEntries(Object.entries(valeurs).filter(([k, v]) => v !== c[k]));
+    const livraison = !creation && surLivraison && modifs.statut === "Livre" && c.nb_lignes_a_recevoir > 0;
+    if (livraison) delete modifs.statut;
     try {
-      const resultat = creation ? await api.createCommande(modifs) : await api.patchCommande(c.numero, modifs);
+      const resultat = creation ? await api.createCommande(modifs) : Object.keys(modifs).length ? await api.patchCommande(c.numero, modifs) : c;
       masquerErreur();
       fermerPanneau({ silencieux: true });
-      await surEnregistre(resultat);
+      await (livraison ? surLivraison(resultat) : surEnregistre(resultat));
     } catch (erreur) {
       afficherErreur(erreur);
     }

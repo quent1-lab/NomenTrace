@@ -301,3 +301,71 @@ def test_migration_rattrape_les_devis_au_statut_commande(tmp_path: Path) -> None
     ).fetchall()
     assert sorted(t[0] for t in traces) == ["CMD-901", "CMD-902"]
     conn.close()
+
+
+def test_passage_manuel_a_livree_refuse_tant_que_des_lignes_restent(
+    client_essai: TestClient,
+) -> None:
+    # Avant ACH-09, le statut passait à « Livrée » sans qu'aucune pièce n'entre en stock.
+    numero, lignes = _commande_deux_lignes(client_essai)
+    client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Commande"})
+    reponse = client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Livre"})
+    assert reponse.status_code == 400
+    assert "réception" in reponse.json()["erreur"]
+    assert client_essai.get(f"/api/commandes/{numero}").json()["statut"] == "Commande"
+    assert _stock(client_essai, "ESSAI-TR-001") == 0
+    # Toutes les lignes reçues : le statut suit seul ; une ligne annulée ne compte pas.
+    client_essai.patch(
+        f"/api/commandes/{numero}/lignes/{lignes[1]}", json={"statut_ligne": "Annulee"}
+    )
+    corps = {"lignes": [{"id": lignes[0], "qte": 4}]}
+    client_essai.post(f"/api/commandes/{numero}/reception", json=corps)
+    assert client_essai.get(f"/api/commandes/{numero}").json()["statut"] == "Livre"
+
+
+def test_reception_emplacement_par_ligne_et_recapitulatif(client_essai: TestClient) -> None:
+    numero, lignes = _commande_deux_lignes(client_essai)
+    client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Commande"})
+    corps = {
+        "emplacement": "Armoire A",
+        "lignes": [
+            {"id": lignes[0], "qte": 4, "emplacement": "Tiroir 2"},
+            {"id": lignes[1], "qte": 1},
+        ],
+    }
+    resultat = client_essai.post(f"/api/commandes/{numero}/reception", json=corps).json()
+    entrees = {e["composant_id"]: e for e in resultat["entrees"]}
+    assert entrees["ESSAI-TR-001"]["pieces"] == 4
+    assert entrees["ESSAI-TR-001"]["emplacement"] == "Tiroir 2"
+    assert entrees["ESSAI-TR-001"]["stock_actuel"] == _stock(client_essai, "ESSAI-TR-001") == 4
+    # Sans emplacement propre, la ligne prend celui de la livraison.
+    assert entrees["ESSAI-ALI-006"]["emplacement"] == "Armoire A"
+    assert entrees["ESSAI-ALI-006"]["designation"]
+    stock = {s["id"]: s for s in client_essai.get("/api/stock").json()}
+    assert stock["ESSAI-TR-001"]["emplacement"] == "Tiroir 2"
+    # Le dernier emplacement connu accompagne les lignes : la réception suivante le propose.
+    ligne = client_essai.get(f"/api/commandes/{numero}/lignes").json()[0]
+    assert ligne["emplacement_connu"] == "Tiroir 2"
+
+
+def test_commande_a_receptionner(client_essai: TestClient) -> None:
+    numero, lignes = _commande_deux_lignes(client_essai)
+    client_essai.patch(f"/api/commandes/{numero}", json={"statut": "Commande"})
+
+    def commande() -> dict:
+        return next(c for c in client_essai.get("/api/commandes").json() if c["numero"] == numero)
+
+    # Commandée, rien d'annoncé : en attente normale, pas à réceptionner.
+    assert commande()["a_receptionner"] == 0 and commande()["nb_lignes_a_recevoir"] == 2
+    # Arrivée annoncée par le suivi de l'établissement (aujourd'hui) : à réceptionner.
+    jour = client_essai.get(f"/api/commandes/{numero}").json()["date_commande"]
+    client_essai.patch(f"/api/commandes/{numero}", json={"date_reception_annoncee": jour})
+    assert commande()["a_receptionner"] == 1
+    corps = {"lignes": [{"id": lignes[0], "qte": 4}, {"id": lignes[1], "qte": 1}]}
+    client_essai.post(f"/api/commandes/{numero}/reception", json=corps)
+    assert commande()["a_receptionner"] == 0 and commande()["nb_lignes_a_recevoir"] == 0
+    # Une ligne ajoutée à une commande déjà livrée attend sa réception.
+    ajout = {"composant_id": "ESSAI-TR-001", "qte_commandee": 1, "pu_ht_devis": 1.13}
+    client_essai.post(f"/api/commandes/{numero}/lignes", json=ajout)
+    assert commande()["statut"] == "Livre" and commande()["a_receptionner"] == 1
+    assert client_essai.get(f"/api/commandes/{numero}").json()["a_receptionner"] == 1

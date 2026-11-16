@@ -526,6 +526,8 @@ class ReceptionLigne(Modele):
     qte: int = Field(ge=0)
     # Quantité déjà reçue lue à l'ouverture de la saisie : un écart refuse la réception (409).
     qte_recue_lue: int | None = Field(default=None, ge=0)
+    # Où sont rangées les pièces de cette ligne ; à défaut, l'emplacement de la livraison.
+    emplacement: str | None = None
 
 
 class ReceptionLigneCommune(ReceptionLigne):

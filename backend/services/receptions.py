@@ -19,10 +19,19 @@ def _check_commande(commande: dict) -> None:
         )
 
 
+def _emplacement(saisie: dict, reception: dict[str, Any]) -> str | None:
+    """Celui de la ligne, sinon celui de la livraison ; vide vaut absent."""
+    for valeur in (saisie.get("emplacement"), reception.get("emplacement")):
+        if valeur and valeur.strip():
+            return valeur.strip()
+    return None
+
+
 def _receive_line(
-    conn: sqlite3.Connection, ligne: dict, qte: int, reception: dict[str, Any]
+    conn: sqlite3.Connection, ligne: dict, saisie: dict, reception: dict[str, Any]
 ) -> str | None:
     """Enregistre la réception d'une ligne ; renvoie un avertissement éventuel."""
+    qte = saisie["qte"]
     recue = ligne["qte_recue"] + qte
     statut = "Recue" if recue >= ligne["qte_commandee"] else "Recue partiel"
     journal.update_with_journal(
@@ -42,7 +51,7 @@ def _receive_line(
             "type_mouvement": "Reception achat",
             # La ligne compte des lots ; le stock compte des pièces.
             "qte": qte * ligne["qte_par_lot"],
-            "emplacement": reception.get("emplacement"),
+            "emplacement": _emplacement(saisie, reception),
             "par_qui": reception.get("par_qui"),
             "commande_numero": ligne["commande_numero"],
         },
@@ -77,9 +86,26 @@ def check_lue(ligne: dict, lue: int | None) -> None:
         )
 
 
-def receive_lignes(conn: sqlite3.Connection, numero: str, reception: dict[str, Any]) -> list[str]:
+def _entree(conn: sqlite3.Connection, ligne: dict, saisie: dict, reception: dict) -> dict:
+    """Ce que la réception d'une ligne a ajouté au stock, pour le récapitulatif."""
+    stock = conn.execute(
+        "SELECT stock_actuel FROM v_composant WHERE id = ?", (ligne["composant_id"],)
+    ).fetchone()
+    return {
+        "composant_id": ligne["composant_id"],
+        "designation": ligne["designation"],
+        "pieces": saisie["qte"] * ligne["qte_par_lot"],
+        "stock_actuel": stock[0] if stock else None,
+        "emplacement": _emplacement(saisie, reception),
+    }
+
+
+def receive_lignes(
+    conn: sqlite3.Connection, numero: str, reception: dict[str, Any]
+) -> tuple[list[str], list[dict]]:
     """Réceptionne les lignes d'une commande, dans la transaction de l'appelant ; renvoie
-    les avertissements. `reception["lignes"]` : id, qte, et qte_recue_lue facultative."""
+    les avertissements et les entrées en stock. `reception["lignes"]` : id, qte,
+    qte_recue_lue et emplacement facultatifs (à défaut, celui de la livraison)."""
     saisies = [ligne for ligne in reception["lignes"] if ligne["qte"] > 0]
     if not saisies:
         raise ErreurMetier("Aucune quantité reçue n'a été saisie.")
@@ -93,16 +119,17 @@ def receive_lignes(conn: sqlite3.Connection, numero: str, reception: dict[str, A
         if ligne["statut_ligne"] == "Annulee":
             raise ErreurMetier(f"La ligne {saisie['id']} est annulée : rien à réceptionner.")
         check_lue(ligne, saisie.get("qte_recue_lue"))
-        avertissement = _receive_line(conn, ligne, saisie["qte"], reception)
+        avertissement = _receive_line(conn, ligne, saisie, reception)
         if avertissement:
             avertissements.append(avertissement)
+    entrees = [_entree(conn, lignes[saisie["id"]], saisie, reception) for saisie in saisies]
     modifs = {"statut": _new_statut(conn, numero)}
     if modifs["statut"] == "Livre":
         modifs["date_reception_reelle"] = reception["date"]
     journal.update_with_journal(
         conn, "commande", numero, modifs, frozenset({"statut", "date_reception_reelle"})
     )
-    return avertissements
+    return avertissements, entrees
 
 
 def receive_commande(conn: sqlite3.Connection, numero: str, reception: dict[str, Any]) -> dict:
@@ -118,5 +145,9 @@ def receive_commande(conn: sqlite3.Connection, numero: str, reception: dict[str,
     ):
         raise ErreurMetier("La réception d'une commande commune doit dire ce qu'elle a lu.")
     with communes_sync.ouverte(conn) if commune else db.transaction(conn):
-        avertissements = receive_lignes(conn, numero, reception)
-    return {"commande": commandes.get_commande(conn, numero), "avertissements": avertissements}
+        avertissements, entrees = receive_lignes(conn, numero, reception)
+    return {
+        "commande": commandes.get_commande(conn, numero),
+        "avertissements": avertissements,
+        "entrees": entrees,
+    }

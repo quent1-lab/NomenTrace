@@ -6,6 +6,7 @@ import { api } from "../api.js";
 import { lireLimites, refusEnvoi } from "../envoi.js";
 import { formatDate, formatMontant, libelle } from "../format.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
+import { naviguer } from "../router.js";
 import { afficherErreur, afficherInformation, el, enregistrerFichier, masquerErreur, suiviEnvoi } from "../ui.js";
 
 const CHAMPS = {
@@ -69,7 +70,38 @@ function blocAssociation(association) {
   };
 }
 
-function resultat(analyse, fichier, surApplique, appliquerSuivi) {
+// Après application : les commandes du fichier livrées dont des lignes attendent encore leur
+// entrée en stock. Le fichier ne dit ni quantités ni emplacement : la réception reste à saisir.
+function panneauAReceptionner(commandes) {
+  const ouvrir = (numero) => {
+    fermerPanneau({ silencieux: true });
+    naviguer(`/achats/${numero}`, { reception: 1 });
+  };
+  ouvrirPanneau("Livrées, à réceptionner", [
+    el("p", { class: "texte-doux" }, "D'après le suivi de l'établissement, ces commandes sont arrivées. Leur réception dit combien de pièces entrent au stock et où elles sont rangées."),
+    el(
+      "table",
+      { class: "table table--dense" },
+      el(
+        "tbody",
+        {},
+        commandes.map((c) =>
+          el(
+            "tr",
+            {},
+            el("td", { class: "code" }, c.numero),
+            el("td", {}, c.fournisseur_nom ?? "—"),
+            el("td", { class: "nombre" }, `${c.nb_lignes_a_recevoir} ligne(s)`),
+            el("td", {}, el("button", { type: "button", class: "bouton", onclick: () => ouvrir(c.numero) }, "Réceptionner")),
+          ),
+        ),
+      ),
+    ),
+    el("div", { class: "actions-formulaire" }, el("button", { type: "button", class: "bouton bouton--discret", onclick: () => fermerPanneau() }, "Plus tard")),
+  ]);
+}
+
+function resultat(analyse, fichier, surApplique, appliquerSuivi, aReceptionner) {
   const blocs = analyse.propositions.map(blocCommande);
   const associations = (analyse.associations ?? []).map(blocAssociation);
   const appliquer = async () => {
@@ -86,6 +118,11 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
       fermerPanneau({ silencieux: true });
       afficherInformation("Fichier de suivi complété : le reposer sur l'espace partagé à la place de l'ancien.");
       await surApplique();
+      if (aReceptionner) {
+        const lues = new Set(Object.keys(retenues));
+        const livrees = (await aReceptionner()).filter((c) => c.a_receptionner && lues.has(c.numero));
+        if (livrees.length) panneauAReceptionner(livrees);
+      }
     } catch (erreur) {
       afficherErreur(erreur);
     }
@@ -134,7 +171,8 @@ function resultat(analyse, fichier, surApplique, appliquerSuivi) {
 }
 
 // Par défaut, le suivi du projet ; la page d'un dossier passe ses propres appels (communes).
-export function ouvrirSuivi(surApplique, { analyser = api.analyserSuivi, appliquer = api.appliquerSuivi } = {}) {
+// `aReceptionner` : lit les commandes après application, pour proposer leur réception.
+export function ouvrirSuivi(surApplique, { analyser = api.analyserSuivi, appliquer = api.appliquerSuivi, aReceptionner = null } = {}) {
   const fichier = el("input", { type: "file", accept: ".xlsx", class: "champ-fichier", "aria-label": "Fichier de suivi" });
   const zone = el("div");
   const formulaire = el("form", { class: "formulaire-ligne formulaire-depot" }, fichier, el("button", { type: "submit", class: "bouton" }, "Analyser"));
@@ -151,7 +189,7 @@ export function ouvrirSuivi(surApplique, { analyser = api.analyserSuivi, appliqu
     try {
       const analyse = await analyser(donnees, suivi.maj);
       masquerErreur();
-      zone.replaceChildren(...resultat(analyse, choisi, surApplique, appliquer).flat(2).filter(Boolean));
+      zone.replaceChildren(...resultat(analyse, choisi, surApplique, appliquer, aReceptionner).flat(2).filter(Boolean));
     } catch (erreur) {
       zone.replaceChildren();
       afficherErreur(erreur);
