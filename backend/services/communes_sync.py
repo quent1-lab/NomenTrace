@@ -206,7 +206,11 @@ def lire_lignes(conn: sqlite3.Connection, numero_local: str) -> list[dict]:
         conn,
         "SELECT l.id, l.composant_id, l.qte_commandee, l.qte_par_lot, l.pu_ht_devis, l.qte_recue,"
         " l.date_reception, l.statut_ligne, l.commentaire, c.designation,"
-        " c.prix_lot_ht AS pu_ht_estime, c.lien_produit"
+        " c.prix_lot_ht AS pu_ht_estime, c.lien_produit,"
+        # Dernier emplacement connu du composant dans son projet : la réception le propose.
+        " (SELECT m.emplacement FROM mouvement_stock m WHERE m.composant_id = l.composant_id"
+        "  AND m.emplacement IS NOT NULL ORDER BY m.date DESC, m.id DESC LIMIT 1)"
+        "  AS emplacement_connu"
         " FROM ligne_commande l LEFT JOIN v_composant c ON c.id = l.composant_id"
         " WHERE l.commande_numero = ? ORDER BY l.id",
         (numero_local,),

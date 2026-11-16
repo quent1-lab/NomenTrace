@@ -855,3 +855,34 @@ def test_commune_datee_au_devis(app: FastAPI, client: TestClient, exemple: str) 
     autre = nouvelle(client, statut="Devis demande")
     client.patch(f"{URL}/{autre}", json={"statut": "Devis recu"})
     assert client.get(f"{URL}/{autre}").json()["date_reception_devis"] == aujourd_hui
+
+
+def test_reception_commune_emplacement_par_ligne(
+    app: FastAPI, client: TestClient, passee: str
+) -> None:
+    """Chaque ligne dit où ranger ses pièces ; le récapitulatif nomme le projet."""
+    ((ident, qte, lue),) = _lignes_copie(app, "beta", passee)
+    corps = {
+        "emplacement": "Armoire A",
+        "lignes": [
+            {
+                "projet": "beta",
+                "id": ident,
+                "qte": qte,
+                "qte_recue_lue": lue,
+                "emplacement": "Bac 7",
+            }
+        ],
+    }
+    reponse = client.post(f"{URL}/{passee}/reception", json=corps)
+    assert reponse.status_code == 200, reponse.text
+    ((entree,),) = [reponse.json()["entrees"]]
+    assert (entree["projet"], entree["pieces"], entree["emplacement"]) == ("beta", 4, "Bac 7")
+    assert lire(
+        app, "beta", "SELECT emplacement FROM mouvement_stock WHERE commande_numero IS NOT NULL"
+    ) == [("Bac 7",)]
+    # La lecture de la commune propose ce dernier emplacement pour la réception suivante.
+    lignes_beta = next(
+        p for p in client.get(f"{URL}/{passee}").json()["projets"] if p["projet"] == "beta"
+    )
+    assert lignes_beta["lignes"][0]["emplacement_connu"] == "Bac 7"

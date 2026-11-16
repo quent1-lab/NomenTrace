@@ -10,6 +10,7 @@ import { formatDate, formatLots, uniteLots, formatMontant, formatPourcent, libel
 import { champChoix, champNombre, champTexte, champZone, ligneChamp, lireFormulaire, suivreModifications } from "../formulaire.js";
 import { fermerPanneau, ouvrirPanneau } from "../panneau.js";
 import { afficherErreur, el, enregistrerFichier, idComposantSaisie, lienExterne, masquerErreur } from "../ui.js";
+import { tableAjoutStock } from "../recap_stock.js";
 import { STATUTS_COMMANDE, TYPES_COMMANDE } from "../valeurs.js";
 import { ouvrirSuivi } from "../pages/achats_suivi.js";
 import { afficherCompte, formulairePanneau } from "./elements.js";
@@ -475,31 +476,41 @@ function sectionReception() {
     const lignes = p.lignes.filter((l) => l.statut_ligne !== "Annulee");
     if (!lignes.length) return [];
     return [
-      el("tr", { class: "ligne-groupe" }, el("td", { colspan: 5 }, p.nom)),
+      el("tr", { class: "ligne-groupe" }, el("td", { colspan: 6 }, p.nom)),
       ...lignes.map((l) => {
         const reste = Math.max(0, l.qte_commandee - l.qte_recue);
         const unite = uniteLots(l.qte_par_lot);
         const champ = el("input", { class: "champ-cellule champ-cellule--nombre", type: "text", inputmode: "numeric", value: String(reste), "aria-label": unite ? `Reçu pour ${l.composant_id}, en ${unite}` : `Reçu pour ${l.composant_id}` });
-        champs.push({ projet: p.projet, ligne: l, champ });
-        return el("tr", {}, el("td", { class: "code" }, idComposantSaisie(l.composant_id, { lien: l.lien_produit, projet: p.projet })), el("td", {}, l.designation ?? "—"), el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)), el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)), el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null));
+        // Dernier emplacement connu du composant dans son projet, modifiable.
+        const lieu = el("input", { class: "champ-cellule champ-cellule--emplacement", type: "text", value: l.emplacement_connu ?? "", placeholder: "Emplacement", "aria-label": `Emplacement de ${l.composant_id}` });
+        champs.push({ projet: p.projet, ligne: l, champ, lieu });
+        return el("tr", {}, el("td", { class: "code" }, idComposantSaisie(l.composant_id, { lien: l.lien_produit, projet: p.projet })), el("td", { class: "tronque tronque--large", title: l.designation ?? "" }, l.designation ?? "—"), el("td", { class: "nombre" }, formatLots(l.qte_commandee, l.qte_par_lot)), el("td", { class: "nombre" }, formatLots(l.qte_recue, l.qte_par_lot)), el("td", { class: "nombre" }, champ, unite ? el("span", { class: "unite-saisie" }, unite) : null), el("td", {}, lieu));
       }),
     ];
   });
   const date = champDate("date", new Date().toISOString().slice(0, 10));
+  // Emplacement commun : remplit les lignes laissées vides, et vaut pour elles à la validation.
   const emplacement = champTexte("emplacement", "", { placeholder: "ex. Armoire A - bac 3" });
+  emplacement.setAttribute("aria-label", "Même emplacement pour tous");
+  const remplir = () => {
+    const valeur = emplacement.value.trim();
+    if (!valeur) return;
+    for (const { lieu } of champs) if (!lieu.value.trim()) lieu.value = valeur;
+  };
   const valider = () =>
     agir(async () => {
       const lignes = [];
-      for (const { projet, ligne, champ } of champs) {
+      for (const { projet, ligne, champ, lieu } of champs) {
         const n = lireNombre(champ.value);
         if (n === null || n === 0) continue;
         if (Number.isNaN(n) || !Number.isInteger(n) || n < 0) throw new Error(`Quantité reçue invalide : « ${champ.value} ».`);
-        lignes.push({ projet, id: ligne.id, qte: n, qte_recue_lue: ligne.qte_recue });
+        lignes.push({ projet, id: ligne.id, qte: n, qte_recue_lue: ligne.qte_recue, emplacement: lieu.value.trim() || null });
       }
       if (!lignes.length) throw new Error("Aucune quantité reçue n'a été saisie.");
       const resultat = await api.receptionnerCommune(etat.code, etat.numero, { date: date.value || null, emplacement: emplacement.value.trim() || null, lignes });
       etat.reception = false;
       etat.commune = resultat;
+      etat.recap = { date: date.value || new Date().toISOString().slice(0, 10), entrees: resultat.entrees.filter((e) => e.pieces > 0) };
       rendre();
       if (resultat.avertissements?.length) afficherErreur(new Error(resultat.avertissements.join(" ")));
     });
@@ -507,10 +518,17 @@ function sectionReception() {
     "section",
     { class: "panneau panneau--reception" },
     el("h2", {}, "Réception de la livraison"),
-    el("p", { class: "texte-doux" }, "La quantité reçue s'ajoute aux réceptions précédentes ; chaque ligne entre dans le stock de son projet."),
-    el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date), el("label", { class: "ligne-compacte" }, "Emplacement ", emplacement)),
+    el("p", { class: "texte-doux" }, "La quantité reçue s'ajoute aux réceptions précédentes ; chaque ligne entre dans le stock de son projet. L'emplacement de chaque ligne propose le dernier connu du composant dans son projet."),
+    el("div", { class: "formulaire-ligne" }, el("label", { class: "ligne-compacte" }, "Date ", date)),
+    el(
+      "div",
+      { class: "reception-commun" },
+      el("span", {}, "Même emplacement pour tous"),
+      emplacement,
+      el("button", { type: "button", class: "bouton bouton--discret", onclick: remplir }, "Remplir les lignes vides"),
+    ),
     el("div", { class: "table-defilante" }, el("table", { class: "table table--dense" },
-      el("thead", {}, el("tr", {}, ["Composant", "Désignation", "Commandé", "Déjà reçu", "Reçu cette fois"].map((t, i) => el("th", { class: i >= 2 ? "nombre" : "" }, t)))),
+      el("thead", {}, el("tr", {}, ["Composant", "Désignation", "Commandé", "Déjà reçu", "Reçu cette fois", "Emplacement"].map((t, i) => el("th", { class: i >= 2 && i <= 4 ? "nombre" : "" }, t)))),
       el("tbody", {}, corps),
     )),
     el("div", { class: "actions-formulaire" },
@@ -518,6 +536,17 @@ function sectionReception() {
       el("button", { type: "button", class: "bouton", onclick: valider }, "Valider la réception"),
     ),
   );
+}
+
+// Ce que la dernière réception a ajouté au stock de chaque projet : reste jusqu'à « Fermer ».
+function recapStock() {
+  if (!etat.recap) return "";
+  const fermer = () => {
+    etat.recap = null;
+    rendre();
+  };
+  const noms = Object.fromEntries(etat.commune.projets.map((p) => [p.projet, p.nom]));
+  return tableAjoutStock(etat.recap, { fermer, projets: noms });
 }
 
 // Documents : joints à la copie de chaque projet, montrés ici une fois chacun.
@@ -606,7 +635,7 @@ function rendre() {
     el(
       "div",
       { class: "commun__colonnes commun__colonnes--commune" },
-      el("div", { class: "commun__principal" }, etat.reception ? sectionReception() : sectionLignes(), sectionFrais(), panneauDocuments()),
+      el("div", { class: "commun__principal" }, recapStock(), etat.reception ? sectionReception() : sectionLignes(), sectionFrais(), panneauDocuments()),
       el("aside", { class: "commun__cote" }, infos(), repartition(), demandeDevis()),
     ),
   ];
@@ -614,7 +643,7 @@ function rendre() {
 }
 
 export async function afficherCommune(code, numero, { contenu, fil }) {
-  etat = { code, numero, contenu, fil, commune: null, reception: false };
+  etat = { code, numero, contenu, fil, commune: null, reception: false, recap: null };
   etat.commune = await api.getCommune(code, numero);
   afficherCompte(etat.commune.compte);
   rendre();
