@@ -431,6 +431,19 @@ livré, refusé. Seules les commandes de type Commande au statut commandé ou li
 dans le montant engagé ; un devis n'engage rien. Passer un devis au statut commandé, livré
 en partie ou livré en fait une commande : son type change avec son statut.
 
+Le statut « livré » ne se pose pas à la main tant qu'une ligne non annulée reste à recevoir :
+le serveur le refuse, car le stock n'entre que par la réception. Choisir « Livrée » dans la
+fiche d'une commande ouvre donc à la place la réception, avec les quantités restantes déjà
+saisies, et c'est sa validation qui passe la commande à « Livrée ».
+
+Une commande est à réceptionner quand sa livraison est acquise et que des lignes ne sont pas
+reçues : statut livré, ou statut commandé ou livré en partie avec une date de réception
+annoncée atteinte (posée par le suivi de l'établissement). Une commande qui attend
+seulement son colis ne l'est pas. L'écran Achats la marque d'un badge « à réceptionner » et
+propose la case « À réceptionner uniquement » (adresse `#/achats?recevoir=1`). Sur la page
+de la commande, un bandeau dit d'où vient la livraison et son bouton « Réceptionner le
+reste » ouvre la saisie ; `#/achats/NUMERO?reception=1` l'ouvre directement.
+
 Une ligne de commande compte des lots, au prix d'un lot : 3 lots de 100 vis à 12 € font
 36 €. Le document envoyé au fournisseur ne donne que le nombre de lots. La réception se
 saisit aussi en lots, l'unité rappelée sous chaque case, et chaque lot reçu fait entrer ses
@@ -523,13 +536,22 @@ devis demande confirmation.
 Le montant de la commande saisi par l'établissement, frais compris, remplace l'estimation
 dans le montant engagé. Une ligne colorée « livré » ne réceptionne rien : elle note une
 réception annoncée, et la réception réelle, avec ses quantités, se saisit dans Nomentrace.
+Après l'application d'un fichier, un panneau « Livrées, à réceptionner » liste les commandes
+lues dont l'arrivée est acquise et qui ont encore des lignes à recevoir, avec un bouton
+« Réceptionner » par commande ; « Plus tard » le ferme sans rien écrire.
 
 ### Recevoir
 
 Sur la page d'une commande, « Réceptionner » ouvre la saisie de la livraison : la date,
-l'emplacement de rangement, la personne qui reçoit, et la quantité reçue pour chaque ligne.
+la personne qui reçoit, et pour chaque ligne la quantité reçue et l'emplacement de rangement.
+L'emplacement de chaque ligne est proposé d'après le dernier connu du composant. Le champ
+« Même emplacement pour tous » avec « Remplir les lignes vides » range d'un coup les lignes
+qui n'en ont pas, sans toucher à celles qui en ont un.
 Une réception partielle est normale. Chaque réception crée un mouvement d'entrée en stock,
-et le statut de la commande passe tout seul à « livré en partie » ou « livré ». Une ligne
+et le statut de la commande passe tout seul à « livré en partie » ou « livré ». Une fois la
+réception validée, un panneau « Ajouté au stock » liste chaque composant entré, les pièces
+ajoutées, le stock obtenu et l'emplacement ; il signale les composants sans emplacement,
+que la page Stock ne saurait pas situer, et reste affiché jusqu'à « Fermer ». Une ligne
 dont des pièces ont été reçues ne se supprime plus ; on la passe au statut Annulée si
 besoin.
 
@@ -758,7 +780,10 @@ se choisit pas.
 
 Une commande commune passée se reçoit des deux côtés. Sur sa page, « Réceptionner » montre
 les lignes de tous les projets ; chacune entre dans le stock de son projet. Dans un projet,
-« Réceptionner » sur sa propre commande reçoit ses seules lignes. Une ligne reçue d'un côté
+« Réceptionner » sur sa propre commande reçoit ses seules lignes. Sur la commune, chaque
+ligne propose le dernier emplacement connu du composant dans son projet, et « Même
+emplacement pour tous » remplit les lignes vides ; le panneau « Ajouté au stock » indique
+le projet de chaque entrée. Une ligne reçue d'un côté
 ne peut pas l'être une seconde fois de l'autre : si une réception est passée entre
 l'ouverture de la saisie et sa validation, Nomentrace la refuse et demande de recharger la
 page. La commande d'un projet passe à « Livré » quand ses lignes sont reçues ; la commande

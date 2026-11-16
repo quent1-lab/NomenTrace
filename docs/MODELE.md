@@ -105,6 +105,7 @@ l'export.
 | `v_ensemble_bloc` | Répartition de chaque ensemble par bloc. |
 | `v_incoherence` | Signalements : sur-affectation, affecté non commandé, monté au-delà de l'affectation, monté sans affectation. |
 | `v_commande` | Commandes avec montant des articles, totaux HT/TTC, indicateurs `engagee` et `en_retard`. |
+| `v_reception_attendue` | Par commande de type Commande (migration 033) : `nb_lignes_a_recevoir` (lignes non annulées dont la quantité reçue est inférieure à la quantité commandée) et `a_receptionner`, à 1 quand il reste de telles lignes et que la livraison est acquise : statut Livré, ou statut Commandé ou Livré partiel avec `date_reception_annoncee` atteinte (date posée par le suivi de l'établissement). Une commande qui attend seulement son colis n'est pas à réceptionner. |
 | `v_stock` | Composants dont le stock n'est pas nul, avec leur valeur. |
 | `v_repartition_liste` | Nombre de composants et coût par valeur de liste (graphiques). |
 | `v_pilotage` | Une ligne : tous les indicateurs du tableau de bord. |

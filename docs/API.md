@@ -143,7 +143,7 @@ la synchronisation (`synchronisation` : projets écrits, projets hors ligne, `pe
 | PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/lignes/{projet}/{id}` | Quantité, prix, commentaire, statut (À commander, Commandée, Annulée) ; suppression d'une ligne sans réception |
 | POST | `/api/dossiers/{code}/communes/{numero}/frais` | Nouveau frais |
 | PATCH, DELETE | `/api/dossiers/{code}/communes/{numero}/frais/{id}` | Modification, retrait d'un frais |
-| POST | `/api/dossiers/{code}/communes/{numero}/reception` | Réception (`date`, `emplacement`, `par_qui`, `lignes` : `projet`, `id`, `qte`, `qte_recue_lue`) ; écart avec la quantité lue : 409, rien n'est écrit |
+| POST | `/api/dossiers/{code}/communes/{numero}/reception` | Réception (`date`, `emplacement`, `par_qui`, `lignes` : `projet`, `id`, `qte`, `qte_recue_lue`, `emplacement` facultatif par ligne) ; écart avec la quantité lue : 409, rien n'est écrit ; la réponse porte `entrees` (voir la réception d'une commande) avec le `projet` de chaque entrée |
 | POST | `/api/dossiers/{code}/communes/{numero}/documents` | Dépôt (multipart, comme pour une commande) : joint à la copie de chaque projet |
 | DELETE | `/api/dossiers/{code}/communes/{numero}/documents/{empreinte}` | Retrait du document de toutes les copies (archivé) |
 | GET | `/api/dossiers/{code}/communes/{numero}/documents/{projet}/{id}/fichier` | Fichier d'un document, lu dans la copie d'un projet |
@@ -158,6 +158,7 @@ accepté et vérifié de la même façon. `GET /api/session` dit si le compte vo
 projet (`voit_dossier`). Le suivi de l'établissement d'un projet ignore les copies et les
 lignes des communes. L'analyse d'un classeur de suivi donne aussi
 `nb_lignes_a_completer` : lignes déjà présentes dont des cases vides seront remplies.
+Les lignes d'une commande commune portent `emplacement_connu`, lu dans le projet de chaque ligne.
 
 ## Projet, pilotage et historique
 
@@ -258,7 +259,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | GET, POST | `/api/commandes` | Commandes et devis, filtrables par `statut` et `fournisseur` ; création |
-| GET, PATCH, DELETE | `/api/commandes/{numero}` | Détail, modification, archivage |
+| GET, PATCH, DELETE | `/api/commandes/{numero}` | Détail, modification, archivage. Chaque commande porte `nb_lignes_a_recevoir` et `a_receptionner` (vue `v_reception_attendue`). Passer le statut à « Livré » alors que des lignes non annulées restent à recevoir : 400, la réception seule le fait |
 | GET, POST | `/api/commandes/{numero}/lignes` | Lignes d'une commande ; ajout |
 | POST | `/api/commandes/{numero}/lignes/lot` | Ajout de plusieurs lignes (`lignes`, comme pour une ligne), toutes ou aucune |
 | GET | `/api/commandes/{numero}/candidats` | Composants en mode Achat du fournisseur de la commande qui restent à commander et n'y figurent pas (`reste_a_commander` en pièces, `reste_a_commander_lots`, `qte_par_lot`, `pu_ht` d'une pièce, `prix_lot_ht`, `lien_produit`, `demandes_ouvertes` : autres devis en cours) |
@@ -269,7 +270,7 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | POST | `/api/suivi-achats/analyse` | Lit le classeur de suivi de l'établissement (`fichier`) : changements proposés, `associations` des lignes saisies à la main (`numero`, `complete`, `lignes` avec `ligne`, `designation`, `ecarts`, `manquantes`), lignes inconnues décrites, lignes à ajouter |
 | POST | `/api/suivi-achats/appliquer` | Associe les lignes des commandes retenues (`associations`, JSON `[numéro]`, facultatif), applique les changements retenus (`retenues`, JSON `{numéro: [champs]}`) et renvoie le classeur complété |
 | PATCH, DELETE | `/api/commandes/{numero}/lignes/{id}` | Modifier, supprimer une ligne sans réception |
-| POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock |
+| POST | `/api/commandes/{numero}/reception` | Réception, partielle ou complète, avec entrée en stock. Chaque ligne du corps porte `id`, `qte`, `qte_recue_lue` et un `emplacement` facultatif, à défaut celui de la livraison (`emplacement`). La réponse porte `commande`, `avertissements` et `entrees` : par ligne reçue, `composant_id`, `designation`, `pieces`, `stock_actuel` et `emplacement`. Les lignes d'une commande (`/lignes`) portent `emplacement_connu`, le dernier emplacement d'un mouvement du composant |
 | GET, POST | `/api/demandes-devis` | Composants à commander par fournisseur ; création des demandes |
 | GET | `/api/stock` | État du stock |
 | GET, POST | `/api/mouvements` | Journal des mouvements ; saisie d'un mouvement (le type « Stock initial », tenu par la base, est refusé en 400, de même qu'une sortie au-delà du stock du composant) ; un mouvement de montage remet à jour le statut de montage de son ensemble |
