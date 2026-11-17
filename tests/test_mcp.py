@@ -6,6 +6,7 @@ local à la fin.
 
 import asyncio
 import base64
+import json
 import sqlite3
 from pathlib import Path
 
@@ -280,6 +281,30 @@ def test_document_envoye_et_rendu_comme_fichier(app: FastAPI, admin: TestClient)
     ressource = lu["content"][1]["resource"]
     assert ressource["mimeType"] == "application/pdf"
     assert base64.b64decode(ressource["blob"]) == pdf
+
+
+def test_montage_par_l_assistant(app: FastAPI, admin: TestClient) -> None:  # noqa: F811
+    ouvrir(admin, "admin")
+    client = assistant(app, jeton(admin))
+    piece = outil(client, "create_composant", {**COMPOSANT, "qte_disponible": 3})
+    identifiant = piece["structuredContent"]["id"]
+    assert outil(client, "create_ensemble", {"code": "BRAS", "nom": "Bras"})["isError"] is False
+    affectation = {"code": "BRAS", "composant_id": identifiant, "qte": 2}
+    assert outil(client, "create_affectation", affectation)["isError"] is False
+    monte = outil(client, "create_montage", affectation)
+    assert monte["isError"] is False, monte
+    assert outil(client, "create_montage", {**affectation, "qte": 1})["isError"] is True
+    assert outil(client, "create_demontage", {**affectation, "qte": 1})["isError"] is False
+    lignes = json.loads(
+        outil(client, "list_composants_ensemble", {"code": "BRAS"})["content"][0]["text"]
+    )
+    assert [(ligne["qte_montee"], ligne["reste_a_monter"]) for ligne in lignes] == [(1, 1)]
+    assert lire(
+        app,
+        "SELECT type_mouvement, qte FROM mouvement_stock WHERE composant_id = ?"
+        " AND ensemble_code = 'BRAS' ORDER BY id",
+        (identifiant,),
+    ) == [("Sortie montage", 2), ("Retour montage", 1)]
 
 
 def test_outils_sans_suppression_ni_administration() -> None:

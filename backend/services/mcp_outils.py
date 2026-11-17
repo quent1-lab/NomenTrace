@@ -98,7 +98,8 @@ OUTILS: tuple[Outil, ...] = (
     Outil("get_ensemble", "Détail d'un ensemble par son code.", "GET", "/api/ensembles/{code}"),
     Outil(
         "list_composants_ensemble",
-        "Composants affectés à un ensemble, avec la quantité.",
+        "Composants affectés à un ensemble, avec la quantité affectée, montée et restant à"
+        " monter, et le stock.",
         "GET",
         "/api/ensembles/{code}/composants",
     ),
@@ -227,6 +228,20 @@ OUTILS: tuple[Outil, ...] = (
         "Affecte un composant à un ensemble avec une quantité.",
         "POST",
         "/api/ensembles/{code}/affectations",
+    ),
+    Outil(
+        "create_montage",
+        "Monte des pièces d'un composant affecté dans un ensemble : elles sortent du stock"
+        " (refusé au-delà du stock ou du reste à monter) ; le statut de montage suit.",
+        "POST",
+        "/api/ensembles/{code}/montage",
+    ),
+    Outil(
+        "create_demontage",
+        "Annule le montage de pièces d'un composant dans un ensemble : elles reviennent au"
+        " stock ; le statut de montage suit.",
+        "POST",
+        "/api/ensembles/{code}/demontage",
     ),
     Outil(
         "update_affectation",

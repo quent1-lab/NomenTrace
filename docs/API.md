@@ -343,7 +343,9 @@ ensembles et les commandes (`archive_composant`, `unarchive_composant`, `archive
 s'archive pas par l'assistant, la route étant réservée à l'administrateur. L'assistant lit
 les documents (`list_documents_composant`, `list_documents_commande`, `get_document`, rendu
 comme image ou comme ressource jointe) et en joint (`create_document_composant`,
-`create_document_commande`) par les routes de contenu en base64.
+`create_document_commande`) par les routes de contenu en base64. Il monte des pièces dans un
+ensemble et annule un montage (`create_montage`, `create_demontage`, routes de la page de
+montage) ; `list_composants_ensemble` donne le monté et le reste à monter.
 
 ## Nettoyage, export et sauvegardes
 

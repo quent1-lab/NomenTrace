@@ -835,7 +835,8 @@ claude mcp add --transport http nomentrace <adresse>/p/<code>/api/mcp --header "
 L'adresse est celle du serveur et le code celui du projet. L'assistant lit le projet
 (pilotage, composants, ensembles, commandes, fournisseurs, stock) et peut y créer ou modifier
 composants, affectations, ensembles, fournisseurs, commandes, réceptions et mouvements de stock, avec les droits exacts du compte : un lecteur n'écrit pas, un contributeur reste
-limité à ses blocs. Il lit et joint des documents (5 Mo au plus) et peut archiver ou
+limité à ses blocs. Il monte des pièces dans un ensemble ou annule un montage, comme la
+page de montage. Il lit et joint des documents (5 Mo au plus) et peut archiver ou
 désarchiver un composant, un ensemble ou une commande, mais pas un fournisseur. Il ne
 supprime rien et n'a pas accès aux budgets d'ensemble, aux comptes ni aux sauvegardes. Ses modifications sont signées « Nom (IA) » dans l'historique.
 En mode local, aucun jeton n'est nécessaire, mais l'accès doit avoir été ouvert.
