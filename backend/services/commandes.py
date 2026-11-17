@@ -179,6 +179,28 @@ def archive_commande(conn: sqlite3.Connection, numero: str) -> None:
         )
 
 
+def unarchive_commande(conn: sqlite3.Connection, numero: str) -> None:
+    """Remet une commande archivée en service ; une commande commune se gère depuis le dossier."""
+    with db.transaction(conn):
+        ligne = db.fetch_one(conn, "SELECT commune FROM commande WHERE numero = ?", (numero,))
+        if ligne is None:
+            raise Introuvable(f"Commande « {numero} » introuvable.")
+        if ligne["commune"]:
+            raise Conflit(
+                f"La commande « {numero} » vient d'une commande commune : elle se gère depuis"
+                " le dossier."
+            )
+        journal.unarchive(conn, "commande", numero)
+
+
+def get_commande_ou_archivee(conn: sqlite3.Connection, numero: str) -> dict:
+    """La commande avec ses totaux, ou sa seule ligne si elle est archivée."""
+    ligne = db.fetch_one(conn, "SELECT * FROM commande WHERE numero = ?", (numero,))
+    if ligne is None or not ligne["archive"]:
+        return get_commande(conn, numero)
+    return {**ligne, **journal.get_archivage(conn, "commande", numero)}
+
+
 def list_lignes(conn: sqlite3.Connection, numero: str) -> list[dict]:
     """Renvoie les lignes d'une commande, avec la désignation et le montant de chaque ligne."""
     get_commande(conn, numero)

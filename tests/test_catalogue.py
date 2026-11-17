@@ -175,7 +175,7 @@ def test_archive_et_hors_ligne_ignores(app: FastAPI, client: TestClient) -> None
     hors_ligne = app.state.registre.projets.pop("beta")
     assert chercher(client, ref_fabricant="AS5047D-ATSM")["propositions"] == []
     app.state.registre.projets["beta"] = hors_ligne
-    reponse = client.delete(f"/p/beta/api/composants/{id_beta(app)}")
+    reponse = client.post(f"/p/beta/api/composants/{id_beta(app)}/archiver")
     assert reponse.status_code in (200, 204), reponse.text
     assert chercher(client, ref_fabricant="AS5047D-ATSM")["propositions"] == []
 

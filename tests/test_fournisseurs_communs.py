@@ -256,7 +256,7 @@ def test_liste_verrouillee_dans_un_projet(app: FastAPI, range_: TestClient) -> N
     for methode, adresse, corps in (
         ("POST", "/api/fournisseurs", {"nom": "Neuf"}),
         ("PATCH", "/api/fournisseurs/Farnell", {"contact": "x"}),
-        ("DELETE", "/api/fournisseurs/Atelier", None),
+        ("POST", "/api/fournisseurs/Atelier/archiver", None),
     ):
         reponse = admin.request(methode, f"/p/{PROJET}{adresse}", json=corps)
         assert reponse.status_code in (403, 409), (adresse, reponse.text)

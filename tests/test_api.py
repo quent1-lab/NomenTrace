@@ -38,7 +38,7 @@ def test_apercu_identifiant(client_essai: TestClient) -> None:
 
 
 def test_identifiant_compte_les_archives(client_essai: TestClient) -> None:
-    assert client_essai.delete("/api/composants/ESSAI-ALI-020").status_code == 200
+    assert client_essai.post("/api/composants/ESSAI-ALI-020/archiver").status_code == 200
     reponse = client_essai.post("/api/composants", json=NOUVEAU_COMPOSANT)
     assert reponse.json()["id"] == "ESSAI-ALI-021"
 
@@ -92,11 +92,11 @@ def test_affectation_peut_depasser_le_besoin(client_essai: TestClient) -> None:
 def test_archivage_ensemble_affecte_refuse(client_essai: TestClient) -> None:
     _creer_ensemble(client_essai, "COFFRET")
     affectation = _affecter(client_essai, "COFFRET", "ESSAI-ALI-001", 1)
-    reponse = client_essai.delete("/api/ensembles/COFFRET")
+    reponse = client_essai.post("/api/ensembles/COFFRET/archiver")
     assert reponse.status_code == 409
     assert "affectation" in reponse.json()["erreur"]
     client_essai.delete(f"/api/affectations/{affectation['affectation_id']}")
-    assert client_essai.delete("/api/ensembles/COFFRET").status_code == 200
+    assert client_essai.post("/api/ensembles/COFFRET/archiver").status_code == 200
 
 
 def test_affectations_journalisees(client_essai: TestClient) -> None:

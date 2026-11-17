@@ -5,6 +5,8 @@ echange/documents/composants/<id>/…) pour rester accessibles depuis l'explorat
 garde leur chemin relatif, leur taille et leur empreinte SHA-256.
 """
 
+import base64
+import binascii
 import hashlib
 import logging
 import mimetypes
@@ -26,6 +28,9 @@ journal_log = logging.getLogger(__name__)
 # Taille maximale d'un document, en Mo, quand le projet ne l'a pas réglée
 # (paramètre `taille_max_document_mo`, sous le plafond d'envoi du serveur).
 TAILLE_MAX_DEFAUT_MO: int = 20
+# Taille maximale d'un document échangé encodé en base64 dans du JSON (assistant IA) : le
+# fichier passe dans la conversation, qu'un gros document saturerait.
+TAILLE_MAX_CONTENU_MO: int = 5
 EXTENSIONS: frozenset[str] = frozenset(
     {
         ".pdf",
@@ -257,6 +262,43 @@ def get_fichier(conn: sqlite3.Connection, dossier: Path, identifiant: int) -> di
         "type_mime": document["type_mime"],
         "en_ligne": en_ligne,
     }
+
+
+def _plafond_contenu(conn: sqlite3.Connection) -> int:
+    return min(taille_max(conn), TAILLE_MAX_CONTENU_MO * 1024 * 1024)
+
+
+def get_contenu(conn: sqlite3.Connection, dossier: Path, identifiant: int) -> dict:
+    """Fiche d'un document et son fichier encodé en base64, refusé au-delà du plafond."""
+    fichier = get_fichier(conn, dossier, identifiant)
+    plafond = _plafond_contenu(conn)
+    taille = fichier["chemin"].stat().st_size
+    if taille > plafond:
+        raise ErreurMetier(
+            f"« {fichier['nom']} » pèse {taille / (1024 * 1024):.1f} Mo : au-delà de"
+            f" {plafond // (1024 * 1024)} Mo, ouvrez-le depuis l'interface."
+        )
+    return {
+        **get_document(conn, identifiant),
+        "contenu_base64": base64.b64encode(fichier["chemin"].read_bytes()).decode("ascii"),
+    }
+
+
+def add_contenu(
+    conn: sqlite3.Connection, dossier: Path, contenu: dict[str, Any], meta: dict[str, Any]
+) -> dict:
+    """Joint un document reçu en base64 (assistant IA), plafonné comme un téléchargement."""
+    try:
+        octets = base64.b64decode(contenu["contenu_base64"], validate=True)
+    except binascii.Error, ValueError:
+        raise ErreurMetier("Le contenu du fichier n'est pas un base64 valide.") from None
+    plafond = _plafond_contenu(conn)
+    if len(octets) > plafond:
+        raise ErreurMetier(
+            f"Le fichier « {contenu['nom']} » dépasse {plafond // (1024 * 1024)} Mo :"
+            " joignez-le depuis l'interface."
+        )
+    return add_document(conn, dossier, (contenu["nom"], octets), meta)
 
 
 def patch_document(conn: sqlite3.Connection, identifiant: int, modifs: dict[str, Any]) -> dict:

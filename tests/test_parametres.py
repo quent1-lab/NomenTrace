@@ -94,7 +94,7 @@ def test_fournisseur_renomme_en_cascade(client_essai: TestClient) -> None:
 
 def test_fournisseur_archive_puis_reactive(client: TestClient) -> None:
     client.post("/api/fournisseurs", json={"nom": "Atelier", "pays": "France"})
-    assert client.delete("/api/fournisseurs/Atelier").status_code == 200
+    assert client.post("/api/fournisseurs/Atelier/archiver").status_code == 200
     assert all(f["nom"] != "Atelier" for f in client.get("/api/fournisseurs").json())
     reponse = client.post("/api/fournisseurs", json={"nom": "Atelier", "delai_moyen_j": 5})
     assert reponse.status_code == 201, reponse.text
@@ -105,7 +105,7 @@ def test_fournisseur_archive_puis_reactive(client: TestClient) -> None:
 
 
 def test_fournisseur_inconnu(client: TestClient) -> None:
-    assert client.delete("/api/fournisseurs/Personne").status_code == 404
+    assert client.post("/api/fournisseurs/Personne/archiver").status_code == 404
 
 
 # --- Sauvegardes et restauration --------------------------------------------------------
@@ -272,7 +272,10 @@ def test_fournisseur_avec_barre_oblique(client: TestClient) -> None:
     reponse = client.patch(adresse, json={"pays": "Chine"})
     assert reponse.status_code == 200, reponse.text
     assert reponse.json()["pays"] == "Chine"
-    assert client.delete(adresse).status_code == 200
+    assert client.post(f"{adresse}/archiver").status_code == 200
+    assert client.get(adresse).json()["archive"] == 1
+    assert client.post(f"{adresse}/desarchiver").status_code == 200
+    assert client.get(adresse).json()["archive"] == 0
 
 
 def test_valeur_de_liste_avec_barre_oblique(client: TestClient) -> None:

@@ -61,6 +61,8 @@ def get_fiche(conn: sqlite3.Connection, nom: str) -> dict:
         " FROM v_commande WHERE fournisseur_nom = ? AND archive = 0 ORDER BY numero DESC",
         (nom,),
     )
+    if fournisseur["archive"]:
+        fournisseur.update(journal.get_archivage(conn, "fournisseur", nom))
     return fournisseur
 
 
@@ -120,6 +122,12 @@ def archive_fournisseur(conn: sqlite3.Connection, nom: str) -> None:
         journal.update_with_journal(
             conn, "fournisseur", nom, {"archive": 1}, frozenset({"archive"})
         )
+
+
+def unarchive_fournisseur(conn: sqlite3.Connection, nom: str) -> None:
+    """Remet un fournisseur archivé dans les listes."""
+    with db.transaction(conn):
+        journal.unarchive(conn, "fournisseur", nom)
 
 
 def ensure_fournisseur(conn: sqlite3.Connection, nom: str | None) -> None:

@@ -40,7 +40,7 @@ def test_fiche_fournisseur(client_essai: TestClient) -> None:
 
 def test_fiche_fournisseur_archive_reste_lisible(client: TestClient) -> None:
     client.post("/api/fournisseurs", json={"nom": "Amazon / StepperOnline"})
-    client.delete("/api/fournisseurs/Amazon%20%2F%20StepperOnline")
+    client.post("/api/fournisseurs/Amazon%20%2F%20StepperOnline/archiver")
     fiche = client.get("/api/fournisseurs/Amazon%20%2F%20StepperOnline")
     assert fiche.status_code == 200
     assert fiche.json()["archive"] == 1
@@ -125,7 +125,7 @@ def test_comparaison_classe_les_fournisseurs(client: TestClient) -> None:
 def test_application_cree_complete_et_reactive(client: TestClient) -> None:
     client.post("/api/fournisseurs", json={"nom": "Farnell"})
     client.post("/api/fournisseurs", json={"nom": "Conrad"})
-    client.delete("/api/fournisseurs/Conrad")
+    client.post("/api/fournisseurs/Conrad/archiver")
     reponse = client.post(
         "/api/fournisseurs/comparaison/appliquer",
         json={
@@ -220,7 +220,7 @@ def test_homonyme_refuse(client: TestClient) -> None:
 
 def test_reactivation_garde_la_validation(client: TestClient) -> None:
     client.post("/api/fournisseurs", json={"nom": "Farnell"})
-    client.delete("/api/fournisseurs/Farnell")
+    client.post("/api/fournisseurs/Farnell/archiver")
     reponse = client.post("/api/fournisseurs", json={"nom": "Farnell", "statut": "A valider"})
     assert reponse.status_code == 201
     assert reponse.json()["statut"] == "Valide"

@@ -153,7 +153,7 @@ def _lister_outils(ctx: Contexte) -> dict:
                 "inputSchema": schemas[outil.nom].entree,
                 "annotations": {
                     "readOnlyHint": outil.lecture,
-                    "destructiveHint": False,
+                    "destructiveHint": outil.nom.startswith("archive_"),
                     "idempotentHint": outil.lecture or outil.methode in ("PUT", "PATCH"),
                     "openWorldHint": False,
                 },
@@ -194,11 +194,32 @@ async def _appeler_outil(ctx: Contexte, params: dict) -> dict:
     if statut >= 400:
         message = reponse.get("erreur") if isinstance(reponse, dict) else None
         return _resultat_erreur(message or f"Erreur {statut}.")
+    if isinstance(reponse, dict) and "contenu_base64" in reponse:
+        return _resultat_fichier(reponse)
     texte = json.dumps(reponse, ensure_ascii=False)
     resultat: dict[str, Any] = {"content": [{"type": "text", "text": texte}], "isError": False}
     if isinstance(reponse, dict):
         resultat["structuredContent"] = reponse
     return resultat
+
+
+def _resultat_fichier(reponse: dict) -> dict:
+    """Un document rendu comme fichier : image, ou ressource jointe, après sa fiche en texte."""
+    fiche = {cle: valeur for cle, valeur in reponse.items() if cle != "contenu_base64"}
+    type_mime = fiche.get("type_mime") or "application/octet-stream"
+    if type_mime.startswith("image/"):
+        fichier = {"type": "image", "data": reponse["contenu_base64"], "mimeType": type_mime}
+    else:
+        fichier = {
+            "type": "resource",
+            "resource": {
+                "uri": f"nomentrace://documents/{fiche.get('id')}",
+                "mimeType": type_mime,
+                "blob": reponse["contenu_base64"],
+            },
+        }
+    texte = {"type": "text", "text": json.dumps(fiche, ensure_ascii=False)}
+    return {"content": [texte, fichier], "structuredContent": fiche, "isError": False}
 
 
 def _resultat_erreur(message: str) -> dict:

@@ -57,7 +57,7 @@ def test_deplacer_un_sous_ensemble(client_essai: TestClient) -> None:
 
 def test_parent_archive_ou_inconnu_refuse(client_essai: TestClient) -> None:
     _ensemble(client_essai, "VIEUX")
-    assert client_essai.delete("/api/ensembles/VIEUX").status_code == 200
+    assert client_essai.post("/api/ensembles/VIEUX/archiver").status_code == 200
     reponse = client_essai.post(
         "/api/ensembles", json={"code": "NEUF", "nom": "Neuf", "parent_code": "VIEUX"}
     )
@@ -71,11 +71,11 @@ def test_parent_archive_ou_inconnu_refuse(client_essai: TestClient) -> None:
 
 def test_archiver_un_parent_refuse(client_essai: TestClient) -> None:
     _trois_niveaux(client_essai)
-    reponse = client_essai.delete("/api/ensembles/CHASSIS")
+    reponse = client_essai.post("/api/ensembles/CHASSIS/archiver")
     assert reponse.status_code == 409
     assert "sous-ensemble" in reponse.json()["erreur"]
-    assert client_essai.delete("/api/ensembles/ROUE").status_code == 200
-    assert client_essai.delete("/api/ensembles/CHASSIS").status_code == 200
+    assert client_essai.post("/api/ensembles/ROUE/archiver").status_code == 200
+    assert client_essai.post("/api/ensembles/CHASSIS/archiver").status_code == 200
 
 
 def test_indicateurs_cumules_sur_trois_niveaux(client_essai: TestClient) -> None:
@@ -110,7 +110,7 @@ def test_archive_sort_des_cumuls(client_essai: TestClient) -> None:
     _ensemble(client_essai, "ROBOT")
     _ensemble(client_essai, "CAPOT", "ROBOT")
     _affecter(client_essai, "ROBOT", "ESSAI-TR-001", 1)
-    assert client_essai.delete("/api/ensembles/CAPOT").status_code == 200
+    assert client_essai.post("/api/ensembles/CAPOT/archiver").status_code == 200
     robot = client_essai.get("/api/ensembles/ROBOT").json()
     assert robot["nb_sous_ensembles"] == 0
     assert robot["enfants"] == []

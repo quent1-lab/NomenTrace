@@ -1,6 +1,7 @@
 // Fiche d'un fournisseur (#/fournisseurs/NOM) : coordonnées, composants et commandes.
 
 import { api } from "../api.js";
+import { bandeauArchive } from "../archivage.js";
 import { formatDate, formatMontant, formatNombre, libelle } from "../format.js";
 import { lienRoute, naviguer, remplacerRoute } from "../router.js";
 import { afficherErreur, el, lienExterne, lienProduit, masquerErreur } from "../ui.js";
@@ -145,6 +146,15 @@ export async function afficherFicheFournisseur(conteneur, _parametres, nom) {
         f.archive ? null : el("button", { type: "button", class: "bouton bouton--danger si-admin si-libre", onclick: async () => (await archiverFournisseur(usages)) && recharger() }, "Archiver"),
       ),
     ),
+    f.archive
+      ? bandeauArchive({
+          element: f,
+          texte: "Il n'est plus proposé à la saisie ; les composants et commandes qui le citent le gardent.",
+          classeDroit: "si-admin si-libre",
+          desarchiver: () => api.desarchiveFournisseur(f.nom),
+          apres: () => recharger(),
+        })
+      : "",
     f.statut === A_VALIDER ? bandeauValidation(f, recharger) : "",
     coordonnees(f),
     sectionComposants(f),

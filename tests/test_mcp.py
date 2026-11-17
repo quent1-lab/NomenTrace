@@ -5,6 +5,7 @@ local à la fin.
 """
 
 import asyncio
+import base64
 import sqlite3
 from pathlib import Path
 
@@ -232,12 +233,53 @@ def test_route_hors_liste_refusee_meme_marquee(app: FastAPI, admin: TestClient) 
     identifiant = lire(app, "SELECT id FROM composant LIMIT 1")[0][0]
     ctx = mcp.Contexte(app, PROJET, "https", "nomentrace.test", ("127.0.0.1", 1), ident)
     statut, _ = asyncio.run(
-        mcp.appeler_route(ctx, "DELETE", f"/api/composants/{identifiant}", {}, None)
+        mcp.appeler_route(
+            ctx, "POST", f"/api/composants/{identifiant}/reclasser", {}, {"bloc_code": "TR"}
+        )
     )
     assert statut == 403
     statut, _ = asyncio.run(mcp.appeler_route(ctx, "GET", "/api/utilisateurs", {}, None))
     assert statut == 403
-    assert lire(app, "SELECT COUNT(*) FROM composant WHERE id = ?", (identifiant,)) == [(1,)]
+    assert lire(app, "SELECT archive FROM composant WHERE id = ?", (identifiant,)) == [(0,)]
+
+
+def test_archivage_par_l_assistant(app: FastAPI, admin: TestClient) -> None:  # noqa: F811
+    ouvrir(admin, "admin")
+    client = assistant(app, jeton(admin))
+    identifiant = outil(client, "create_composant", COMPOSANT)["structuredContent"]["id"]
+    assert outil(client, "archive_composant", {"identifiant": identifiant})["isError"] is False
+    assert lire(app, "SELECT archive FROM composant WHERE id = ?", (identifiant,)) == [(1,)]
+    assert outil(client, "unarchive_composant", {"identifiant": identifiant})["isError"] is False
+    assert lire(app, "SELECT archive FROM composant WHERE id = ?", (identifiant,)) == [(0,)]
+    outils = {o["name"]: o for o in rpc(client, "tools/list")["result"]["tools"]}
+    assert outils["archive_composant"]["annotations"]["destructiveHint"] is True
+    assert outils["unarchive_composant"]["annotations"]["destructiveHint"] is False
+
+
+def test_document_envoye_et_rendu_comme_fichier(app: FastAPI, admin: TestClient) -> None:  # noqa: F811
+    ouvrir(admin, "admin")
+    client = assistant(app, jeton(admin))
+    identifiant = outil(client, "create_composant", COMPOSANT)["structuredContent"]["id"]
+    pdf = b"%PDF-1.4 notice"
+    envoi = outil(
+        client,
+        "create_document_composant",
+        {
+            "identifiant": identifiant,
+            "nom": "Notice.pdf",
+            "type_document": "Fiche technique",
+            "contenu_base64": base64.b64encode(pdf).decode(),
+        },
+    )
+    assert envoi["isError"] is False, envoi
+    document = envoi["structuredContent"]["id"]
+    liste = outil(client, "list_documents_composant", {"identifiant": identifiant})
+    assert "Notice.pdf" in liste["content"][0]["text"]
+    lu = outil(client, "get_document", {"identifiant": document})
+    assert "contenu_base64" not in lu["structuredContent"]
+    ressource = lu["content"][1]["resource"]
+    assert ressource["mimeType"] == "application/pdf"
+    assert base64.b64decode(ressource["blob"]) == pdf
 
 
 def test_outils_sans_suppression_ni_administration() -> None:

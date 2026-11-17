@@ -2,6 +2,7 @@
 // liste de montage et sélecteur pour affecter un composant.
 
 import { api } from "../api.js";
+import { bandeauArchive } from "../archivage.js";
 import { editerCellule } from "../edition.js";
 import { formatMontant, formatNombre, formatPourcent, libelle } from "../format.js";
 import { ouvrirPanneau } from "../panneau.js";
@@ -425,10 +426,32 @@ async function ouvrirSelecteur() {
   recherche.focus();
 }
 
+// Un ensemble archivé n'a plus de composants ni de budget : sa ligne seule, et le bandeau.
+function afficherEnsembleArchive(conteneur, parametres, e) {
+  conteneur.replaceChildren(
+    el("p", { class: "fil" }, el("a", { href: "#/ensembles" }, "← Ensembles")),
+    el("div", { class: "titre-page" }, el("h1", {}, `${e.code} · ${e.nom}`)),
+    bandeauArchive({
+      element: e,
+      texte: "Il n'apparaît plus dans l'arborescence. Un ensemble ne s'archive que vide : il revient sans composant.",
+      classeDroit: "si-ensembles",
+      desarchiver: () => api.desarchiveEnsemble(e.code),
+      apres: () => afficherDetailEnsemble(conteneur, parametres, e.code),
+    }),
+    e.parent_code ? el("p", {}, "Ensemble parent : ", el("a", { href: lienRoute(`/ensembles/${e.parent_code}`) }, e.parent_code)) : null,
+    e.description ? el("p", {}, e.description) : null,
+  );
+}
+
 export async function afficherDetailEnsemble(conteneur, parametres, code) {
   const blocs = await api.getBlocs();
   etat = { conteneur, code, blocs, rangs: rangsBlocs(blocs), grouper: parametres.get("grouper") === "1" };
   try {
+    const ensemble = await api.getEnsemble(code);
+    if (ensemble.archive) {
+      afficherEnsembleArchive(conteneur, parametres, ensemble);
+      return;
+    }
     await recharger();
   } catch (erreur) {
     if (erreur.statut !== 404) throw erreur;

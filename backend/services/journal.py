@@ -4,7 +4,7 @@ import sqlite3
 from typing import Any
 
 from backend import db
-from backend.erreurs import Introuvable
+from backend.erreurs import Conflit, Introuvable
 
 ORIGINE_INTERFACE = "interface"
 ORIGINE_IMPORT = "import"
@@ -120,3 +120,32 @@ def list_journal(
         " AND (? IS NULL OR cle_cible = ?) ORDER BY id DESC LIMIT ?",
         (table_cible, table_cible, cle_cible, cle_cible, limite),
     )
+
+
+def get_archivage(conn: sqlite3.Connection, table: str, cle: str) -> dict:
+    """Date et auteur du dernier archivage d'une ligne, lus au journal (vides s'il manque)."""
+    ligne = db.fetch_one(
+        conn,
+        "SELECT horodatage, utilisateur FROM journal WHERE table_cible = ? AND cle_cible = ?"
+        " AND champ = 'archive' AND nouvelle_valeur = '1' ORDER BY id DESC LIMIT 1",
+        (table, cle),
+    )
+    return {
+        "archive_le": ligne["horodatage"] if ligne else None,
+        "archive_par": ligne["utilisateur"] if ligne else None,
+    }
+
+
+def unarchive(conn: sqlite3.Connection, table: str, cle: str) -> None:
+    """Remet une ligne archivée en service, journalisé ; à appeler dans une transaction."""
+    journal_cle = CLES_PRIMAIRES[table]
+    ligne = db.fetch_one(
+        conn,
+        f"SELECT archive FROM {table} WHERE {journal_cle} = ?",  # noqa: S608
+        (cle,),
+    )
+    if ligne is None:
+        raise Introuvable(f"« {cle} » introuvable.")
+    if not ligne["archive"]:
+        raise Conflit(f"« {cle} » n'est pas archivé.")
+    update_with_journal(conn, table, cle, {"archive": 0}, frozenset({"archive"}))

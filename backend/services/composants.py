@@ -253,6 +253,8 @@ def get_fiche(conn: sqlite3.Connection, identifiant: str) -> dict:
         )
     cle = (identifiant,)
     valeurs = attributs.get_valeurs(conn, identifiant)
+    if composant.get("archive"):
+        composant = {**composant, **journal.get_archivage(conn, "composant", identifiant)}
     return {
         "composant": composant,
         # Un composant archivé n'a plus rien à faire.
@@ -528,3 +530,25 @@ def archive_composant(conn: sqlite3.Connection, identifiant: str) -> None:
         journal.update_with_journal(
             conn, "composant", identifiant, {"archive": 1}, frozenset({"archive"})
         )
+
+
+def unarchive_composant(conn: sqlite3.Connection, identifiant: str) -> None:
+    """Remet un composant archivé dans les listes et les calculs.
+
+    Refusé pour un composant reclassé (son remplaçant porte la suite) et dans un bloc archivé.
+    """
+    with db.transaction(conn):
+        composant = get_existant(conn, identifiant)
+        if composant["remplace_par"]:
+            raise Conflit(
+                f"Le composant « {identifiant} » a été reclassé : il est remplacé par "
+                f"« {composant['remplace_par']} »."
+            )
+        bloc = db.fetch_one(
+            conn, "SELECT archive FROM bloc WHERE code = ?", (composant["bloc_code"],)
+        )
+        if bloc is not None and bloc["archive"]:
+            raise Conflit(
+                f"Le bloc « {composant['bloc_code']} » est archivé : désarchivez-le d'abord."
+            )
+        journal.unarchive(conn, "composant", identifiant)

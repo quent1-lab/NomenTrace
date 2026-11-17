@@ -69,7 +69,7 @@ def test_compte_sans_les_archives(client_essai: TestClient, chemin_base: Path) -
     conn = db.connect(chemin_base)
     try:
         avant = visas.count_a_voir(conn)
-        client_essai.delete(f"/api/composants/{C1}")
+        client_essai.post(f"/api/composants/{C1}/archiver")
         assert visas.count_a_voir(conn) == avant - 1
     finally:
         conn.close()

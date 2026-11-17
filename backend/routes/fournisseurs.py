@@ -54,10 +54,16 @@ def read_fiche(nom: str, conn: Conn) -> dict:
     return round_output(fournisseurs.get_fiche(conn, nom))
 
 
-@router.delete("/{nom:path}")
+@router.post("/{nom:path}/archiver")
 def archive_fournisseur(nom: str, conn: Conn) -> dict:
     fournisseurs.archive_fournisseur(conn, nom)
     return {"statut": "archivé"}
+
+
+@router.post("/{nom:path}/desarchiver")
+def unarchive_fournisseur(nom: str, conn: Conn) -> dict:
+    fournisseurs.unarchive_fournisseur(conn, nom)
+    return {"statut": "désarchivé"}
 
 
 @router.patch("/{nom:path}")

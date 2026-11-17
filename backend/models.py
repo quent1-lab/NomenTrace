@@ -515,6 +515,17 @@ class DocumentModif(Modele):
     commentaire: str | None = None
 
 
+class DocumentContenu(Modele):
+    """Document joint par son contenu encodé en base64 (assistant IA), 5 Mo au plus."""
+
+    nom: Annotated[
+        str, Field(min_length=1, max_length=200, description="Nom du fichier, extension comprise")
+    ]
+    type_document: TypeDocument
+    contenu_base64: Annotated[str, Field(min_length=1, description="Fichier encodé en base64")]
+    commentaire: str | None = None
+
+
 class ApplicationImport(Modele):
     """Décisions par ligne d'import : champs retenus, action choisie, cible d'une fusion."""
 

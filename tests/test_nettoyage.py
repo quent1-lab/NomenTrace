@@ -162,7 +162,7 @@ def test_commande_avec_mouvement_lie_refusee(client_essai: TestClient) -> None:
 def test_commandes_listees_archivees_comprises(client_essai: TestClient) -> None:
     numero, _ = _commande(client_essai)
     vide = client_essai.post("/api/commandes", json={}).json()["numero"]
-    client_essai.delete(f"/api/commandes/{numero}")
+    client_essai.post(f"/api/commandes/{numero}/archiver")
     commandes = {
         c["numero"]: c for c in client_essai.get("/api/nettoyage/commandes").json()["commandes"]
     }
@@ -190,7 +190,7 @@ def test_fournisseur_inutilise_supprime(client_essai: TestClient, echange_projet
 
 def test_fournisseur_cite_par_un_composant_archive_refuse(client_essai: TestClient) -> None:
     client_essai.patch(f"/api/composants/{COMPOSANT_LIBRE}", json={"fournisseur_nom": "TME"})
-    client_essai.delete(f"/api/composants/{COMPOSANT_LIBRE}")
+    client_essai.post(f"/api/composants/{COMPOSANT_LIBRE}/archiver")
     for composant in client_essai.get("/api/fournisseurs/TME").json()["composants"]:
         client_essai.patch(f"/api/composants/{composant['id']}", json={"fournisseur_nom": None})
     reponse = _supprimer(client_essai, "fournisseur", "TME")
@@ -216,7 +216,7 @@ def test_bloc_avec_composant_archive_refuse(client_essai: TestClient) -> None:
         "qte_besoin": 1,
     }
     identifiant = client_essai.post("/api/composants", json=corps).json()["id"]
-    client_essai.delete(f"/api/composants/{identifiant}")
+    client_essai.post(f"/api/composants/{identifiant}/archiver")
     reponse = _supprimer(client_essai, "bloc", "TMP")
     assert reponse.status_code == 409
     assert "1 composant" in reponse.json()["erreur"]
@@ -409,13 +409,13 @@ def test_controle_valeur_desactivee(client_essai: TestClient) -> None:
 def test_controle_fournisseur_archive(client_essai: TestClient) -> None:
     client_essai.post("/api/fournisseurs", json={"nom": "Ancien fournisseur"})
     identifiant = _creer(client_essai, fournisseur_nom="Ancien fournisseur")
-    client_essai.delete("/api/fournisseurs/Ancien fournisseur")
+    client_essai.post("/api/fournisseurs/Ancien fournisseur/archiver")
     assert _controles(client_essai)[identifiant]["controles"] == ["fournisseur_archive"]
 
 
 def test_controles_comptent_les_archives(client_essai: TestClient) -> None:
     identifiant = _creer(client_essai)
-    client_essai.delete(f"/api/composants/{identifiant}")
+    client_essai.post(f"/api/composants/{identifiant}/archiver")
     ligne = _controles(client_essai)[identifiant]
     assert ligne["archive"] == 1
     assert ligne["raison_refus"] is None

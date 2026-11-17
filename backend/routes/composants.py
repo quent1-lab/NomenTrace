@@ -139,10 +139,16 @@ def update_composant(identifiant: str, corps: ComposantModif, conn: Conn) -> dic
     return round_output(composants.patch_composant(conn, identifiant, modifications))
 
 
-@router.delete("/{identifiant}")
+@router.post("/{identifiant}/archiver")
 def archive_composant(identifiant: str, conn: Conn) -> dict:
     composants.archive_composant(conn, identifiant)
     return {"statut": "archivé"}
+
+
+@router.post("/{identifiant}/desarchiver")
+def unarchive_composant(identifiant: str, conn: Conn) -> dict:
+    composants.unarchive_composant(conn, identifiant)
+    return {"statut": "désarchivé"}
 
 
 @router.post("/{identifiant}/reclasser", status_code=201)

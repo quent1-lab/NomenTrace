@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
 from backend.deps import Emplacements, get_conn
-from backend.models import DocumentModif
+from backend.models import DocumentContenu, DocumentModif
 from backend.services import documents
 
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -60,6 +60,18 @@ async def create_documents_commande(
     return await _deposer(emp, conn, fichiers, meta)
 
 
+@router.post("/commandes/{numero}/documents/contenu", status_code=201)
+def create_document_commande_contenu(
+    numero: str, corps: DocumentContenu, emp: Emplacements, conn: Conn
+) -> dict:
+    meta = {
+        "commande_numero": numero,
+        "type_document": corps.type_document,
+        "commentaire": corps.commentaire,
+    }
+    return documents.add_contenu(conn, emp.documents, corps.model_dump(), meta)
+
+
 @router.get("/composants/{identifiant}/documents")
 def read_documents_composant(identifiant: str, conn: Conn) -> list[dict]:
     return documents.list_documents_composant(conn, identifiant)
@@ -76,6 +88,23 @@ async def create_documents_composant(
 ) -> dict:
     meta = {"composant_id": identifiant, "type_document": type_document, "commentaire": commentaire}
     return await _deposer(emp, conn, fichiers, meta)
+
+
+@router.post("/composants/{identifiant}/documents/contenu", status_code=201)
+def create_document_composant_contenu(
+    identifiant: str, corps: DocumentContenu, emp: Emplacements, conn: Conn
+) -> dict:
+    meta = {
+        "composant_id": identifiant,
+        "type_document": corps.type_document,
+        "commentaire": corps.commentaire,
+    }
+    return documents.add_contenu(conn, emp.documents, corps.model_dump(), meta)
+
+
+@router.get("/documents/{identifiant}/contenu")
+def read_contenu(identifiant: int, emp: Emplacements, conn: Conn) -> dict:
+    return documents.get_contenu(conn, emp.documents, identifiant)
 
 
 @router.get("/documents/{identifiant}/fichier")

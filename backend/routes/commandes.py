@@ -67,7 +67,7 @@ def create_commande(corps: CommandeCreation, conn: Conn, auteur: Auteur) -> dict
 
 @router.get("/commandes/{numero}")
 def read_commande(numero: str, conn: Conn) -> dict:
-    return round_output(commandes.get_commande(conn, numero))
+    return round_output(commandes.get_commande_ou_archivee(conn, numero))
 
 
 @router.patch("/commandes/{numero}")
@@ -76,10 +76,16 @@ def update_commande(numero: str, corps: CommandeModif, conn: Conn) -> dict:
     return round_output(commandes.patch_commande(conn, numero, modifications))
 
 
-@router.delete("/commandes/{numero}")
+@router.post("/commandes/{numero}/archiver")
 def archive_commande(numero: str, conn: Conn) -> dict:
     commandes.archive_commande(conn, numero)
     return {"statut": "archivé"}
+
+
+@router.post("/commandes/{numero}/desarchiver")
+def unarchive_commande(numero: str, conn: Conn) -> dict:
+    commandes.unarchive_commande(conn, numero)
+    return {"statut": "désarchivé"}
 
 
 TYPES_DOCUMENT = {

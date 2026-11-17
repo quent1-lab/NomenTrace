@@ -1,6 +1,7 @@
 // Détail d'une commande (#/achats/NUMERO) : lignes, ajout de ligne, réception.
 
 import { api } from "../api.js";
+import { bandeauArchive } from "../archivage.js";
 import { sectionDocuments } from "../documents.js";
 import { editerCellule } from "../edition.js";
 import { aujourdhui, formatDate, formatLots, uniteLots, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
@@ -595,11 +596,32 @@ async function recharger() {
   rendre();
 }
 
+// Une commande archivée : son en-tête seul, et le bandeau pour la remettre en service.
+function afficherCommandeArchivee(conteneur, parametres, c) {
+  conteneur.replaceChildren(
+    el("p", { class: "fil" }, el("a", { href: "#/achats" }, "← Achats")),
+    el("div", { class: "titre-page" }, el("h1", {}, `${c.numero} `, badgeStatut(c))),
+    bandeauArchive({
+      element: c,
+      texte: "Elle n'apparaît plus dans les listes ni dans les montants engagés. Désarchivée, elle revient avec ses lignes et ses documents.",
+      classeDroit: "si-achats",
+      desarchiver: c.commune ? null : () => api.desarchiveCommande(c.numero),
+      apres: () => afficherDetailCommande(conteneur, parametres, c.numero),
+    }),
+    el("p", {}, "Fournisseur : ", c.fournisseur_nom ?? "non renseigné", c.date_commande ? ` · commandée le ${formatDate(c.date_commande)}` : ""),
+  );
+}
+
 export async function afficherDetailCommande(conteneur, parametres, numero) {
   // #/achats/NUMERO?reception=1 : arrivée depuis une liste « à réceptionner », réception ouverte.
   const reception = parametres?.get("reception") === "1";
   etat = { conteneur, numero, reception, recap: null, candidatsOuverts: true, fournisseurs: await api.getFournisseurs() };
   try {
+    const commande = await api.getCommande(numero);
+    if (commande.archive) {
+      afficherCommandeArchivee(conteneur, parametres, commande);
+      return;
+    }
     await recharger();
   } catch (erreur) {
     if (erreur.statut !== 404) throw erreur;

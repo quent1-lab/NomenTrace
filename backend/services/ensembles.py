@@ -132,6 +132,28 @@ def archive_ensemble(conn: sqlite3.Connection, code: str) -> None:
         journal.update_with_journal(conn, "ensemble", code, {"archive": 1}, frozenset({"archive"}))
 
 
+def unarchive_ensemble(conn: sqlite3.Connection, code: str) -> None:
+    """Remet un ensemble archivé dans l'arborescence, refusé si son parent est archivé."""
+    with db.transaction(conn):
+        ligne = db.fetch_one(conn, "SELECT parent_code FROM ensemble WHERE code = ?", (code,))
+        if ligne is None:
+            raise Introuvable(f"Ensemble « {code} » introuvable.")
+        parent = ligne["parent_code"]
+        if parent is not None and db.fetch_one(
+            conn, "SELECT 1 FROM ensemble WHERE code = ? AND archive = 1", (parent,)
+        ):
+            raise Conflit(f"L'ensemble parent « {parent} » est archivé : désarchivez-le d'abord.")
+        journal.unarchive(conn, "ensemble", code)
+
+
+def get_ensemble_ou_archive(conn: sqlite3.Connection, code: str) -> dict:
+    """L'ensemble avec ses cumuls, ou sa seule ligne s'il est archivé, avec la date d'archivage."""
+    ligne = db.fetch_one(conn, "SELECT * FROM ensemble WHERE code = ?", (code,))
+    if ligne is None or not ligne["archive"]:
+        return {**ensembles_arbre.get_ensemble(conn, code), "archive": 0}
+    return {**ligne, **journal.get_archivage(conn, "ensemble", code)}
+
+
 def update_statut_montage(conn: sqlite3.Connection, code: str) -> None:
     """Statut de montage tiré des pièces montées, dans la transaction de l'appelant.
 

@@ -4336,3 +4336,18 @@ body.peut-ecrire .table--composants .colonne-fixe {
     box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
   }
 }
+
+/* --- Élément archivé ---------------------------------------------------------------------- */
+
+.bandeau-archive {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.bandeau-archive p {
+  margin: 0;
+  flex: 1 1 16rem;
+}

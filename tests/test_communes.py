@@ -291,7 +291,7 @@ def test_copie_verrouillee_par_l_api_du_projet(
     url = f"/p/{PROJET}/api/commandes/{numero_local}"
     assert client.get(url).status_code == 200
     assert client.patch(url, json={"commentaire": "x"}).status_code == 409
-    assert client.delete(url).status_code == 409
+    assert client.post(f"{url}/archiver").status_code == 409
     a1 = composant(client, PROJET, "Farnell")
     corps = {"composant_id": a1, "qte_commandee": 1}
     assert client.post(f"{url}/lignes", json=corps).status_code == 409

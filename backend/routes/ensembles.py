@@ -43,7 +43,7 @@ def read_incoherences(conn: Conn) -> list[dict]:
 
 @router.get("/ensembles/{code}")
 def read_ensemble(code: str, conn: Conn) -> dict:
-    return round_output(ensembles_arbre.get_ensemble(conn, code))
+    return round_output(ensembles.get_ensemble_ou_archive(conn, code))
 
 
 @router.post("/ensembles", status_code=201)
@@ -59,10 +59,16 @@ def update_ensemble(code: str, corps: EnsembleModif, conn: Conn, utilisateur: Co
     return round_output(ensembles.patch_ensemble(conn, code, modifications))
 
 
-@router.delete("/ensembles/{code}")
+@router.post("/ensembles/{code}/archiver")
 def archive_ensemble(code: str, conn: Conn) -> dict:
     ensembles.archive_ensemble(conn, code)
     return {"statut": "archivé"}
+
+
+@router.post("/ensembles/{code}/desarchiver")
+def unarchive_ensemble(code: str, conn: Conn) -> dict:
+    ensembles.unarchive_ensemble(conn, code)
+    return {"statut": "désarchivé"}
 
 
 @router.get("/ensembles/{code}/copie")

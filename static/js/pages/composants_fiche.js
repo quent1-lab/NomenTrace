@@ -4,6 +4,7 @@
 
 import { frise } from "../historique.js";
 import { api } from "../api.js";
+import { bandeauArchive } from "../archivage.js";
 import { champAttribut, chargerAttributs, formatAttribut, tousLesAttributs } from "../attributs.js";
 import { sectionDocuments } from "../documents.js";
 import { formatDate, formatLots, formatMontant, formatNombre, formatPourcent, libelle, lireNombre } from "../format.js";
@@ -540,17 +541,21 @@ function sectionHistorique(evenements, composant) {
 
 // Fiche d'un composant archivé, en lecture seule : son historique reste consultable,
 // notamment celui d'un composant reclassé dans un autre bloc.
-function ouvrirFicheArchivee(fiche, documents, surFermeture) {
+function ouvrirFicheArchivee(fiche, documents, surFermeture, rouvrir) {
   const c = fiche.composant;
   const lien = c.lien_produit ? lienExterne(c.lien_produit, "ouvrir la page produit") : null;
   ouvrirPanneau(
     `${c.id} · ${c.designation}`,
     [
-      el(
-        "p",
-        { class: "message message-attention" },
-        c.remplace_par ? ["Composant archivé, reclassé : remplacé par ", lienComposant(c.remplace_par), "."] : "Composant archivé : il n'apparaît plus dans les listes ni dans les calculs.",
-      ),
+      c.remplace_par
+        ? el("p", { class: "message message-attention" }, "Composant archivé, reclassé : remplacé par ", lienComposant(c.remplace_par), ".")
+        : bandeauArchive({
+            element: c,
+            texte: "Il n'apparaît plus dans les listes ni dans les calculs.",
+            classeDroit: "",
+            desarchiver: ecritBloc(c.bloc_code) ? () => api.desarchiveComposant(c.id) : null,
+            apres: rouvrir,
+          }),
       section(
         "Composant",
         definitions([
@@ -592,7 +597,13 @@ export async function ouvrirFiche(id, { ensembles, fournisseurs, surChangement, 
     return;
   }
   const c = fiche.composant;
-  if (c.archive) return ouvrirFicheArchivee(fiche, documents, surFermeture);
+  if (c.archive) {
+    const rouvrir = async () => {
+      await surChangement();
+      await ouvrirFiche(id, { ensembles, fournisseurs, surChangement, surFermeture, surDupliquer });
+    };
+    return ouvrirFicheArchivee(fiche, documents, surFermeture, rouvrir);
+  }
   if (ongletCourant.id !== id) ongletCourant = { id, onglet: "details" };
   // Modifiable par l'administrateur et par les contributeurs du bloc du composant.
   const modifiable = ecritBloc(c.bloc_code);

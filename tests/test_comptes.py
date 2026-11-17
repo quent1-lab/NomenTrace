@@ -598,7 +598,7 @@ def test_permission_achats(app: FastAPI) -> None:
     assert cree.json()["statut"] == "A valider"
     assert client.patch("/api/fournisseurs/Proposé", json={"statut": "Valide"}).status_code == 403
     assert client.patch("/api/fournisseurs/Proposé", json={"pays": "France"}).status_code == 200
-    assert client.delete("/api/fournisseurs/Proposé").status_code == 403
+    assert client.post("/api/fournisseurs/Proposé/archiver").status_code == 403
 
 
 def test_permission_attributs(app: FastAPI, admin: TestClient) -> None:

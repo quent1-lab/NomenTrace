@@ -4,7 +4,8 @@ Un outil appelle sa route dans le processus, avec l'identité du compte : mêmes
 mêmes droits (table REGLES), même journal, même export que l'interface. Cette liste est
 aussi la liste blanche des routes qu'une requête MCP peut atteindre (`ROUTES`) : aucune
 suppression, rien de réservé à l'administrateur (budgets, comptes, sauvegardes,
-paramètres). Les champs exclus (budgets d'un ensemble) sont retirés du schéma et refusés.
+paramètres). L'archivage, qui se défait, est permis. Les champs exclus (budgets d'un
+ensemble) sont retirés du schéma et refusés.
 
 Le schéma d'entrée de chaque outil est tiré de la description OpenAPI de sa route : il suit
 les modèles Pydantic sans être recopié.
@@ -139,6 +140,24 @@ OUTILS: tuple[Outil, ...] = (
         "GET",
         "/api/journal",
     ),
+    Outil(
+        "list_documents_composant",
+        "Documents d'un composant, et ceux des commandes où il figure.",
+        "GET",
+        "/api/composants/{identifiant}/documents",
+    ),
+    Outil(
+        "list_documents_commande",
+        "Documents d'une commande (devis, bon de commande, facture…).",
+        "GET",
+        "/api/commandes/{numero}/documents",
+    ),
+    Outil(
+        "get_document",
+        "Contenu d'un document par son identifiant (5 Mo au plus) : rendu comme fichier.",
+        "GET",
+        "/api/documents/{identifiant}/contenu",
+    ),
     # --- Écriture ---
     Outil(
         "create_composant",
@@ -152,6 +171,24 @@ OUTILS: tuple[Outil, ...] = (
         " lu juste avant pour refuser d'écraser une modification concurrente.",
         "PATCH",
         "/api/composants/{identifiant}",
+    ),
+    Outil(
+        "archive_composant",
+        "Archive un composant : il sort des listes et des calculs, son historique reste.",
+        "POST",
+        "/api/composants/{identifiant}/archiver",
+    ),
+    Outil(
+        "unarchive_composant",
+        "Désarchive un composant (refusé s'il a été reclassé ou si son bloc est archivé).",
+        "POST",
+        "/api/composants/{identifiant}/desarchiver",
+    ),
+    Outil(
+        "create_document_composant",
+        "Joint un document à un composant, fichier encodé en base64 (5 Mo au plus).",
+        "POST",
+        "/api/composants/{identifiant}/documents/contenu",
     ),
     Outil(
         "set_attributs_composant",
@@ -174,6 +211,18 @@ OUTILS: tuple[Outil, ...] = (
         BUDGETS,
     ),
     Outil(
+        "archive_ensemble",
+        "Archive un ensemble sans affectation ni sous-ensemble.",
+        "POST",
+        "/api/ensembles/{code}/archiver",
+    ),
+    Outil(
+        "unarchive_ensemble",
+        "Désarchive un ensemble (refusé si son parent est archivé).",
+        "POST",
+        "/api/ensembles/{code}/desarchiver",
+    ),
+    Outil(
         "create_affectation",
         "Affecte un composant à un ensemble avec une quantité.",
         "POST",
@@ -193,6 +242,24 @@ OUTILS: tuple[Outil, ...] = (
         "Modifie une commande (statut, dates, montants…).",
         "PATCH",
         "/api/commandes/{numero}",
+    ),
+    Outil(
+        "archive_commande",
+        "Archive une commande : elle sort des listes et des montants engagés.",
+        "POST",
+        "/api/commandes/{numero}/archiver",
+    ),
+    Outil(
+        "unarchive_commande",
+        "Désarchive une commande (pas une commande issue d'une commande commune).",
+        "POST",
+        "/api/commandes/{numero}/desarchiver",
+    ),
+    Outil(
+        "create_document_commande",
+        "Joint un document à une commande, fichier encodé en base64 (5 Mo au plus).",
+        "POST",
+        "/api/commandes/{numero}/documents/contenu",
     ),
     Outil(
         "create_ligne_commande",
