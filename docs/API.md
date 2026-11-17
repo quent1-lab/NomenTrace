@@ -28,8 +28,9 @@ refusé (400). Les dates sont au format `AAAA-MM-JJ`, les horodatages en
 Les valeurs énumérées circulent sans accents, telles qu'elles sont stockées (`Recu`,
 `Non commence`) ; c'est l'interface qui les accentue.
 
-Un PATCH ne modifie que les champs présents dans le corps. Un DELETE sur un composant, un
-ensemble, une commande ou un fournisseur archive, il ne supprime pas ; les suppressions
+Un PATCH ne modifie que les champs présents dans le corps. Un composant, un ensemble, une
+commande ou un fournisseur s'archive par `POST …/archiver` et se remet en service par
+`POST …/desarchiver` ; il n'y a pas de DELETE sur ces éléments, et les suppressions
 physiques passent par les routes de nettoyage.
 
 Une erreur renvoie `{"erreur": "message en français"}` avec un code adapté : 400 pour un
@@ -207,7 +208,8 @@ Les lignes d'une commande commune portent `emplacement_connu`, lu dans le projet
 | POST | `/api/composants` | Création, caractéristiques comprises (`attributs`) ; l'identifiant est attribué par le serveur ; refus si un champ obligatoire manque. `reprise` (`projet`, `id`) copie en plus les fiches techniques du composant repris, dans la même transaction |
 | GET | `/api/composants/{id}` | Fiche complète : composant, attributs, visa, actions à faire (`code`, `texte`, `onglet`), affectations, lignes de commande, mouvements, historique |
 | PATCH | `/api/composants/{id}` | Modification ; 400 si `qte_disponible` descend sous ce que le stock en a déjà consommé ; `attributs` ({code: valeur}) enregistre les caractéristiques dans la même transaction, `modifie_le` refuse en 409 si le composant a changé |
-| DELETE | `/api/composants/{id}` | Archivage |
+| POST | `/api/composants/{id}/archiver` | Archivage ; mêmes droits que la modification (contributeur du bloc) |
+| POST | `/api/composants/{id}/desarchiver` | Remise en service, mêmes droits ; 409 si le composant a été reclassé, si son bloc est archivé ou s'il n'est pas archivé. La fiche d'un composant archivé porte `archive_le` et `archive_par`, lus au journal |
 | POST | `/api/composants/{id}/reclasser` | Reclassement dans un autre bloc (`bloc_code`) |
 | PUT | `/api/composants/{id}/attributs` | Valeurs des caractéristiques, `null` efface |
 | POST | `/api/visas` | Visa de la personne connectée sur une liste de composants (`composants`), tout ou rien ; renvoie le nombre visé |
@@ -238,9 +240,10 @@ auquel cas rien ne l'est et `applique` vaut faux.
 | GET | `/api/ensembles/repartition` | Répartition par bloc ; `cumul=true` pour inclure les sous-ensembles |
 | GET | `/api/ensembles/incoherences` | Écarts entre affectations, commandes et montage |
 | POST | `/api/ensembles` | Création, avec parent et budget éventuels |
-| GET | `/api/ensembles/{code}` | Un ensemble, avec son chemin depuis la racine et ses enfants |
+| GET | `/api/ensembles/{code}` | Un ensemble, avec son chemin depuis la racine et ses enfants. Un ensemble archivé est rendu aussi : sa ligne seule, avec `archive = 1`, `archive_le` et `archive_par` lus au journal |
 | PATCH | `/api/ensembles/{code}` | Modification ; cycle ou parent archivé refusés |
-| DELETE | `/api/ensembles/{code}` | Archivage, refusé s'il reste des affectations ou des sous-ensembles |
+| POST | `/api/ensembles/{code}/archiver` | Archivage (permission ensembles), refusé s'il reste des affectations ou des sous-ensembles |
+| POST | `/api/ensembles/{code}/desarchiver` | Remise en service (permission ensembles) ; 409 si le parent est archivé ou si l'ensemble n'est pas archivé |
 | GET | `/api/ensembles/{code}/copie?nouveau=` | Codes proposés pour les sous-ensembles d'une copie |
 | POST | `/api/ensembles/{code}/copie` | Duplication, avec ou sans affectations et sous-ensembles |
 | GET | `/api/ensembles/{code}/composants` | Composants affectés directement |
@@ -259,7 +262,9 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | GET, POST | `/api/commandes` | Commandes et devis, filtrables par `statut` et `fournisseur` ; création |
-| GET, PATCH, DELETE | `/api/commandes/{numero}` | Détail, modification, archivage. Chaque commande porte `nb_lignes_a_recevoir` et `a_receptionner` (vue `v_reception_attendue`). Passer le statut à « Livré » alors que des lignes non annulées restent à recevoir : 400, la réception seule le fait |
+| POST | `/api/commandes/{numero}/archiver` | Archivage (permission achats) |
+| POST | `/api/commandes/{numero}/desarchiver` | Remise en service (permission achats) ; 409 pour une commande issue d'une commande commune (elle se gère depuis le dossier) ou non archivée |
+| GET, PATCH | `/api/commandes/{numero}` | Détail, modification. Une commande archivée est rendue aussi : sa ligne seule, avec `archive = 1`, `archive_le` et `archive_par`. Chaque commande porte `nb_lignes_a_recevoir` et `a_receptionner` (vue `v_reception_attendue`). Passer le statut à « Livré » alors que des lignes non annulées restent à recevoir : 400, la réception seule le fait |
 | GET, POST | `/api/commandes/{numero}/lignes` | Lignes d'une commande ; ajout |
 | POST | `/api/commandes/{numero}/lignes/lot` | Ajout de plusieurs lignes (`lignes`, comme pour une ligne), toutes ou aucune |
 | GET | `/api/commandes/{numero}/candidats` | Composants en mode Achat du fournisseur de la commande qui restent à commander et n'y figurent pas (`reste_a_commander` en pièces, `reste_a_commander_lots`, `qte_par_lot`, `pu_ht` d'une pièce, `prix_lot_ht`, `lien_produit`, `demandes_ouvertes` : autres devis en cours) |
@@ -280,7 +285,9 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 | Méthode | Chemin | Rôle |
 |---|---|---|
 | GET, POST | `/api/fournisseurs` | Liste ; création |
-| GET, PATCH, DELETE | `/api/fournisseurs/{nom}` | Fiche, modification (renommage propagé), archivage |
+| GET, PATCH | `/api/fournisseurs/{nom}` | Fiche, modification (renommage propagé) ; un fournisseur archivé porte `archive_le` et `archive_par` |
+| POST | `/api/fournisseurs/{nom}/archiver` | Archivage ; administrateur |
+| POST | `/api/fournisseurs/{nom}/desarchiver` | Remise en service ; administrateur, 409 si le fournisseur n'est pas archivé |
 | POST | `/api/fournisseurs/comparaison` | Compare un classeur Excel déposé à la liste existante |
 | POST | `/api/fournisseurs/comparaison/appliquer` | Applique les créations et compléments choisis |
 
@@ -290,7 +297,10 @@ Verrouiller le budget d'un ensemble se fait par PATCH avec `budget_cible_ht` et
 |---|---|---|
 | GET, POST | `/api/commandes/{numero}/documents` | Documents d'une commande ; dépôt |
 | GET, POST | `/api/composants/{id}/documents` | Documents d'un composant, et ceux de ses commandes ; dépôt |
+| POST | `/api/commandes/{numero}/documents/contenu` | Dépôt d'un document en JSON (`nom`, `type_document`, `contenu_base64`, `commentaire`), pour un client qui n'envoie pas de formulaire ; permission achats |
+| POST | `/api/composants/{id}/documents/contenu` | Même dépôt pour un composant ; contributeur du bloc. 400 au-delà de 5 Mo (`documents.TAILLE_MAX_CONTENU_MO`) ou si le base64 est invalide |
 | GET | `/api/documents/{id}/fichier` | Le fichier, ouvert dans le navigateur ou téléchargé selon son type |
+| GET | `/api/documents/{id}/contenu` | La fiche du document et `contenu_base64` |
 | PATCH, DELETE | `/api/documents/{id}` | Type et commentaire ; retrait (le fichier reste) |
 
 ## Imports
@@ -327,7 +337,13 @@ frais et réceptions, des mouvements de stock et des demandes de devis) que le s
 lui-même avec l'identité du compte : mêmes validations, mêmes droits, même journal. Le
 schéma d'entrée d'un outil est tiré de la description OpenAPI de sa route. La liste fait
 foi dans `backend/services/mcp_outils.py` ; aucune suppression et aucune route réservée à
-l'administrateur n'y figure.
+l'administrateur n'y figure. L'archivage, réversible, est permis pour les composants, les
+ensembles et les commandes (`archive_composant`, `unarchive_composant`, `archive_ensemble`,
+`unarchive_ensemble`, `archive_commande`, `unarchive_commande`) ; un fournisseur ne
+s'archive pas par l'assistant, la route étant réservée à l'administrateur. L'assistant lit
+les documents (`list_documents_composant`, `list_documents_commande`, `get_document`, rendu
+comme image ou comme ressource jointe) et en joint (`create_document_composant`,
+`create_document_commande`) par les routes de contenu en base64.
 
 ## Nettoyage, export et sauvegardes
 

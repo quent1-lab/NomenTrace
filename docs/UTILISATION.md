@@ -309,6 +309,13 @@ un nouveau composant avec les mêmes données, y reporte les affectations et les
 (fiche technique, plan, photo), et archive l'ancien en pointant vers le nouveau. Les
 commandes et le stock restent à l'ancien identifiant, qui garde ainsi son histoire d'achat.
 
+La recherche globale atteint aussi les éléments archivés. La fiche d'un composant, d'un
+ensemble, d'une commande ou d'un fournisseur archivé s'ouvre avec un bandeau « Archivé le
+… » et un bouton « Désarchiver », masqué à qui n'en a pas le droit ; l'auteur de
+l'archivage s'ajoute à la date, sauf en mode local. Un composant reclassé ou dont le bloc
+est archivé ne se désarchive pas, ni un ensemble dont le parent est archivé, ni une commande
+issue d'une commande commune. Une commande ou un ensemble archivé n'affiche que son en-tête.
+
 ## Organiser les ensembles
 
 L'écran Ensembles présente les ensembles physiques de trois façons, par ses onglets.
@@ -828,8 +835,9 @@ claude mcp add --transport http nomentrace <adresse>/p/<code>/api/mcp --header "
 L'adresse est celle du serveur et le code celui du projet. L'assistant lit le projet
 (pilotage, composants, ensembles, commandes, fournisseurs, stock) et peut y créer ou modifier
 composants, affectations, ensembles, fournisseurs, commandes, réceptions et mouvements de stock, avec les droits exacts du compte : un lecteur n'écrit pas, un contributeur reste
-limité à ses blocs. Il ne supprime rien et n'a pas accès aux budgets d'ensemble, aux
-comptes ni aux sauvegardes. Ses modifications sont signées « Nom (IA) » dans l'historique.
+limité à ses blocs. Il lit et joint des documents (5 Mo au plus) et peut archiver ou
+désarchiver un composant, un ensemble ou une commande, mais pas un fournisseur. Il ne
+supprime rien et n'a pas accès aux budgets d'ensemble, aux comptes ni aux sauvegardes. Ses modifications sont signées « Nom (IA) » dans l'historique.
 En mode local, aucun jeton n'est nécessaire, mais l'accès doit avoir été ouvert.
 
 ## Gérer les comptes
