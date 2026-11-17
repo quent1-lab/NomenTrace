@@ -70,6 +70,12 @@ rattachent à leur commande. Un fichier trop lourd ou d'un type refusé est arr�
 d'être envoyé, et chaque projet règle la taille de ses documents sous le plafond du
 serveur.
 
+Un assistant IA se branche sur un projet par le protocole MCP, avec un jeton personnel et
+les droits de son compte. Il lit la nomenclature, les achats et le stock, crée et modifie
+composants, ensembles et commandes, enregistre réceptions et montages, archive et
+désarchive, et lit ou joint des documents ; il ne supprime rien et ne touche ni aux budgets
+ni aux comptes. Un élément archivé se remet en service depuis sa fiche.
+
 ## Plus tard
 
 Ces évolutions sont retenues, sans ordre ni date arrêtés.
